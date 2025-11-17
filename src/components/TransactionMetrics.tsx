@@ -4,13 +4,22 @@ import { MetricCard } from "./MetricCard";
 import { UsersIcon, ActivityIcon, TrendingDownIcon, CheckCircleIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const transactionTrendData = [
-  { month: "Янв", transactions: 1450000, volume: 28500 },
-  { month: "Фев", transactions: 1520000, volume: 29800 },
-  { month: "Мар", transactions: 1680000, volume: 32500 },
-  { month: "Апр", transactions: 1620000, volume: 31200 },
-  { month: "Май", transactions: 1780000, volume: 34500 },
-  { month: "Июн", transactions: 1850000, volume: 36800 },
+const currencyTransactionData = [
+  { month: "Янв", RUB: 850000, USD: 420000, EUR: 180000 },
+  { month: "Фев", RUB: 920000, USD: 440000, EUR: 160000 },
+  { month: "Мар", RUB: 1050000, USD: 460000, EUR: 170000 },
+  { month: "Апр", RUB: 980000, USD: 480000, EUR: 160000 },
+  { month: "Май", RUB: 1100000, USD: 500000, EUR: 180000 },
+  { month: "Июн", RUB: 1150000, USD: 520000, EUR: 180000 },
+];
+
+const currencyRevenueData = [
+  { month: "Янв", RUB: 12.5, USD: 8.2, EUR: 3.8 },
+  { month: "Фев", RUB: 13.2, USD: 8.8, EUR: 3.5 },
+  { month: "Мар", RUB: 15.1, USD: 9.2, EUR: 3.7 },
+  { month: "Апр", RUB: 14.2, USD: 9.6, EUR: 3.5 },
+  { month: "Май", RUB: 16.3, USD: 10.1, EUR: 3.9 },
+  { month: "Июн", RUB: 17.1, USD: 10.5, EUR: 3.9 },
 ];
 
 const slaData = [
@@ -56,45 +65,102 @@ export const TransactionMetrics = () => {
         />
       </div>
 
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Динамика транзакций</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={transactionTrendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis 
-              dataKey="month" 
-              stroke="hsl(var(--muted-foreground))"
-              style={{ fontSize: '12px' }}
-            />
-            <YAxis 
-              stroke="hsl(var(--muted-foreground))"
-              style={{ fontSize: '12px' }}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px'
-              }}
-            />
-            <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="transactions" 
-              stroke="hsl(var(--chart-1))" 
-              strokeWidth={2}
-              name="Транзакции"
-            />
-            <Line 
-              type="monotone" 
-              dataKey="volume" 
-              stroke="hsl(var(--chart-2))" 
-              strokeWidth={2}
-              name="Объём (млн ₽)"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Динамика транзакций по валютам</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={currencyTransactionData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis 
+                dataKey="month" 
+                stroke="hsl(var(--muted-foreground))"
+                style={{ fontSize: '12px' }}
+              />
+              <YAxis 
+                stroke="hsl(var(--muted-foreground))"
+                style={{ fontSize: '12px' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px'
+                }}
+              />
+              <Legend align="left" />
+              <Line 
+                type="monotone" 
+                dataKey="RUB" 
+                stroke="hsl(var(--chart-1))" 
+                strokeWidth={2}
+                name="RUB"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="USD" 
+                stroke="hsl(var(--chart-2))" 
+                strokeWidth={2}
+                name="USD"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="EUR" 
+                stroke="hsl(var(--chart-3))" 
+                strokeWidth={2}
+                name="EUR"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Динамика конверсионного дохода по валютам</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={currencyRevenueData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis 
+                dataKey="month" 
+                stroke="hsl(var(--muted-foreground))"
+                style={{ fontSize: '12px' }}
+              />
+              <YAxis 
+                stroke="hsl(var(--muted-foreground))"
+                style={{ fontSize: '12px' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px'
+                }}
+                formatter={(value: any) => `₽${value} млн`}
+              />
+              <Legend align="left" />
+              <Line 
+                type="monotone" 
+                dataKey="RUB" 
+                stroke="hsl(var(--chart-1))" 
+                strokeWidth={2}
+                name="RUB"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="USD" 
+                stroke="hsl(var(--chart-2))" 
+                strokeWidth={2}
+                name="USD"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="EUR" 
+                stroke="hsl(var(--chart-3))" 
+                strokeWidth={2}
+                name="EUR"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
 
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-foreground mb-4">SLA и производительность по каналам</h3>
