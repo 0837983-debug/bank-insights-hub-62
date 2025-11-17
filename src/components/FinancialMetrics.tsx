@@ -3,11 +3,25 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 import { MetricCard } from "./MetricCard";
 import { TrendingUpIcon, DollarSignIcon, PiggyBankIcon } from "lucide-react";
 
-const commissionData = [
+const chkdData = [
   { name: "Переводы", value: 45, color: "hsl(var(--chart-1))" },
   { name: "Обслуживание счетов", value: 25, color: "hsl(var(--chart-2))" },
   { name: "Эквайринг", value: 20, color: "hsl(var(--chart-3))" },
   { name: "Прочее", value: 10, color: "hsl(var(--chart-4))" },
+];
+
+const chpdData = [
+  { name: "Кредиты корпоративные", value: 40, color: "hsl(var(--chart-1))" },
+  { name: "Кредиты розничные", value: 35, color: "hsl(var(--chart-2))" },
+  { name: "Межбанковские кредиты", value: 15, color: "hsl(var(--chart-3))" },
+  { name: "Прочие процентные", value: 10, color: "hsl(var(--chart-4))" },
+];
+
+const totalRevenueData = [
+  { name: "ЧКД", value: 30, color: "hsl(var(--chart-1))" },
+  { name: "ЧПД клиентские", value: 35, color: "hsl(var(--chart-2))" },
+  { name: "ЧПД собственные", value: 20, color: "hsl(var(--chart-3))" },
+  { name: "Прочие доходы", value: 15, color: "hsl(var(--chart-4))" },
 ];
 
 export const FinancialMetrics = () => {
@@ -46,35 +60,97 @@ export const FinancialMetrics = () => {
         />
       </div>
 
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Структура комиссионных доходов</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={commissionData}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              {commissionData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px'
-              }}
-            />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Структура ЧКД</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={chkdData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {chkdData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px'
+                }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Структура ЧПД</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={chpdData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {chpdData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px'
+                }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Общая структура доходов</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={totalRevenueData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {totalRevenueData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px'
+                }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
     </div>
   );
 };
