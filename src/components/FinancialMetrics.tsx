@@ -4,24 +4,24 @@ import { MetricCard } from "./MetricCard";
 import { TrendingUpIcon, DollarSignIcon, PiggyBankIcon } from "lucide-react";
 
 const chkdData = [
-  { name: "Переводы", value: 45, color: "hsl(var(--chart-1))" },
-  { name: "Обслуживание счетов", value: 25, color: "hsl(var(--chart-2))" },
-  { name: "Эквайринг", value: 20, color: "hsl(var(--chart-3))" },
-  { name: "Прочее", value: 10, color: "hsl(var(--chart-4))" },
+  { name: "Переводы", value: 45, amount: 12.5, color: "hsl(var(--chart-1))" },
+  { name: "Обслуживание счетов", value: 25, amount: 6.9, color: "hsl(var(--chart-2))" },
+  { name: "Эквайринг", value: 20, amount: 5.5, color: "hsl(var(--chart-3))" },
+  { name: "Прочее", value: 10, amount: 2.8, color: "hsl(var(--chart-4))" },
 ];
 
 const chpdData = [
-  { name: "Кредиты корпоративные", value: 40, color: "hsl(var(--chart-1))" },
-  { name: "Кредиты розничные", value: 35, color: "hsl(var(--chart-2))" },
-  { name: "Межбанковские кредиты", value: 15, color: "hsl(var(--chart-3))" },
-  { name: "Прочие процентные", value: 10, color: "hsl(var(--chart-4))" },
+  { name: "Кредиты корпоративные", value: 40, amount: 18.2, color: "hsl(var(--chart-1))" },
+  { name: "Кредиты розничные", value: 35, amount: 15.9, color: "hsl(var(--chart-2))" },
+  { name: "Межбанковские кредиты", value: 15, amount: 6.8, color: "hsl(var(--chart-3))" },
+  { name: "Прочие процентные", value: 10, amount: 4.5, color: "hsl(var(--chart-4))" },
 ];
 
 const totalRevenueData = [
-  { name: "ЧКД", value: 30, color: "hsl(var(--chart-1))" },
-  { name: "ЧПД клиентские", value: 35, color: "hsl(var(--chart-2))" },
-  { name: "ЧПД собственные", value: 20, color: "hsl(var(--chart-3))" },
-  { name: "Прочие доходы", value: 15, color: "hsl(var(--chart-4))" },
+  { name: "ЧКД", value: 30, amount: 27.7, color: "hsl(var(--chart-1))" },
+  { name: "ЧПД клиентские", value: 35, amount: 32.3, color: "hsl(var(--chart-2))" },
+  { name: "ЧПД собственные", value: 20, amount: 18.5, color: "hsl(var(--chart-3))" },
+  { name: "Прочие доходы", value: 15, amount: 13.8, color: "hsl(var(--chart-4))" },
 ];
 
 export const FinancialMetrics = () => {
@@ -70,7 +70,7 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -85,8 +85,9 @@ export const FinancialMetrics = () => {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
+                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
               />
-              <Legend />
+              <Legend align="left" />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -100,7 +101,7 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -115,8 +116,9 @@ export const FinancialMetrics = () => {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
+                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
               />
-              <Legend />
+              <Legend align="left" />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -130,7 +132,7 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -145,8 +147,9 @@ export const FinancialMetrics = () => {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
+                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
               />
-              <Legend />
+              <Legend align="left" />
             </PieChart>
           </ResponsiveContainer>
         </Card>
