@@ -19,8 +19,8 @@ export const Header = () => {
               <Building2Icon className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Operational Metrics</h1>
-              <p className="text-sm text-muted-foreground">Real-time banking analytics</p>
+              <h1 className="text-xl font-bold text-foreground">Операционные метрики небанковского банка</h1>
+              <p className="text-sm text-muted-foreground">Аналитика в режиме реального времени</p>
             </div>
           </div>
           
@@ -35,11 +35,11 @@ export const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Settings</DropdownMenuLabel>
+                <DropdownMenuLabel>Настройки</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Dashboard Settings</DropdownMenuItem>
-                <DropdownMenuItem>Export Options</DropdownMenuItem>
-                <DropdownMenuItem>Refresh Data</DropdownMenuItem>
+                <DropdownMenuItem>Настройки дашборда</DropdownMenuItem>
+                <DropdownMenuItem>Экспорт в PDF</DropdownMenuItem>
+                <DropdownMenuItem>Обновить данные</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
