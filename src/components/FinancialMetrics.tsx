@@ -63,17 +63,18 @@ export const FinancialMetrics = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">Структура ЧКД</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
                 data={chkdData}
                 cx="50%"
-                cy="50%"
-                labelLine={false}
+                cy="45%"
+                labelLine={true}
                 label={({ value, percent, payload }) => `₽${payload.amount} млрд (${(percent * 100).toFixed(0)}%)`}
-                outerRadius={80}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
+                style={{ fontSize: '11px' }}
               >
                 {chkdData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -87,24 +88,25 @@ export const FinancialMetrics = () => {
                 }}
                 formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
               />
-              <Legend align="left" />
+              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
 
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">Структура ЧПД</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
                 data={chpdData}
                 cx="50%"
-                cy="50%"
-                labelLine={false}
+                cy="45%"
+                labelLine={true}
                 label={({ value, percent, payload }) => `₽${payload.amount} млрд (${(percent * 100).toFixed(0)}%)`}
-                outerRadius={80}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
+                style={{ fontSize: '11px' }}
               >
                 {chpdData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -118,24 +120,25 @@ export const FinancialMetrics = () => {
                 }}
                 formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
               />
-              <Legend align="left" />
+              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
 
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">Общая структура доходов</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
                 data={totalRevenueData}
                 cx="50%"
-                cy="50%"
-                labelLine={false}
+                cy="45%"
+                labelLine={true}
                 label={({ value, percent, payload }) => `₽${payload.amount} млрд (${(percent * 100).toFixed(0)}%)`}
-                outerRadius={80}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
+                style={{ fontSize: '11px' }}
               >
                 {totalRevenueData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -149,7 +152,7 @@ export const FinancialMetrics = () => {
                 }}
                 formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
               />
-              <Legend align="left" />
+              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
