@@ -1,5 +1,6 @@
 import { Building2Icon, BellIcon, SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NavLink } from "@/components/NavLink";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,14 +15,21 @@ export const Header = () => {
     <header className="border-b border-border bg-card sticky top-0 z-50">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary rounded-lg">
-              <Building2Icon className="w-6 h-6 text-primary-foreground" />
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary rounded-lg">
+                <Building2Icon className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">Операционные метрики небанковского банка</h1>
+                <p className="text-sm text-muted-foreground">Аналитика в режиме реального времени</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Операционные метрики небанковского банка</h1>
-              <p className="text-sm text-muted-foreground">Аналитика в режиме реального времени</p>
-            </div>
+            
+            <nav className="hidden md:flex items-center gap-1">
+              <NavLink to="/">Дашборд</NavLink>
+              <NavLink to="/report">Отчёт</NavLink>
+            </nav>
           </div>
           
           <div className="flex items-center gap-2">
