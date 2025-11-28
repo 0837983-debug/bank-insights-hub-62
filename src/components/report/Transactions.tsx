@@ -1,0 +1,15 @@
+import { Card } from "@/components/ui/card";
+
+export const Transactions = () => {
+  return (
+    <section>
+      <h2 className="text-3xl font-bold text-foreground mb-6">Транзакционная деятельность и конвертация</h2>
+      
+      <Card className="p-8">
+        <p className="text-muted-foreground text-center">
+          Раздел в разработке
+        </p>
+      </Card>
+    </section>
+  );
+};
