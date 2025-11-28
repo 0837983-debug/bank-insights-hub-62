@@ -54,14 +54,7 @@ export const ClientBase = () => {
       </div>
 
       {/* Additional Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <MetricCard
-          title="Новые клиенты"
-          value="125 тыс"
-          change={12.7}
-          subtitle="За месяц"
-        />
-        
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <MetricCard
           title="ARPU"
           value="₽1,475"
@@ -85,7 +78,7 @@ export const ClientBase = () => {
       </div>
 
       {/* More Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <MetricCard
           title="Международные переводы"
           value="28.5%"
@@ -100,13 +93,6 @@ export const ClientBase = () => {
           change={6.1}
           subtitle="Доля клиентов"
           icon={<CreditCardIcon className="w-5 h-5 text-accent" />}
-        />
-        
-        <MetricCard
-          title="Ушедшие клиенты"
-          value="98 тыс"
-          change={-8.5}
-          subtitle="Неактивны ≥30 дней"
         />
       </div>
 
