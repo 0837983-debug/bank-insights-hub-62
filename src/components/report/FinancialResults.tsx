@@ -29,13 +29,13 @@ export const FinancialResults = () => {
       <h2 className="text-3xl font-bold text-foreground mb-6">Финансовые результаты и баланс</h2>
       
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <MetricCard
-          title="Активы"
-          value="₽125.0 млрд"
-          change={7.2}
-          subtitle="Всего активов"
-          icon={<WalletIcon className="w-6 h-6 text-accent" />}
+          title="EBITDA"
+          value="₽8.2 млрд"
+          change={15.3}
+          subtitle="До резервов"
+          icon={<TrendingUpIcon className="w-6 h-6 text-accent" />}
         />
         
         <MetricCard
@@ -47,43 +47,11 @@ export const FinancialResults = () => {
         />
         
         <MetricCard
-          title="Капитал"
-          value="₽18.5 млрд"
-          change={9.1}
-          subtitle="Регуляторный капитал"
-          icon={<BarChart3Icon className="w-6 h-6 text-accent" />}
-        />
-        
-        <MetricCard
-          title="EBITDA"
-          value="₽8.2 млрд"
-          change={15.3}
-          subtitle="До резервов"
-          icon={<TrendingUpIcon className="w-6 h-6 text-accent" />}
-        />
-      </div>
-
-      {/* Additional Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <MetricCard
-          title="ЧПД"
-          value="₽19.1 млрд"
-          change={11.2}
-          subtitle="Чистый процентный доход"
-        />
-        
-        <MetricCard
-          title="ЧКД"
-          value="₽12.7 млрд"
-          change={8.7}
-          subtitle="Чистый комиссионный доход"
-        />
-        
-        <MetricCard
           title="ROA"
           value="6.5%"
           change={1.8}
           subtitle="Рентабельность активов"
+          icon={<BarChart3Icon className="w-6 h-6 text-accent" />}
         />
         
         <MetricCard
@@ -91,6 +59,15 @@ export const FinancialResults = () => {
           value="18.2%"
           change={3.1}
           subtitle="Рентабельность капитала"
+          icon={<BarChart3Icon className="w-6 h-6 text-accent" />}
+        />
+        
+        <MetricCard
+          title="Капитал"
+          value="₽18.5 млрд"
+          change={9.1}
+          subtitle="Регуляторный капитал"
+          icon={<BarChart3Icon className="w-6 h-6 text-accent" />}
         />
       </div>
 
