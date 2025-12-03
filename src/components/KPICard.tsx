@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 interface KPICardProps {
   title: string;
   value: string;
-  subtitle: string;
+  subtitle?: string;
   description: string;
   change?: number;
   showChange?: boolean;
@@ -48,7 +48,7 @@ export const KPICard = ({
             </TooltipProvider>
           </div>
           <h3 className="text-3xl font-bold text-foreground mb-2">{value}</h3>
-          <p className="text-xs text-muted-foreground mb-2">{subtitle}</p>
+          {subtitle && <p className="text-xs text-muted-foreground mb-2">{subtitle}</p>}
           {showChange && change !== undefined && (
             <div className="flex items-center gap-1">
               {isPositive ? (

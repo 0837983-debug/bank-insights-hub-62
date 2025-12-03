@@ -4,9 +4,9 @@ import { Card } from "@/components/ui/card";
 import { ReportFilters } from "@/components/ReportFilters";
 import { FinancialResultsSection } from "@/components/report/FinancialResultsSection";
 import { ClientBaseSection } from "@/components/report/ClientBaseSection";
+import { Products } from "@/components/report/Products";
 
 const placeholderSections = [
-  "Продукты и коммерческая активность",
   "Транзакционная деятельность и конвертация",
   "Риски и комплаенс",
   "Нормативы и регуляторные показатели",
@@ -47,6 +47,9 @@ const Index = () => {
 
         {/* Client Base Section */}
         <ClientBaseSection />
+
+        {/* Products Section */}
+        <Products />
 
         {/* Remaining placeholder sections */}
         {placeholderSections.map((section) => (
