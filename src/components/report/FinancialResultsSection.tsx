@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { KPICard } from "@/components/KPICard";
 import { FinancialTable } from "@/components/FinancialTable";
-import { ReportFilters } from "@/components/ReportFilters";
 import {
   LandmarkIcon,
   TrendingUpIcon,
@@ -108,22 +106,11 @@ const expensesData = [
   { id: "profit", name: "Финансовый результат", value: 6500000000, isTotal: true, change: 14.2 },
 ];
 export const FinancialResultsSection = () => {
-  const [period, setPeriod] = useState("quarter");
-  const [comparison, setComparison] = useState("prev-period");
-
   return (
     <section className="space-y-6">
       <h2 className="text-3xl font-bold text-foreground">
         Финансовые результаты и баланс
       </h2>
-
-      {/* Filters */}
-      <ReportFilters
-        period={period}
-        comparison={comparison}
-        onPeriodChange={setPeriod}
-        onComparisonChange={setComparison}
-      />
 
       {/* KPI Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
