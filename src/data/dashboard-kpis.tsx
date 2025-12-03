@@ -88,8 +88,8 @@ export const allDashboardKPIs: DashboardKPI[] = [
 
   // Client Base
   {
-    id: "mao",
-    title: "MAO",
+    id: "mau",
+    title: "MAU",
     value: "2.4 млн",
     subtitle: "Ежемесячно активные клиенты",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за месяц",
@@ -98,8 +98,8 @@ export const allDashboardKPIs: DashboardKPI[] = [
     icon: <UsersIcon className="w-6 h-6 text-accent" />,
   },
   {
-    id: "dao",
-    title: "DAO",
+    id: "dau",
+    title: "DAU",
     value: "785 тыс",
     subtitle: "Ежедневно активные клиенты",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за день",
@@ -294,7 +294,7 @@ export const defaultSelectedKPIs = [
   "capital",
   "ebitda",
   "roe",
-  "mao",
+  "mau",
 ];
 
 export const kpiCategories = [

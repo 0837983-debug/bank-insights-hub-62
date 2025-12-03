@@ -17,7 +17,7 @@ import {
 // KPI Metrics
 const kpiMetrics = [
   {
-    title: "MAO",
+    title: "MAU",
     value: "2.4 млн",
     subtitle: "Ежемесячно активные клиенты",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за месяц",
@@ -25,7 +25,7 @@ const kpiMetrics = [
     icon: <UsersIcon className="w-6 h-6 text-accent" />,
   },
   {
-    title: "DAO",
+    title: "DAU",
     value: "785 тыс",
     subtitle: "Ежедневно активные клиенты",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за день",
