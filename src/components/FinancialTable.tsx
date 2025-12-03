@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, InfoIcon, ChevronRight, ChevronDown } from "lucide-react";
+import { DownloadIcon, InfoIcon, ChevronRight, ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -37,21 +37,37 @@ interface FinancialTableProps {
   showPercentage?: boolean;
   showChange?: boolean;
   currency?: string;
+  periodLabel?: string;
 }
 
 const formatNumber = (num: number, currency: string = "₽") => {
   const absNum = Math.abs(num);
   const sign = num < 0 ? "-" : "";
   if (absNum >= 1e9) {
-    return `${sign}${currency}${(absNum / 1e9).toFixed(2)}`;
+    return `${sign}${(absNum / 1e9).toFixed(2)}`;
   }
   if (absNum >= 1e6) {
-    return `${sign}${currency}${(absNum / 1e6).toFixed(1)}`;
+    return `${sign}${(absNum / 1e6).toFixed(1)}M`;
   }
   if (absNum >= 1e3) {
-    return `${sign}${currency}${(absNum / 1e3).toFixed(1)}`;
+    return `${sign}${(absNum / 1e3).toFixed(1)}K`;
   }
-  return `${sign}${currency}${absNum.toFixed(0)}`;
+  return `${sign}${absNum.toFixed(0)}`;
+};
+
+const formatValueWithUnit = (num: number) => {
+  const absNum = Math.abs(num);
+  const sign = num < 0 ? "-" : "";
+  if (absNum >= 1e9) {
+    return `${sign}${(absNum / 1e9).toFixed(2)}`;
+  }
+  if (absNum >= 1e6) {
+    return `${sign}${(absNum / 1e6).toFixed(1)}M`;
+  }
+  if (absNum >= 1e3) {
+    return `${sign}${(absNum / 1e3).toFixed(1)}K`;
+  }
+  return `${sign}${absNum.toFixed(0)}`;
 };
 
 export const FinancialTable = ({
@@ -60,6 +76,7 @@ export const FinancialTable = ({
   showPercentage = true,
   showChange = true,
   currency = "₽",
+  periodLabel = "Значение",
 }: FinancialTableProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -81,7 +98,7 @@ export const FinancialTable = ({
   };
 
   const handleExport = () => {
-    const headers = ["Наименование", "Сумма, млрд руб"];
+    const headers = ["Показатель", "Значение"];
     if (showPercentage) headers.push("Доля, %");
     if (showChange) headers.push("Изм., %");
     
@@ -138,77 +155,100 @@ export const FinancialTable = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[45%]">Наименование</TableHead>
-              <TableHead className="text-right">Сумма, млрд руб</TableHead>
-              {showPercentage && <TableHead className="text-right w-[90px]">Доля, %</TableHead>}
-              {showChange && <TableHead className="text-right w-[90px]">Изм., %</TableHead>}
+              <TableHead className="w-[60%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Показатель
+              </TableHead>
+              {showPercentage && (
+                <TableHead className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">
+                  Доля
+                </TableHead>
+              )}
+              <TableHead className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                {periodLabel}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleRows.map((row) => {
               const hasChildren = rows.some((r) => r.parentId === row.id);
               const isCollapsed = collapsedGroups.has(row.id);
+              const isPositiveChange = row.change !== undefined && row.change > 0;
+              const isNegativeChange = row.change !== undefined && row.change < 0;
 
               return (
                 <TableRow
                   key={row.id}
                   className={cn(
-                    row.isGroup && "bg-muted/50 font-semibold",
-                    row.isTotal && "bg-primary/5 font-bold border-t-2"
+                    "border-b border-border/50",
+                    row.isTotal && "bg-muted/30 font-bold"
                   )}
                 >
                   <TableCell
-                    className="flex items-center gap-2"
+                    className="py-4"
                     style={{ paddingLeft: row.indent ? `${row.indent * 1.5 + 1}rem` : undefined }}
                   >
-                    {hasChildren && (
-                      <button
-                        onClick={() => toggleGroup(row.id)}
-                        className="p-0.5 hover:bg-muted rounded transition-colors"
-                      >
-                        {isCollapsed ? (
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                        )}
-                      </button>
-                    )}
-                    {!hasChildren && row.indent && <span className="w-5" />}
-                    {row.name}
-                    {row.description && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-sm">{row.description}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatNumber(row.value, currency)}
+                    <div className="flex items-center gap-2">
+                      {hasChildren && (
+                        <button
+                          onClick={() => toggleGroup(row.id)}
+                          className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                        >
+                          {isCollapsed ? (
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      )}
+                      {!hasChildren && row.parentId && <span className="w-5 flex-shrink-0" />}
+                      <span className={cn(
+                        row.isGroup && !row.parentId && "font-semibold",
+                        row.isTotal && "font-bold"
+                      )}>
+                        {row.name}
+                      </span>
+                      {row.description && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-sm">{row.description}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   {showPercentage && (
-                    <TableCell className="text-right font-mono text-muted-foreground">
-                      {row.percentage !== undefined ? `${row.percentage.toFixed(1)}%` : "—"}
+                    <TableCell className="text-right py-4">
+                      <span className="text-sm text-muted-foreground">
+                        {row.percentage !== undefined ? `${row.percentage.toFixed(1)}%` : "—"}
+                      </span>
                     </TableCell>
                   )}
-                  {showChange && (
-                    <TableCell
-                      className={cn(
-                        "text-right font-mono",
-                        row.change !== undefined && row.change > 0 && "text-green-600",
-                        row.change !== undefined && row.change < 0 && "text-red-600"
+                  <TableCell className="text-right py-4">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="font-semibold text-foreground">
+                        {formatValueWithUnit(row.value)}
+                      </span>
+                      {showChange && row.change !== undefined && (
+                        <div className={cn(
+                          "flex items-center gap-1 text-sm",
+                          isPositiveChange && "text-green-600",
+                          isNegativeChange && "text-red-600",
+                          !isPositiveChange && !isNegativeChange && "text-muted-foreground"
+                        )}>
+                          {isPositiveChange && <TrendingUp className="w-3 h-3" />}
+                          {isNegativeChange && <TrendingDown className="w-3 h-3" />}
+                          <span>
+                            {row.change > 0 ? "+" : ""}{row.change.toFixed(1)}%
+                          </span>
+                        </div>
                       )}
-                    >
-                      {row.change !== undefined
-                        ? `${row.change > 0 ? "+" : ""}${row.change.toFixed(1)}%`
-                        : "—"}
-                    </TableCell>
-                  )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
