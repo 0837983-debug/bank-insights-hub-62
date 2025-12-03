@@ -108,10 +108,31 @@ export const FinancialTable = ({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-        <Button variant="ghost" size="sm" onClick={handleExport}>
-          <DownloadIcon className="w-4 h-4 mr-2" />
-          CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const groupIds = rows.filter((r) => r.isGroup && !r.isTotal).map((r) => r.id);
+              setCollapsedGroups(new Set(groupIds));
+            }}
+          >
+            <ChevronRight className="w-4 h-4 mr-1" />
+            Свернуть
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCollapsedGroups(new Set())}
+          >
+            <ChevronDown className="w-4 h-4 mr-1" />
+            Развернуть
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleExport}>
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            CSV
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
