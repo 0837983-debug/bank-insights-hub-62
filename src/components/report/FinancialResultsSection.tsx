@@ -136,7 +136,7 @@ export const FinancialResultsSection = () => {
             subtitle={metric.subtitle}
             description={metric.description}
             change={metric.change}
-            showChange={false}
+            showChange={true}
             icon={metric.icon}
           />
         ))}
