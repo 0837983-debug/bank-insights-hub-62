@@ -71,10 +71,9 @@ const liabilitiesData = [
   { id: "l4", name: "Привлечённые средства", value: 8500000000, percentage: 18.8, description: "Межбанковские кредиты, облигации, прочие заимствования", indent: 1, parentId: "l1", change: 4.5 },
 ];
 
-// Combined Income and Expenses Data
-const incomeExpensesData = [
-  // Income section
-  { id: "income", name: "ДОХОДЫ", value: 12000000000, isGroup: true, change: 8.5 },
+// Income Data
+const incomeData = [
+  { id: "income", name: "Доходы", value: 12000000000, isGroup: true, change: 8.5 },
   { id: "i1", name: "Чистый процентный доход (ЧПД)", value: 3200000000, isGroup: true, description: "Разница между процентными доходами и расходами", parentId: "income", change: 5.2 },
   { id: "i2", name: "Процентные доходы", value: 4100000000, percentage: 100, indent: 1, parentId: "i1", change: 4.8 },
   { id: "i3", name: "Процентные расходы", value: -900000000, percentage: -22.0, indent: 1, parentId: "i1", change: 3.2 },
@@ -89,9 +88,11 @@ const incomeExpensesData = [
   { id: "i12", name: "Прочие доходы", value: 600000000, isGroup: true, parentId: "income", change: 3.1 },
   { id: "i13", name: "Операционные", value: 400000000, percentage: 66.7, indent: 1, parentId: "i12", change: 2.8 },
   { id: "i14", name: "Прочие финансовые", value: 200000000, percentage: 33.3, indent: 1, parentId: "i12", change: 3.7 },
-  
-  // Expenses section
-  { id: "expenses", name: "РАСХОДЫ И РЕЗЕРВЫ", value: 5500000000, isGroup: true, change: 4.2 },
+];
+
+// Expenses Data
+const expensesData = [
+  { id: "expenses", name: "Расходы и резервы", value: 5500000000, isGroup: true, change: 4.2 },
   { id: "e1", name: "ФОТ", value: 2800000000, isGroup: true, description: "Фонд оплаты труда: зарплаты и обязательные взносы", parentId: "expenses", change: 6.5 },
   { id: "e2", name: "Заработная плата", value: 2200000000, percentage: 78.6, indent: 1, parentId: "e1", change: 7.2 },
   { id: "e3", name: "Обязательные взносы", value: 600000000, percentage: 21.4, indent: 1, parentId: "e1", change: 4.1 },
@@ -104,9 +105,7 @@ const incomeExpensesData = [
   { id: "e10", name: "Резервы", value: 400000000, isGroup: true, description: "Изменение резервов на возможные потери", parentId: "expenses", change: -8.5 },
   { id: "e11", name: "Создание резервов", value: 650000000, indent: 1, parentId: "e10", change: -5.2 },
   { id: "e12", name: "Восстановление", value: -250000000, indent: 1, parentId: "e10", change: 12.3 },
-  
-  // Total
-  { id: "profit", name: "ФИНАНСОВЫЙ РЕЗУЛЬТАТ", value: 6500000000, isTotal: true, change: 14.2 },
+  { id: "profit", name: "Финансовый результат", value: 6500000000, isTotal: true, change: 14.2 },
 ];
 export const FinancialResultsSection = () => {
   const [period, setPeriod] = useState("quarter");
@@ -157,12 +156,20 @@ export const FinancialResultsSection = () => {
       </div>
 
       {/* Income and Expenses */}
-      <FinancialTable
-        title="Доходы, расходы и финансовый результат"
-        rows={incomeExpensesData}
-        showPercentage={true}
-        showChange={true}
-      />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FinancialTable
+          title="Структура доходов"
+          rows={incomeData}
+          showPercentage={true}
+          showChange={true}
+        />
+        <FinancialTable
+          title="Расходы и финансовый результат"
+          rows={expensesData}
+          showPercentage={true}
+          showChange={true}
+        />
+      </div>
     </section>
   );
 };
