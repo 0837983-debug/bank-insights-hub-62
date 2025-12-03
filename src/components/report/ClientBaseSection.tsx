@@ -52,8 +52,8 @@ const kpiMetrics = [
   },
 ];
 
-// Structural metrics table data
-const structuralMetricsData: TableRowData[] = [
+// Structural metrics - Averages and concentration
+const averagesAndConcentrationData: TableRowData[] = [
   {
     id: "avg-balance",
     name: "Средний баланс на клиента",
@@ -84,6 +84,10 @@ const structuralMetricsData: TableRowData[] = [
     change: 9.4,
     description: "Среднее количество операций на одного активного клиента",
   },
+];
+
+// Structural metrics - Client shares by operation type
+const clientSharesData: TableRowData[] = [
   {
     id: "international-transfers",
     name: "Доля клиентов с международными переводами",
@@ -91,6 +95,14 @@ const structuralMetricsData: TableRowData[] = [
     percentage: 28.5,
     change: 4.2,
     description: "Включая входящие и исходящие трансграничные операции",
+  },
+  {
+    id: "fx-operations",
+    name: "Доля клиентов с FX",
+    value: 34.2,
+    percentage: 34.2,
+    change: 5.8,
+    description: "Клиенты, совершавшие операции конвертации валют",
   },
   {
     id: "domestic-card",
@@ -310,11 +322,17 @@ export const ClientBaseSection = () => {
         ))}
       </div>
 
-      {/* Structural Metrics Table */}
-      <div className="mb-8">
+      {/* Structural Metrics Tables - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <FinancialTable
-          title="Структурные показатели"
-          rows={structuralMetricsData}
+          title="Средние показатели и концентрация"
+          rows={averagesAndConcentrationData}
+          showPercentage={true}
+          showChange={true}
+        />
+        <FinancialTable
+          title="Доля клиентов по типу операций"
+          rows={clientSharesData}
           showPercentage={true}
           showChange={true}
         />
