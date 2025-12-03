@@ -43,13 +43,13 @@ const formatNumber = (num: number, currency: string = "₽") => {
   const absNum = Math.abs(num);
   const sign = num < 0 ? "-" : "";
   if (absNum >= 1e9) {
-    return `${sign}${currency}${(absNum / 1e9).toFixed(2)} млрд`;
+    return `${sign}${currency}${(absNum / 1e9).toFixed(2)}`;
   }
   if (absNum >= 1e6) {
-    return `${sign}${currency}${(absNum / 1e6).toFixed(1)} млн`;
+    return `${sign}${currency}${(absNum / 1e6).toFixed(1)}`;
   }
   if (absNum >= 1e3) {
-    return `${sign}${currency}${(absNum / 1e3).toFixed(1)} тыс`;
+    return `${sign}${currency}${(absNum / 1e3).toFixed(1)}`;
   }
   return `${sign}${currency}${absNum.toFixed(0)}`;
 };
@@ -81,7 +81,7 @@ export const FinancialTable = ({
   };
 
   const handleExport = () => {
-    const headers = ["Наименование", "Сумма"];
+    const headers = ["Наименование", "Сумма, млрд руб"];
     if (showPercentage) headers.push("Доля, %");
     if (showChange) headers.push("Изм., %");
     
@@ -139,7 +139,7 @@ export const FinancialTable = ({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[45%]">Наименование</TableHead>
-              <TableHead className="text-right">Сумма</TableHead>
+              <TableHead className="text-right">Сумма, млрд руб</TableHead>
               {showPercentage && <TableHead className="text-right w-[90px]">Доля, %</TableHead>}
               {showChange && <TableHead className="text-right w-[90px]">Изм., %</TableHead>}
             </TableRow>
