@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { KPICard } from "@/components/KPICard";
 import { FinancialTable, TableRowData } from "@/components/FinancialTable";
-import { ReportFilters } from "@/components/ReportFilters";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UsersIcon, UserCheckIcon, TrendingUpIcon, UserMinusIcon, WalletIcon, ChevronDown, ChevronRight, Download } from "lucide-react";
+import { UsersIcon, UserCheckIcon, TrendingUpIcon, UserMinusIcon, WalletIcon, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -233,8 +232,6 @@ const formatNumber = (value: number, type: 'count' | 'currency' | 'decimal' = 'c
 };
 
 export const ClientBaseSection = () => {
-  const [period, setPeriod] = useState("month");
-  const [comparison, setComparison] = useState("previous");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["individuals-resident"]));
 
   const toggleGroup = (groupId: string) => {
@@ -257,54 +254,9 @@ export const ClientBaseSection = () => {
     setExpandedGroups(new Set());
   };
 
-  const handleExportSegmentation = () => {
-    const headers = ["Тип клиента", "Диапазон активов", "Количество клиентов", "Активы (млрд руб)", "Комиссионный доход (млрд руб)", "Средний доход на клиента (тыс руб)", "Кол-во транзакций", "MAU"];
-    const rows: string[][] = [];
-
-    segmentationData.forEach((group) => {
-      rows.push([
-        group.clientType,
-        "ИТОГО",
-        group.clientCount.toString(),
-        group.assets.toString(),
-        group.commissionIncome.toString(),
-        group.avgIncomePerClient.toString(),
-        group.transactionCount.toString(),
-        group.mau.toString(),
-      ]);
-      group.children?.forEach((child) => {
-        rows.push([
-          child.clientType,
-          child.assetBand || "",
-          child.clientCount.toString(),
-          child.assets.toString(),
-          child.commissionIncome.toString(),
-          child.avgIncomePerClient.toString(),
-          child.transactionCount.toString(),
-          child.mau.toString(),
-        ]);
-      });
-    });
-
-    const csvContent = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
-    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "client_segmentation.csv";
-    link.click();
-  };
-
   return (
     <section>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-bold text-foreground">Клиентская база и сегменты</h2>
-        <ReportFilters
-          period={period}
-          comparison={comparison}
-          onPeriodChange={setPeriod}
-          onComparisonChange={setComparison}
-        />
-      </div>
+      <h2 className="text-3xl font-bold text-foreground mb-6">Клиентская база и сегменты</h2>
 
       {/* KPI Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
@@ -348,10 +300,6 @@ export const ClientBaseSection = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={expandAll}>
               Развернуть
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExportSegmentation}>
-              <Download className="w-4 h-4 mr-2" />
-              CSV
             </Button>
           </div>
         </div>

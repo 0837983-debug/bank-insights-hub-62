@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { DownloadIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ReportFiltersProps {
@@ -69,12 +68,6 @@ export const ReportFilters = ({
         </div>
       </div>
 
-      <div className="ml-auto">
-        <Button variant="outline" size="sm">
-          <DownloadIcon className="w-4 h-4 mr-2" />
-          Экспорт
-        </Button>
-      </div>
     </div>
   );
 };
