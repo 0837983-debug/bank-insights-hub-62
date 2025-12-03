@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, InfoIcon, ChevronRight, ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
+import { InfoIcon, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ChevronsUpDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +17,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useTableSort, SortDirection } from "@/hooks/use-table-sort";
+import { SortableHeader } from "@/components/SortableHeader";
 
 export interface TableRowData {
   id: string;
@@ -40,21 +42,6 @@ interface FinancialTableProps {
   periodLabel?: string;
 }
 
-const formatNumber = (num: number, currency: string = "₽") => {
-  const absNum = Math.abs(num);
-  const sign = num < 0 ? "-" : "";
-  if (absNum >= 1e9) {
-    return `${sign}${(absNum / 1e9).toFixed(2)}`;
-  }
-  if (absNum >= 1e6) {
-    return `${sign}${(absNum / 1e6).toFixed(1)}M`;
-  }
-  if (absNum >= 1e3) {
-    return `${sign}${(absNum / 1e3).toFixed(1)}K`;
-  }
-  return `${sign}${absNum.toFixed(0)}`;
-};
-
 const formatValueWithUnit = (num: number) => {
   const absNum = Math.abs(num);
   const sign = num < 0 ? "-" : "";
@@ -75,10 +62,34 @@ export const FinancialTable = ({
   rows,
   showPercentage = true,
   showChange = true,
-  currency = "₽",
   periodLabel = "Значение",
 }: FinancialTableProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const getValueFn = useCallback((row: TableRowData, column: string) => {
+    switch (column) {
+      case "name":
+        return row.name;
+      case "value":
+        return row.value;
+      case "percentage":
+        return row.percentage ?? 0;
+      case "change":
+        return row.change ?? 0;
+      default:
+        return row.name;
+    }
+  }, []);
+
+  // Separate groups (top-level) and children
+  const topLevelRows = rows.filter((r) => !r.parentId);
+  const { sortedData: sortedTopLevel, sortState, handleSort } = useTableSort(topLevelRows, getValueFn);
+
+  // Rebuild full sorted rows with children
+  const sortedRows = sortedTopLevel.flatMap((row) => {
+    const children = rows.filter((r) => r.parentId === row.id);
+    return [row, ...children];
+  });
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups((prev) => {
@@ -97,74 +108,86 @@ export const FinancialTable = ({
     return !collapsedGroups.has(row.parentId);
   };
 
-  const handleExport = () => {
-    const headers = ["Показатель", "Значение"];
-    if (showPercentage) headers.push("Доля, %");
-    if (showChange) headers.push("Изм., %");
-    
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => {
-        const values = [row.name, row.value.toString()];
-        if (showPercentage) values.push(row.percentage?.toString() || "");
-        if (showChange) values.push(row.change?.toString() || "");
-        return values.join(",");
-      }),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${title}.csv`;
-    link.click();
-  };
-
-  const visibleRows = rows.filter(isRowVisible);
+  const visibleRows = sortedRows.filter(isRowVisible);
+  const hasGroups = rows.some((r) => r.isGroup && !r.isTotal);
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const groupIds = rows.filter((r) => r.isGroup && !r.isTotal).map((r) => r.id);
-              setCollapsedGroups(new Set(groupIds));
-            }}
-          >
-            <ChevronRight className="w-4 h-4 mr-1" />
-            Свернуть
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCollapsedGroups(new Set())}
-          >
-            <ChevronDown className="w-4 h-4 mr-1" />
-            Развернуть
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleExport}>
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            CSV
-          </Button>
-        </div>
+        {hasGroups && (
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    const groupIds = rows.filter((r) => r.isGroup && !r.isTotal).map((r) => r.id);
+                    setCollapsedGroups(new Set(groupIds));
+                  }}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Свернуть все</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCollapsedGroups(new Set())}
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Развернуть все</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[60%] text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Показатель
+              <TableHead className="w-[60%]">
+                <SortableHeader
+                  label="Показатель"
+                  column="name"
+                  currentColumn={sortState.column}
+                  direction={sortState.direction}
+                  onSort={handleSort}
+                  className="text-xs font-medium uppercase tracking-wider"
+                />
               </TableHead>
               {showPercentage && (
-                <TableHead className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-[100px]">
-                  Доля
+                <TableHead className="text-right w-[100px]">
+                  <div className="flex justify-end">
+                    <SortableHeader
+                      label="Доля"
+                      column="percentage"
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                      className="text-xs font-medium uppercase tracking-wider"
+                    />
+                  </div>
                 </TableHead>
               )}
-              <TableHead className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {periodLabel}
+              <TableHead className="text-right">
+                <div className="flex justify-end">
+                  <SortableHeader
+                    label={periodLabel}
+                    column="value"
+                    currentColumn={sortState.column}
+                    direction={sortState.direction}
+                    onSort={handleSort}
+                    className="text-xs font-medium uppercase tracking-wider"
+                  />
+                </div>
               </TableHead>
             </TableRow>
           </TableHeader>
