@@ -1,9 +1,9 @@
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { FinancialResultsSection } from "@/components/report/FinancialResultsSection";
+import { ClientBase } from "@/components/report/ClientBase";
 
 const placeholderSections = [
-  "Клиентская база и сегменты",
   "Продукты и коммерческая активность",
   "Транзакционная деятельность и конвертация",
   "Риски и комплаенс",
@@ -29,8 +29,11 @@ const Index = () => {
           </Card>
         </section>
 
-        {/* Financial Results Section - implemented */}
+        {/* Financial Results Section */}
         <FinancialResultsSection />
+
+        {/* Client Base Section */}
+        <ClientBase />
 
         {/* Remaining placeholder sections */}
         {placeholderSections.map((section) => (
