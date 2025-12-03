@@ -1,9 +1,8 @@
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
+import { FinancialResultsSection } from "@/components/report/FinancialResultsSection";
 
-const sections = [
-  "Executive Summary",
-  "Финансовые результаты и баланс",
+const placeholderSections = [
   "Клиентская база и сегменты",
   "Продукты и коммерческая активность",
   "Транзакционная деятельность и конвертация",
@@ -20,7 +19,21 @@ const Index = () => {
       <Header />
       
       <main className="container mx-auto px-6 py-8 space-y-12">
-        {sections.map((section) => (
+        {/* Executive Summary - placeholder */}
+        <section>
+          <h2 className="text-3xl font-bold text-foreground mb-6">Executive Summary</h2>
+          <Card className="p-8">
+            <p className="text-muted-foreground text-center">
+              Раздел в разработке
+            </p>
+          </Card>
+        </section>
+
+        {/* Financial Results Section - implemented */}
+        <FinancialResultsSection />
+
+        {/* Remaining placeholder sections */}
+        {placeholderSections.map((section) => (
           <section key={section}>
             <h2 className="text-3xl font-bold text-foreground mb-6">{section}</h2>
             <Card className="p-8">
