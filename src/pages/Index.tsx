@@ -5,9 +5,10 @@ import { ReportFilters } from "@/components/ReportFilters";
 import { FinancialResultsSection } from "@/components/report/FinancialResultsSection";
 import { ClientBaseSection } from "@/components/report/ClientBaseSection";
 import { Products } from "@/components/report/Products";
+import { Transactions } from "@/components/report/Transactions";
+import { Conversion } from "@/components/report/Conversion";
 
 const placeholderSections = [
-  "Транзакционная деятельность и конвертация",
   "Риски и комплаенс",
   "Нормативы и регуляторные показатели",
   "Забота о клиенте и качество сервиса",
@@ -50,6 +51,12 @@ const Index = () => {
 
         {/* Products Section */}
         <Products />
+
+        {/* Transactions Section */}
+        <Transactions />
+
+        {/* Conversion Section */}
+        <Conversion />
 
         {/* Remaining placeholder sections */}
         {placeholderSections.map((section) => (
