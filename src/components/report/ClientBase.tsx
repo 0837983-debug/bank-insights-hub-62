@@ -54,7 +54,7 @@ export const ClientBase = () => {
       </div>
 
       {/* Additional Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
         <MetricCard
           title="ARPU"
           value="₽1,475"
@@ -75,10 +75,7 @@ export const ClientBase = () => {
           change={9.4}
           subtitle="Средняя интенсивность"
         />
-      </div>
-
-      {/* More Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        
         <MetricCard
           title="Международные переводы"
           value="28.5%"
