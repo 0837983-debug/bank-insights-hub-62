@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { ReportFilters } from "@/components/ReportFilters";
+import { ExecutiveSummary } from "@/components/report/ExecutiveSummary";
 import { FinancialResultsSection } from "@/components/report/FinancialResultsSection";
 import { ClientBaseSection } from "@/components/report/ClientBaseSection";
 import { Products } from "@/components/report/Products";
@@ -33,15 +34,8 @@ const Index = () => {
           onComparisonChange={setComparison}
         />
 
-        {/* Executive Summary - placeholder */}
-        <section>
-          <h2 className="text-3xl font-bold text-foreground mb-6">Executive Summary</h2>
-          <Card className="p-8">
-            <p className="text-muted-foreground text-center">
-              Раздел в разработке
-            </p>
-          </Card>
-        </section>
+        {/* Executive Summary */}
+        <ExecutiveSummary />
 
         {/* Financial Results Section */}
         <FinancialResultsSection />
