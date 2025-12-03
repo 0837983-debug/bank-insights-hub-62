@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { KPICard } from "@/components/KPICard";
 import {
@@ -24,6 +25,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { SortableHeader } from "@/components/SortableHeader";
 
 interface ProductLineData {
   id: string;
@@ -282,12 +285,33 @@ const MetricCell = ({ value, change, format = 'count' }: { value: number; change
   );
 };
 
-const HeaderWithTooltip = ({ label, tooltip }: { label: string; tooltip: string }) => (
+const HeaderWithTooltip = ({ 
+  label, 
+  tooltip, 
+  column, 
+  currentColumn, 
+  direction, 
+  onSort 
+}: { 
+  label: string; 
+  tooltip: string; 
+  column: string;
+  currentColumn: string | null;
+  direction: "asc" | "desc" | null;
+  onSort: (column: string) => void;
+}) => (
   <Tooltip>
     <TooltipTrigger asChild>
-      <span className="cursor-help border-b border-dotted border-muted-foreground/50">
-        {label}
-      </span>
+      <div className="cursor-help">
+        <SortableHeader
+          label={label}
+          column={column}
+          currentColumn={currentColumn}
+          direction={direction}
+          onSort={onSort}
+          className="border-b border-dotted border-muted-foreground/50"
+        />
+      </div>
     </TooltipTrigger>
     <TooltipContent side="top" className="max-w-xs">
       <p className="text-sm">{tooltip}</p>
@@ -303,6 +327,37 @@ export const Products = () => {
   const avgARPPU = totalRevenue * 1000000 / totalPAU;
   const avgCrossSell = 2.1;
   const multiProductShare = 57.2; // clients with 2+ products
+
+  // Product lines sorting
+  const getProductValueFn = useCallback((row: ProductLineData, column: string): number | string => {
+    switch (column) {
+      case "name": return row.name;
+      case "revenue": return row.revenue;
+      case "pau": return row.pau;
+      case "arppu": return row.arppu;
+      case "repeatRate": return row.repeatRate;
+      case "crossSellIndex": return row.crossSellIndex;
+      case "revenueShare": return row.revenueShare;
+      case "margin": return row.margin;
+      default: return row.name;
+    }
+  }, []);
+
+  const { sortedData: sortedProducts, sortState: productSortState, handleSort: handleProductSort } = useTableSort(productLines, getProductValueFn);
+
+  // Penetration sorting
+  const getPenetrationValueFn = useCallback((row: PenetrationData, column: string): number | string => {
+    switch (column) {
+      case "segment": return row.segment;
+      case "clientCount": return row.clientCount;
+      case "sharePercent": return row.sharePercent;
+      case "avgRevenue": return row.avgRevenue;
+      case "avgActivity": return row.avgActivity;
+      default: return row.segment;
+    }
+  }, []);
+
+  const { sortedData: sortedPenetration, sortState: penetrationSortState, handleSort: handlePenetrationSort } = useTableSort(penetrationData, getPenetrationValueFn);
 
   return (
     <section>
@@ -370,32 +425,103 @@ export const Products = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold min-w-[180px]">Продуктовая линия</TableHead>
-                <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Выручка, млн ₽" tooltip="Общая выручка по продуктовой линии" />
+                <TableHead className="font-semibold min-w-[180px]">
+                  <SortableHeader
+                    label="Продуктовая линия"
+                    column="name"
+                    currentColumn={productSortState.column}
+                    direction={productSortState.direction}
+                    onSort={handleProductSort}
+                  />
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="PAU" tooltip="Product Active Users — количество активных пользователей продукта" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Выручка, млн ₽" 
+                      tooltip="Общая выручка по продуктовой линии"
+                      column="revenue"
+                      currentColumn={productSortState.column}
+                      direction={productSortState.direction}
+                      onSort={handleProductSort}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="ARPPU, ₽" tooltip="Average Revenue Per Paying User — средняя выручка на платящего пользователя" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="PAU" 
+                      tooltip="Product Active Users — количество активных пользователей продукта"
+                      column="pau"
+                      currentColumn={productSortState.column}
+                      direction={productSortState.direction}
+                      onSort={handleProductSort}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Repeat Rate" tooltip="Доля клиентов, совершивших повторную транзакцию по продукту" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="ARPPU, ₽" 
+                      tooltip="Average Revenue Per Paying User — средняя выручка на платящего пользователя"
+                      column="arppu"
+                      currentColumn={productSortState.column}
+                      direction={productSortState.direction}
+                      onSort={handleProductSort}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Cross-sell" tooltip="Среднее количество других продуктов у клиентов этой линии" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Repeat Rate" 
+                      tooltip="Доля клиентов, совершивших повторную транзакцию по продукту"
+                      column="repeatRate"
+                      currentColumn={productSortState.column}
+                      direction={productSortState.direction}
+                      onSort={handleProductSort}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Доля выручки" tooltip="Вклад продукта в общую выручку банка" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Cross-sell" 
+                      tooltip="Среднее количество других продуктов у клиентов этой линии"
+                      column="crossSellIndex"
+                      currentColumn={productSortState.column}
+                      direction={productSortState.direction}
+                      onSort={handleProductSort}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Маржа" tooltip="Маржинальность продуктовой линии" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Доля выручки" 
+                      tooltip="Вклад продукта в общую выручку банка"
+                      column="revenueShare"
+                      currentColumn={productSortState.column}
+                      direction={productSortState.direction}
+                      onSort={handleProductSort}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right font-semibold">
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Маржа" 
+                      tooltip="Маржинальность продуктовой линии"
+                      column="margin"
+                      currentColumn={productSortState.column}
+                      direction={productSortState.direction}
+                      onSort={handleProductSort}
+                    />
+                  </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {productLines.map((product) => (
+              {sortedProducts.map((product) => (
                 <TableRow key={product.id} className="hover:bg-muted/30">
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="text-right">
@@ -436,23 +562,67 @@ export const Products = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold min-w-[200px]">Сегмент</TableHead>
-                <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Количество клиентов" tooltip="Число клиентов в данном сегменте по количеству продуктов" />
+                <TableHead className="font-semibold min-w-[200px]">
+                  <SortableHeader
+                    label="Сегмент"
+                    column="segment"
+                    currentColumn={penetrationSortState.column}
+                    direction={penetrationSortState.direction}
+                    onSort={handlePenetrationSort}
+                  />
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Доля от базы" tooltip="Процент от общего числа клиентов банка" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Количество клиентов" 
+                      tooltip="Число клиентов в данном сегменте по количеству продуктов"
+                      column="clientCount"
+                      currentColumn={penetrationSortState.column}
+                      direction={penetrationSortState.direction}
+                      onSort={handlePenetrationSort}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Средний доход, ₽" tooltip="Средняя выручка на клиента в сегменте" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Доля от базы" 
+                      tooltip="Процент от общего числа клиентов банка"
+                      column="sharePercent"
+                      currentColumn={penetrationSortState.column}
+                      direction={penetrationSortState.direction}
+                      onSort={handlePenetrationSort}
+                    />
+                  </div>
                 </TableHead>
                 <TableHead className="text-right font-semibold">
-                  <HeaderWithTooltip label="Средняя активность" tooltip="Среднее число транзакций на клиента в месяц" />
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Средний доход, ₽" 
+                      tooltip="Средняя выручка на клиента в сегменте"
+                      column="avgRevenue"
+                      currentColumn={penetrationSortState.column}
+                      direction={penetrationSortState.direction}
+                      onSort={handlePenetrationSort}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right font-semibold">
+                  <div className="flex justify-end">
+                    <HeaderWithTooltip 
+                      label="Средняя активность" 
+                      tooltip="Среднее число транзакций на клиента в месяц"
+                      column="avgActivity"
+                      currentColumn={penetrationSortState.column}
+                      direction={penetrationSortState.direction}
+                      onSort={handlePenetrationSort}
+                    />
+                  </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {penetrationData.map((row) => (
+              {sortedPenetration.map((row) => (
                 <TableRow key={row.id} className="hover:bg-muted/30">
                   <TableCell className="font-medium">{row.segment}</TableCell>
                   <TableCell className="text-right">

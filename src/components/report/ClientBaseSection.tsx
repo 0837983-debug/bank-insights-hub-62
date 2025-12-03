@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { KPICard } from "@/components/KPICard";
 import { FinancialTable, TableRowData } from "@/components/FinancialTable";
 import { Card } from "@/components/ui/card";
@@ -6,6 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { UsersIcon, UserCheckIcon, TrendingUpIcon, UserMinusIcon, WalletIcon, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useHierarchicalSort } from "@/hooks/use-table-sort";
+import { SortableHeader } from "@/components/SortableHeader";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // KPI Metrics
 const kpiMetrics = [
@@ -234,6 +241,29 @@ const formatNumber = (value: number, type: 'count' | 'currency' | 'decimal' = 'c
 export const ClientBaseSection = () => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["individuals-resident"]));
 
+  const getValueFn = useCallback((row: SegmentRow, column: string): number | string => {
+    switch (column) {
+      case "clientType":
+        return row.clientType;
+      case "clientCount":
+        return row.clientCount;
+      case "assets":
+        return row.assets;
+      case "commissionIncome":
+        return row.commissionIncome;
+      case "avgIncomePerClient":
+        return row.avgIncomePerClient;
+      case "transactionCount":
+        return row.transactionCount;
+      case "mau":
+        return row.mau;
+      default:
+        return row.clientType;
+    }
+  }, []);
+
+  const { sortedData, sortState, handleSort } = useHierarchicalSort(segmentationData, getValueFn);
+
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
       const newSet = new Set(prev);
@@ -294,13 +324,23 @@ export const ClientBaseSection = () => {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">Детализированная сегментация</h3>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={collapseAll}>
-              Свернуть
-            </Button>
-            <Button variant="outline" size="sm" onClick={expandAll}>
-              Развернуть
-            </Button>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={collapseAll}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Свернуть все</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={expandAll}>
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Развернуть все</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -308,17 +348,85 @@ export const ClientBaseSection = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[280px]">Сегмент</TableHead>
-                <TableHead className="text-right min-w-[120px]">Кол-во клиентов</TableHead>
-                <TableHead className="text-right min-w-[120px]">Активы, млрд руб</TableHead>
-                <TableHead className="text-right min-w-[140px]">Комиссионный доход, млрд руб</TableHead>
-                <TableHead className="text-right min-w-[140px]">Ср. доход на клиента, тыс руб</TableHead>
-                <TableHead className="text-right min-w-[120px]">Транзакций</TableHead>
-                <TableHead className="text-right min-w-[100px]">MAU</TableHead>
+                <TableHead className="min-w-[280px]">
+                  <SortableHeader
+                    label="Сегмент"
+                    column="clientType"
+                    currentColumn={sortState.column}
+                    direction={sortState.direction}
+                    onSort={handleSort}
+                  />
+                </TableHead>
+                <TableHead className="text-right min-w-[120px]">
+                  <div className="flex justify-end">
+                    <SortableHeader
+                      label="Кол-во клиентов"
+                      column="clientCount"
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right min-w-[120px]">
+                  <div className="flex justify-end">
+                    <SortableHeader
+                      label="Активы, млрд руб"
+                      column="assets"
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right min-w-[140px]">
+                  <div className="flex justify-end">
+                    <SortableHeader
+                      label="Комиссионный доход"
+                      column="commissionIncome"
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right min-w-[140px]">
+                  <div className="flex justify-end">
+                    <SortableHeader
+                      label="Ср. доход на клиента"
+                      column="avgIncomePerClient"
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right min-w-[120px]">
+                  <div className="flex justify-end">
+                    <SortableHeader
+                      label="Транзакций"
+                      column="transactionCount"
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right min-w-[100px]">
+                  <div className="flex justify-end">
+                    <SortableHeader
+                      label="MAU"
+                      column="mau"
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                    />
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {segmentationData.map((group) => (
+              {sortedData.map((group) => (
                 <>
                   {/* Group header row */}
                   <TableRow
