@@ -56,57 +56,58 @@ const kpiMetrics = [
 
 // Balance Data - Assets
 const assetsData = [
-  { id: "a1", name: "Активы", value: 45200000000, isGroup: true },
-  { id: "a2", name: "Наличные и эквиваленты", value: 5800000000, percentage: 12.8, description: "Денежные средства в кассе и на счетах в ЦБ", indent: 1 },
-  { id: "a3", name: "Корреспондентские счета", value: 12400000000, percentage: 27.4, description: "Счета ностро в банках-корреспондентах", indent: 1 },
-  { id: "a4", name: "Инвестиции", value: 8200000000, percentage: 18.1, description: "Ценные бумаги и депозиты в других банках", indent: 1 },
-  { id: "a5", name: "Рабочие активы", value: 18800000000, percentage: 41.6, description: "Кредиты, дебиторская задолженность, операционные активы", indent: 1 },
+  { id: "a1", name: "Активы", value: 45200000000, isGroup: true, change: 5.2 },
+  { id: "a2", name: "Наличные и эквиваленты", value: 5800000000, percentage: 12.8, description: "Денежные средства в кассе и на счетах в ЦБ", indent: 1, parentId: "a1", change: 3.1 },
+  { id: "a3", name: "Корреспондентские счета", value: 12400000000, percentage: 27.4, description: "Счета ностро в банках-корреспондентах", indent: 1, parentId: "a1", change: 8.5 },
+  { id: "a4", name: "Инвестиции", value: 8200000000, percentage: 18.1, description: "Ценные бумаги и депозиты в других банках", indent: 1, parentId: "a1", change: -2.3 },
+  { id: "a5", name: "Рабочие активы", value: 18800000000, percentage: 41.6, description: "Кредиты, дебиторская задолженность, операционные активы", indent: 1, parentId: "a1", change: 6.7 },
 ];
 
 // Balance Data - Liabilities
 const liabilitiesData = [
-  { id: "l1", name: "Пассивы", value: 45200000000, isGroup: true },
-  { id: "l2", name: "Депозиты клиентов", value: 22500000000, percentage: 49.8, description: "Срочные и до востребования депозиты физ. и юр. лиц", indent: 1 },
-  { id: "l3", name: "Остатки ДВС", value: 14200000000, percentage: 31.4, description: "Остатки на счетах до востребования", indent: 1 },
-  { id: "l4", name: "Привлечённые средства", value: 8500000000, percentage: 18.8, description: "Межбанковские кредиты, облигации, прочие заимствования", indent: 1 },
+  { id: "l1", name: "Пассивы", value: 45200000000, isGroup: true, change: 5.2 },
+  { id: "l2", name: "Депозиты клиентов", value: 22500000000, percentage: 49.8, description: "Срочные и до востребования депозиты физ. и юр. лиц", indent: 1, parentId: "l1", change: 7.3 },
+  { id: "l3", name: "Остатки ДВС", value: 14200000000, percentage: 31.4, description: "Остатки на счетах до востребования", indent: 1, parentId: "l1", change: 2.1 },
+  { id: "l4", name: "Привлечённые средства", value: 8500000000, percentage: 18.8, description: "Межбанковские кредиты, облигации, прочие заимствования", indent: 1, parentId: "l1", change: 4.5 },
 ];
 
-// Income Data
-const incomeData = [
-  { id: "i1", name: "Чистый процентный доход (ЧПД)", value: 3200000000, isGroup: true, description: "Разница между процентными доходами и расходами" },
-  { id: "i2", name: "Процентные доходы", value: 4100000000, percentage: 100, indent: 1 },
-  { id: "i3", name: "Процентные расходы", value: -900000000, percentage: -22.0, indent: 1 },
-  { id: "i4", name: "Чистый комиссионный доход (ЧКД)", value: 5800000000, isGroup: true, description: "Доходы от комиссий за услуги банка" },
-  { id: "i5", name: "Комиссии международных переводов", value: 3200000000, percentage: 55.2, indent: 1 },
-  { id: "i6", name: "Комиссии обслуживания", value: 1800000000, percentage: 31.0, indent: 1 },
-  { id: "i7", name: "Прочие комиссии", value: 800000000, percentage: 13.8, indent: 1 },
-  { id: "i8", name: "Доходы по FX", value: 2400000000, isGroup: true, description: "Доходы от валютно-обменных операций" },
-  { id: "i9", name: "Спред конвертаций", value: 1400000000, percentage: 58.3, indent: 1, description: "Доход от разницы курсов покупки и продажи валюты" },
-  { id: "i10", name: "Маржа по FX-операциям", value: 800000000, percentage: 33.3, indent: 1 },
-  { id: "i11", name: "Доход трейдинга", value: 200000000, percentage: 8.3, indent: 1 },
-  { id: "i12", name: "Прочие доходы", value: 600000000, isGroup: true },
-  { id: "i13", name: "Операционные", value: 400000000, percentage: 66.7, indent: 1 },
-  { id: "i14", name: "Прочие финансовые", value: 200000000, percentage: 33.3, indent: 1 },
-  { id: "i15", name: "ИТОГО ДОХОДЫ", value: 12000000000, isTotal: true },
+// Combined Income and Expenses Data
+const incomeExpensesData = [
+  // Income section
+  { id: "income", name: "ДОХОДЫ", value: 12000000000, isGroup: true, change: 8.5 },
+  { id: "i1", name: "Чистый процентный доход (ЧПД)", value: 3200000000, isGroup: true, description: "Разница между процентными доходами и расходами", parentId: "income", change: 5.2 },
+  { id: "i2", name: "Процентные доходы", value: 4100000000, percentage: 100, indent: 1, parentId: "i1", change: 4.8 },
+  { id: "i3", name: "Процентные расходы", value: -900000000, percentage: -22.0, indent: 1, parentId: "i1", change: 3.2 },
+  { id: "i4", name: "Чистый комиссионный доход (ЧКД)", value: 5800000000, isGroup: true, description: "Доходы от комиссий за услуги банка", parentId: "income", change: 12.3 },
+  { id: "i5", name: "Комиссии международных переводов", value: 3200000000, percentage: 55.2, indent: 1, parentId: "i4", change: 15.1 },
+  { id: "i6", name: "Комиссии обслуживания", value: 1800000000, percentage: 31.0, indent: 1, parentId: "i4", change: 8.7 },
+  { id: "i7", name: "Прочие комиссии", value: 800000000, percentage: 13.8, indent: 1, parentId: "i4", change: 6.2 },
+  { id: "i8", name: "Доходы по FX", value: 2400000000, isGroup: true, description: "Доходы от валютно-обменных операций", parentId: "income", change: 9.8 },
+  { id: "i9", name: "Спред конвертаций", value: 1400000000, percentage: 58.3, indent: 1, parentId: "i8", description: "Доход от разницы курсов покупки и продажи валюты", change: 11.2 },
+  { id: "i10", name: "Маржа по FX-операциям", value: 800000000, percentage: 33.3, indent: 1, parentId: "i8", change: 7.5 },
+  { id: "i11", name: "Доход трейдинга", value: 200000000, percentage: 8.3, indent: 1, parentId: "i8", change: 5.3 },
+  { id: "i12", name: "Прочие доходы", value: 600000000, isGroup: true, parentId: "income", change: 3.1 },
+  { id: "i13", name: "Операционные", value: 400000000, percentage: 66.7, indent: 1, parentId: "i12", change: 2.8 },
+  { id: "i14", name: "Прочие финансовые", value: 200000000, percentage: 33.3, indent: 1, parentId: "i12", change: 3.7 },
+  
+  // Expenses section
+  { id: "expenses", name: "РАСХОДЫ И РЕЗЕРВЫ", value: 5500000000, isGroup: true, change: 4.2 },
+  { id: "e1", name: "ФОТ", value: 2800000000, isGroup: true, description: "Фонд оплаты труда: зарплаты и обязательные взносы", parentId: "expenses", change: 6.5 },
+  { id: "e2", name: "Заработная плата", value: 2200000000, percentage: 78.6, indent: 1, parentId: "e1", change: 7.2 },
+  { id: "e3", name: "Обязательные взносы", value: 600000000, percentage: 21.4, indent: 1, parentId: "e1", change: 4.1 },
+  { id: "e4", name: "Прочие OPEX", value: 2300000000, isGroup: true, description: "Операционные и административные расходы", parentId: "expenses", change: 2.8 },
+  { id: "e5", name: "Аренда", value: 450000000, percentage: 19.6, indent: 1, parentId: "e4", change: 1.5 },
+  { id: "e6", name: "Процессинг", value: 680000000, percentage: 29.6, indent: 1, parentId: "e4", description: "Расходы на обработку транзакций", change: 5.3 },
+  { id: "e7", name: "Эквайринг", value: 420000000, percentage: 18.3, indent: 1, parentId: "e4", change: 3.8 },
+  { id: "e8", name: "Услуги поставщиков", value: 380000000, percentage: 16.5, indent: 1, parentId: "e4", change: 2.1 },
+  { id: "e9", name: "Прочие OPEX", value: 370000000, percentage: 16.1, indent: 1, parentId: "e4", change: 1.2 },
+  { id: "e10", name: "Резервы", value: 400000000, isGroup: true, description: "Изменение резервов на возможные потери", parentId: "expenses", change: -8.5 },
+  { id: "e11", name: "Создание резервов", value: 650000000, indent: 1, parentId: "e10", change: -5.2 },
+  { id: "e12", name: "Восстановление", value: -250000000, indent: 1, parentId: "e10", change: 12.3 },
+  
+  // Total
+  { id: "profit", name: "ФИНАНСОВЫЙ РЕЗУЛЬТАТ", value: 6500000000, isTotal: true, change: 14.2 },
 ];
-
-// Expenses Data
-const expensesData = [
-  { id: "e1", name: "ФОТ", value: 2800000000, isGroup: true, description: "Фонд оплаты труда: зарплаты и обязательные взносы" },
-  { id: "e2", name: "Заработная плата", value: 2200000000, percentage: 78.6, indent: 1 },
-  { id: "e3", name: "Обязательные взносы", value: 600000000, percentage: 21.4, indent: 1 },
-  { id: "e4", name: "Прочие OPEX", value: 2300000000, isGroup: true, description: "Операционные и административные расходы" },
-  { id: "e5", name: "Аренда", value: 450000000, percentage: 19.6, indent: 1 },
-  { id: "e6", name: "Процессинг", value: 680000000, percentage: 29.6, indent: 1, description: "Расходы на обработку транзакций" },
-  { id: "e7", name: "Эквайринг", value: 420000000, percentage: 18.3, indent: 1 },
-  { id: "e8", name: "Услуги поставщиков", value: 380000000, percentage: 16.5, indent: 1 },
-  { id: "e9", name: "Прочие OPEX", value: 370000000, percentage: 16.1, indent: 1 },
-  { id: "e10", name: "Резервы", value: 400000000, isGroup: true, description: "Изменение резервов на возможные потери" },
-  { id: "e11", name: "Создание резервов", value: 650000000, indent: 1 },
-  { id: "e12", name: "Восстановление", value: -250000000, indent: 1 },
-  { id: "e13", name: "ИТОГО РАСХОДЫ", value: 5500000000, isTotal: true },
-];
-
 export const FinancialResultsSection = () => {
   const [period, setPeriod] = useState("quarter");
   const [comparison, setComparison] = useState("prev-period");
@@ -155,18 +156,12 @@ export const FinancialResultsSection = () => {
         />
       </div>
 
-      {/* Income Structure */}
+      {/* Income and Expenses */}
       <FinancialTable
-        title="Структура доходов"
-        rows={incomeData}
+        title="Доходы, расходы и финансовый результат"
+        rows={incomeExpensesData}
         showPercentage={true}
-      />
-
-      {/* Expenses and Reserves */}
-      <FinancialTable
-        title="Расходы и резервы"
-        rows={expensesData}
-        showPercentage={true}
+        showChange={true}
       />
     </section>
   );

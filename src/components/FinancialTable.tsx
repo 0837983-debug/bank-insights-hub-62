@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -8,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, InfoIcon } from "lucide-react";
+import { DownloadIcon, InfoIcon, ChevronRight, ChevronDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -17,50 +18,81 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-interface TableRow {
+interface TableRowData {
   id: string;
   name: string;
   description?: string;
   value: number;
   percentage?: number;
+  change?: number;
   isGroup?: boolean;
   isTotal?: boolean;
   indent?: number;
+  parentId?: string;
 }
 
 interface FinancialTableProps {
   title: string;
-  rows: TableRow[];
+  rows: TableRowData[];
   showPercentage?: boolean;
+  showChange?: boolean;
   currency?: string;
 }
 
 const formatNumber = (num: number, currency: string = "₽") => {
   const absNum = Math.abs(num);
+  const sign = num < 0 ? "-" : "";
   if (absNum >= 1e9) {
-    return `${currency}${(num / 1e9).toFixed(2)} млрд`;
+    return `${sign}${currency}${(absNum / 1e9).toFixed(2)} млрд`;
   }
   if (absNum >= 1e6) {
-    return `${currency}${(num / 1e6).toFixed(1)} млн`;
+    return `${sign}${currency}${(absNum / 1e6).toFixed(1)} млн`;
   }
   if (absNum >= 1e3) {
-    return `${currency}${(num / 1e3).toFixed(1)} тыс`;
+    return `${sign}${currency}${(absNum / 1e3).toFixed(1)} тыс`;
   }
-  return `${currency}${num.toFixed(0)}`;
+  return `${sign}${currency}${absNum.toFixed(0)}`;
 };
 
 export const FinancialTable = ({
   title,
   rows,
   showPercentage = true,
+  showChange = true,
   currency = "₽",
 }: FinancialTableProps) => {
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  const isRowVisible = (row: TableRowData): boolean => {
+    if (!row.parentId) return true;
+    return !collapsedGroups.has(row.parentId);
+  };
+
   const handleExport = () => {
+    const headers = ["Наименование", "Сумма"];
+    if (showPercentage) headers.push("Доля, %");
+    if (showChange) headers.push("Изм., %");
+    
     const csvContent = [
-      ["Наименование", "Сумма", showPercentage ? "Доля, %" : ""].filter(Boolean).join(","),
-      ...rows.map((row) =>
-        [row.name, row.value, showPercentage ? row.percentage : ""].filter((v) => v !== "").join(",")
-      ),
+      headers.join(","),
+      ...rows.map((row) => {
+        const values = [row.name, row.value.toString()];
+        if (showPercentage) values.push(row.percentage?.toString() || "");
+        if (showChange) values.push(row.change?.toString() || "");
+        return values.join(",");
+      }),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -69,6 +101,8 @@ export const FinancialTable = ({
     link.download = `${title}.csv`;
     link.click();
   };
+
+  const visibleRows = rows.filter(isRowVisible);
 
   return (
     <Card>
@@ -83,48 +117,80 @@ export const FinancialTable = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50%]">Наименование</TableHead>
+              <TableHead className="w-[45%]">Наименование</TableHead>
               <TableHead className="text-right">Сумма</TableHead>
-              {showPercentage && <TableHead className="text-right w-[100px]">Доля, %</TableHead>}
+              {showPercentage && <TableHead className="text-right w-[90px]">Доля, %</TableHead>}
+              {showChange && <TableHead className="text-right w-[90px]">Изм., %</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className={cn(
-                  row.isGroup && "bg-muted/50 font-semibold",
-                  row.isTotal && "bg-primary/5 font-bold border-t-2"
-                )}
-              >
-                <TableCell
-                  className={cn("flex items-center gap-2")}
-                  style={{ paddingLeft: row.indent ? `${row.indent * 1.5 + 1}rem` : undefined }}
-                >
-                  {row.name}
-                  {row.description && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="text-sm">{row.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+            {visibleRows.map((row) => {
+              const hasChildren = rows.some((r) => r.parentId === row.id);
+              const isCollapsed = collapsedGroups.has(row.id);
+
+              return (
+                <TableRow
+                  key={row.id}
+                  className={cn(
+                    row.isGroup && "bg-muted/50 font-semibold",
+                    row.isTotal && "bg-primary/5 font-bold border-t-2"
                   )}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatNumber(row.value, currency)}
-                </TableCell>
-                {showPercentage && (
-                  <TableCell className="text-right font-mono text-muted-foreground">
-                    {row.percentage !== undefined ? `${row.percentage.toFixed(1)}%` : "—"}
+                >
+                  <TableCell
+                    className="flex items-center gap-2"
+                    style={{ paddingLeft: row.indent ? `${row.indent * 1.5 + 1}rem` : undefined }}
+                  >
+                    {hasChildren && (
+                      <button
+                        onClick={() => toggleGroup(row.id)}
+                        className="p-0.5 hover:bg-muted rounded transition-colors"
+                      >
+                        {isCollapsed ? (
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </button>
+                    )}
+                    {!hasChildren && row.indent && <span className="w-5" />}
+                    {row.name}
+                    {row.description && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="text-sm">{row.description}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </TableCell>
-                )}
-              </TableRow>
-            ))}
+                  <TableCell className="text-right font-mono">
+                    {formatNumber(row.value, currency)}
+                  </TableCell>
+                  {showPercentage && (
+                    <TableCell className="text-right font-mono text-muted-foreground">
+                      {row.percentage !== undefined ? `${row.percentage.toFixed(1)}%` : "—"}
+                    </TableCell>
+                  )}
+                  {showChange && (
+                    <TableCell
+                      className={cn(
+                        "text-right font-mono",
+                        row.change !== undefined && row.change > 0 && "text-green-600",
+                        row.change !== undefined && row.change < 0 && "text-red-600"
+                      )}
+                    >
+                      {row.change !== undefined
+                        ? `${row.change > 0 ? "+" : ""}${row.change.toFixed(1)}%`
+                        : "—"}
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
