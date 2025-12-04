@@ -120,11 +120,11 @@ const clientSharesData: TableRowData[] = [
   },
 ];
 
-// Segmentation data structure
+// Segmentation data structure - Asset bands as first level, client types as second level
 interface SegmentRow {
   id: string;
-  clientType: string;
-  assetBand?: string;
+  segment: string;
+  clientType?: string;
   clientCount: number;
   assets: number;
   commissionIncome: number;
@@ -135,94 +135,119 @@ interface SegmentRow {
   children?: SegmentRow[];
 }
 
-const segmentationData: SegmentRow[] = [
-  {
-    id: "individuals-resident",
-    clientType: "Физические лица–резиденты",
-    clientCount: 2150000,
-    assets: 156.8,
-    commissionIncome: 28.4,
-    avgIncomePerClient: 13.2,
-    transactionCount: 38500000,
-    mau: 1820000,
-    isGroupHeader: true,
-    children: [
-      { id: "ind-res-0-1k", clientType: "Физические лица–резиденты", assetBand: "0–1 тыс", clientCount: 485000, assets: 0.2, commissionIncome: 0.8, avgIncomePerClient: 1.6, transactionCount: 2100000, mau: 245000 },
-      { id: "ind-res-1k-100k", clientType: "Физические лица–резиденты", assetBand: "1 тыс – 100 тыс", clientCount: 892000, assets: 12.4, commissionIncome: 8.2, avgIncomePerClient: 9.2, transactionCount: 15800000, mau: 756000 },
-      { id: "ind-res-100k-1m", clientType: "Физические лица–резиденты", assetBand: "100 тыс – 1 млн", clientCount: 524000, assets: 48.6, commissionIncome: 12.8, avgIncomePerClient: 24.4, transactionCount: 14200000, mau: 485000 },
-      { id: "ind-res-1m-5m", clientType: "Физические лица–резиденты", assetBand: "1–5 млн", clientCount: 186000, assets: 42.8, commissionIncome: 4.8, avgIncomePerClient: 25.8, transactionCount: 4800000, mau: 172000 },
-      { id: "ind-res-5m-10m", clientType: "Физические лица–резиденты", assetBand: "5–10 млн", clientCount: 42000, assets: 28.4, commissionIncome: 1.2, avgIncomePerClient: 28.6, transactionCount: 1200000, mau: 38000 },
-      { id: "ind-res-10m-50m", clientType: "Физические лица–резиденты", assetBand: "10–50 млн", clientCount: 18000, assets: 21.2, commissionIncome: 0.5, avgIncomePerClient: 27.8, transactionCount: 380000, mau: 16500 },
-      { id: "ind-res-50m-100m", clientType: "Физические лица–резиденты", assetBand: "50–100 млн", clientCount: 2800, assets: 2.8, commissionIncome: 0.08, avgIncomePerClient: 28.6, transactionCount: 18000, mau: 2600 },
-      { id: "ind-res-100m-1b", clientType: "Физические лица–резиденты", assetBand: "100 млн – 1 млрд", clientCount: 180, assets: 0.36, commissionIncome: 0.02, avgIncomePerClient: 111.1, transactionCount: 1800, mau: 175 },
-      { id: "ind-res-1b+", clientType: "Физические лица–резиденты", assetBand: "> 1 млрд", clientCount: 20, assets: 0.04, commissionIncome: 0.002, avgIncomePerClient: 100, transactionCount: 200, mau: 18 },
-    ],
-  },
-  {
-    id: "individuals-nonresident",
-    clientType: "Физические лица–нерезиденты",
-    clientCount: 185000,
-    assets: 24.2,
-    commissionIncome: 8.6,
-    avgIncomePerClient: 46.5,
-    transactionCount: 4200000,
-    mau: 156000,
-    isGroupHeader: true,
-    children: [
-      { id: "ind-nonres-0-1k", clientType: "Физические лица–нерезиденты", assetBand: "0–1 тыс", clientCount: 28000, assets: 0.01, commissionIncome: 0.2, avgIncomePerClient: 7.1, transactionCount: 180000, mau: 18000 },
-      { id: "ind-nonres-1k-100k", clientType: "Физические лица–нерезиденты", assetBand: "1 тыс – 100 тыс", clientCount: 72000, assets: 2.8, commissionIncome: 2.4, avgIncomePerClient: 33.3, transactionCount: 1450000, mau: 62000 },
-      { id: "ind-nonres-100k-1m", clientType: "Физические лица–нерезиденты", assetBand: "100 тыс – 1 млн", clientCount: 58000, assets: 12.4, commissionIncome: 4.2, avgIncomePerClient: 72.4, transactionCount: 1680000, mau: 52000 },
-      { id: "ind-nonres-1m-5m", clientType: "Физические лица–нерезиденты", assetBand: "1–5 млн", clientCount: 21000, assets: 6.8, commissionIncome: 1.4, avgIncomePerClient: 66.7, transactionCount: 720000, mau: 18500 },
-      { id: "ind-nonres-5m-10m", clientType: "Физические лица–нерезиденты", assetBand: "5–10 млн", clientCount: 4800, assets: 1.8, commissionIncome: 0.32, avgIncomePerClient: 66.7, transactionCount: 145000, mau: 4200 },
-      { id: "ind-nonres-10m-50m", clientType: "Физические лица–нерезиденты", assetBand: "10–50 млн", clientCount: 1100, assets: 0.38, commissionIncome: 0.06, avgIncomePerClient: 54.5, transactionCount: 24000, mau: 980 },
-      { id: "ind-nonres-50m-100m", clientType: "Физические лица–нерезиденты", assetBand: "50–100 млн", clientCount: 90, assets: 0.02, commissionIncome: 0.018, avgIncomePerClient: 200, transactionCount: 800, mau: 85 },
-      { id: "ind-nonres-100m-1b", clientType: "Физические лица–нерезиденты", assetBand: "100 млн – 1 млрд", clientCount: 10, assets: 0.002, commissionIncome: 0.002, avgIncomePerClient: 200, transactionCount: 50, mau: 10 },
-    ],
-  },
-  {
-    id: "ip",
-    clientType: "Индивидуальные предприниматели",
-    clientCount: 42000,
-    assets: 8.4,
-    commissionIncome: 2.8,
-    avgIncomePerClient: 66.7,
-    transactionCount: 1850000,
-    mau: 38000,
-    isGroupHeader: true,
-    children: [
-      { id: "ip-0-1k", clientType: "Индивидуальные предприниматели", assetBand: "0–1 тыс", clientCount: 4200, assets: 0.002, commissionIncome: 0.04, avgIncomePerClient: 9.5, transactionCount: 28000, mau: 2800 },
-      { id: "ip-1k-100k", clientType: "Индивидуальные предприниматели", assetBand: "1 тыс – 100 тыс", clientCount: 18500, assets: 0.8, commissionIncome: 0.8, avgIncomePerClient: 43.2, transactionCount: 680000, mau: 16200 },
-      { id: "ip-100k-1m", clientType: "Индивидуальные предприниматели", assetBand: "100 тыс – 1 млн", clientCount: 12800, assets: 4.2, commissionIncome: 1.2, avgIncomePerClient: 93.8, transactionCount: 780000, mau: 11800 },
-      { id: "ip-1m-5m", clientType: "Индивидуальные предприниматели", assetBand: "1–5 млн", clientCount: 4800, assets: 2.4, commissionIncome: 0.56, avgIncomePerClient: 116.7, transactionCount: 285000, mau: 4500 },
-      { id: "ip-5m-10m", clientType: "Индивидуальные предприниматели", assetBand: "5–10 млн", clientCount: 1200, assets: 0.72, commissionIncome: 0.14, avgIncomePerClient: 116.7, transactionCount: 58000, mau: 1100 },
-      { id: "ip-10m-50m", clientType: "Индивидуальные предприниматели", assetBand: "10–50 млн", clientCount: 420, assets: 0.26, commissionIncome: 0.05, avgIncomePerClient: 119, transactionCount: 18000, mau: 385 },
-      { id: "ip-50m-100m", clientType: "Индивидуальные предприниматели", assetBand: "50–100 млн", clientCount: 72, assets: 0.016, commissionIncome: 0.008, avgIncomePerClient: 111.1, transactionCount: 980, mau: 68 },
-      { id: "ip-100m-1b", clientType: "Индивидуальные предприниматели", assetBand: "100 млн – 1 млрд", clientCount: 8, assets: 0.002, commissionIncome: 0.002, avgIncomePerClient: 250, transactionCount: 20, mau: 8 },
-    ],
-  },
-  {
-    id: "legal",
-    clientType: "Юридические лица",
-    clientCount: 23000,
-    assets: 42.6,
-    commissionIncome: 5.7,
-    avgIncomePerClient: 247.8,
-    transactionCount: 2450000,
-    mau: 21500,
-    isGroupHeader: true,
-    children: [
-      { id: "legal-0-1k", clientType: "Юридические лица", assetBand: "0–1 тыс", clientCount: 1800, assets: 0.001, commissionIncome: 0.02, avgIncomePerClient: 11.1, transactionCount: 12000, mau: 1200 },
-      { id: "legal-1k-100k", clientType: "Юридические лица", assetBand: "1 тыс – 100 тыс", clientCount: 5200, assets: 0.24, commissionIncome: 0.4, avgIncomePerClient: 76.9, transactionCount: 185000, mau: 4800 },
-      { id: "legal-100k-1m", clientType: "Юридические лица", assetBand: "100 тыс – 1 млн", clientCount: 7800, assets: 3.8, commissionIncome: 1.8, avgIncomePerClient: 230.8, transactionCount: 920000, mau: 7200 },
-      { id: "legal-1m-5m", clientType: "Юридические лица", assetBand: "1–5 млн", clientCount: 5200, assets: 12.4, commissionIncome: 2.2, avgIncomePerClient: 423.1, transactionCount: 850000, mau: 4900 },
-      { id: "legal-5m-10m", clientType: "Юридические лица", assetBand: "5–10 млн", clientCount: 1800, assets: 12.8, commissionIncome: 0.86, avgIncomePerClient: 477.8, transactionCount: 320000, mau: 1700 },
-      { id: "legal-10m-50m", clientType: "Юридические лица", assetBand: "10–50 млн", clientCount: 920, assets: 10.2, commissionIncome: 0.36, avgIncomePerClient: 391.3, transactionCount: 142000, mau: 880 },
-      { id: "legal-50m-100m", clientType: "Юридические лица", assetBand: "50–100 млн", clientCount: 220, assets: 2.4, commissionIncome: 0.05, avgIncomePerClient: 227.3, transactionCount: 18000, mau: 210 },
-      { id: "legal-100m-1b", clientType: "Юридические лица", assetBand: "100 млн – 1 млрд", clientCount: 52, assets: 0.72, commissionIncome: 0.008, avgIncomePerClient: 153.8, transactionCount: 2800, mau: 50 },
-      { id: "legal-1b+", clientType: "Юридические лица", assetBand: "> 1 млрд", clientCount: 8, assets: 0.04, commissionIncome: 0.002, avgIncomePerClient: 250, transactionCount: 200, mau: 8 },
-    ],
-  },
+const assetBands = [
+  { id: "0-1k", name: "0–1 тыс" },
+  { id: "1k-100k", name: "1 тыс – 100 тыс" },
+  { id: "100k-1m", name: "100 тыс – 1 млн" },
+  { id: "1m-5m", name: "1–5 млн" },
+  { id: "5m-10m", name: "5–10 млн" },
+  { id: "10m-50m", name: "10–50 млн" },
+  { id: "50m-100m", name: "50–100 млн" },
+  { id: "100m-1b", name: "100 млн – 1 млрд" },
+  { id: "1b+", name: "> 1 млрд" },
 ];
+
+const clientTypes = [
+  { id: "ind-res", name: "Физические лица–резиденты" },
+  { id: "ind-nonres", name: "Физические лица–нерезиденты" },
+  { id: "ip", name: "Индивидуальные предприниматели" },
+  { id: "legal", name: "Юридические лица" },
+];
+
+// Raw data by asset band -> client type
+const rawData: Record<string, Record<string, { clientCount: number; assets: number; commissionIncome: number; avgIncomePerClient: number; transactionCount: number; mau: number }>> = {
+  "0-1k": {
+    "ind-res": { clientCount: 485000, assets: 0.2, commissionIncome: 0.8, avgIncomePerClient: 1.6, transactionCount: 2100000, mau: 245000 },
+    "ind-nonres": { clientCount: 28000, assets: 0.01, commissionIncome: 0.2, avgIncomePerClient: 7.1, transactionCount: 180000, mau: 18000 },
+    "ip": { clientCount: 4200, assets: 0.002, commissionIncome: 0.04, avgIncomePerClient: 9.5, transactionCount: 28000, mau: 2800 },
+    "legal": { clientCount: 1800, assets: 0.001, commissionIncome: 0.02, avgIncomePerClient: 11.1, transactionCount: 12000, mau: 1200 },
+  },
+  "1k-100k": {
+    "ind-res": { clientCount: 892000, assets: 12.4, commissionIncome: 8.2, avgIncomePerClient: 9.2, transactionCount: 15800000, mau: 756000 },
+    "ind-nonres": { clientCount: 72000, assets: 2.8, commissionIncome: 2.4, avgIncomePerClient: 33.3, transactionCount: 1450000, mau: 62000 },
+    "ip": { clientCount: 18500, assets: 0.8, commissionIncome: 0.8, avgIncomePerClient: 43.2, transactionCount: 680000, mau: 16200 },
+    "legal": { clientCount: 5200, assets: 0.24, commissionIncome: 0.4, avgIncomePerClient: 76.9, transactionCount: 185000, mau: 4800 },
+  },
+  "100k-1m": {
+    "ind-res": { clientCount: 524000, assets: 48.6, commissionIncome: 12.8, avgIncomePerClient: 24.4, transactionCount: 14200000, mau: 485000 },
+    "ind-nonres": { clientCount: 58000, assets: 12.4, commissionIncome: 4.2, avgIncomePerClient: 72.4, transactionCount: 1680000, mau: 52000 },
+    "ip": { clientCount: 12800, assets: 4.2, commissionIncome: 1.2, avgIncomePerClient: 93.8, transactionCount: 780000, mau: 11800 },
+    "legal": { clientCount: 7800, assets: 3.8, commissionIncome: 1.8, avgIncomePerClient: 230.8, transactionCount: 920000, mau: 7200 },
+  },
+  "1m-5m": {
+    "ind-res": { clientCount: 186000, assets: 42.8, commissionIncome: 4.8, avgIncomePerClient: 25.8, transactionCount: 4800000, mau: 172000 },
+    "ind-nonres": { clientCount: 21000, assets: 6.8, commissionIncome: 1.4, avgIncomePerClient: 66.7, transactionCount: 720000, mau: 18500 },
+    "ip": { clientCount: 4800, assets: 2.4, commissionIncome: 0.56, avgIncomePerClient: 116.7, transactionCount: 285000, mau: 4500 },
+    "legal": { clientCount: 5200, assets: 12.4, commissionIncome: 2.2, avgIncomePerClient: 423.1, transactionCount: 850000, mau: 4900 },
+  },
+  "5m-10m": {
+    "ind-res": { clientCount: 42000, assets: 28.4, commissionIncome: 1.2, avgIncomePerClient: 28.6, transactionCount: 1200000, mau: 38000 },
+    "ind-nonres": { clientCount: 4800, assets: 1.8, commissionIncome: 0.32, avgIncomePerClient: 66.7, transactionCount: 145000, mau: 4200 },
+    "ip": { clientCount: 1200, assets: 0.72, commissionIncome: 0.14, avgIncomePerClient: 116.7, transactionCount: 58000, mau: 1100 },
+    "legal": { clientCount: 1800, assets: 12.8, commissionIncome: 0.86, avgIncomePerClient: 477.8, transactionCount: 320000, mau: 1700 },
+  },
+  "10m-50m": {
+    "ind-res": { clientCount: 18000, assets: 21.2, commissionIncome: 0.5, avgIncomePerClient: 27.8, transactionCount: 380000, mau: 16500 },
+    "ind-nonres": { clientCount: 1100, assets: 0.38, commissionIncome: 0.06, avgIncomePerClient: 54.5, transactionCount: 24000, mau: 980 },
+    "ip": { clientCount: 420, assets: 0.26, commissionIncome: 0.05, avgIncomePerClient: 119, transactionCount: 18000, mau: 385 },
+    "legal": { clientCount: 920, assets: 10.2, commissionIncome: 0.36, avgIncomePerClient: 391.3, transactionCount: 142000, mau: 880 },
+  },
+  "50m-100m": {
+    "ind-res": { clientCount: 2800, assets: 2.8, commissionIncome: 0.08, avgIncomePerClient: 28.6, transactionCount: 18000, mau: 2600 },
+    "ind-nonres": { clientCount: 90, assets: 0.02, commissionIncome: 0.018, avgIncomePerClient: 200, transactionCount: 800, mau: 85 },
+    "ip": { clientCount: 72, assets: 0.016, commissionIncome: 0.008, avgIncomePerClient: 111.1, transactionCount: 980, mau: 68 },
+    "legal": { clientCount: 220, assets: 2.4, commissionIncome: 0.05, avgIncomePerClient: 227.3, transactionCount: 18000, mau: 210 },
+  },
+  "100m-1b": {
+    "ind-res": { clientCount: 180, assets: 0.36, commissionIncome: 0.02, avgIncomePerClient: 111.1, transactionCount: 1800, mau: 175 },
+    "ind-nonres": { clientCount: 10, assets: 0.002, commissionIncome: 0.002, avgIncomePerClient: 200, transactionCount: 50, mau: 10 },
+    "ip": { clientCount: 8, assets: 0.002, commissionIncome: 0.002, avgIncomePerClient: 250, transactionCount: 20, mau: 8 },
+    "legal": { clientCount: 52, assets: 0.72, commissionIncome: 0.008, avgIncomePerClient: 153.8, transactionCount: 2800, mau: 50 },
+  },
+  "1b+": {
+    "ind-res": { clientCount: 20, assets: 0.04, commissionIncome: 0.002, avgIncomePerClient: 100, transactionCount: 200, mau: 18 },
+    "legal": { clientCount: 8, assets: 0.04, commissionIncome: 0.002, avgIncomePerClient: 250, transactionCount: 200, mau: 8 },
+  },
+};
+
+// Build segmentation data with asset bands as first level
+const segmentationData: SegmentRow[] = assetBands.map(band => {
+  const bandData = rawData[band.id] || {};
+  const children: SegmentRow[] = clientTypes
+    .filter(ct => bandData[ct.id])
+    .map(ct => ({
+      id: `${band.id}-${ct.id}`,
+      segment: band.name,
+      clientType: ct.name,
+      ...bandData[ct.id],
+    }));
+  
+  // Calculate totals for the band
+  const totals = children.reduce((acc, child) => ({
+    clientCount: acc.clientCount + child.clientCount,
+    assets: acc.assets + child.assets,
+    commissionIncome: acc.commissionIncome + child.commissionIncome,
+    transactionCount: acc.transactionCount + child.transactionCount,
+    mau: acc.mau + child.mau,
+  }), { clientCount: 0, assets: 0, commissionIncome: 0, transactionCount: 0, mau: 0 });
+  
+  const avgIncomePerClient = totals.clientCount > 0 
+    ? (totals.commissionIncome * 1000000000) / totals.clientCount / 1000 
+    : 0;
+
+  return {
+    id: band.id,
+    segment: band.name,
+    clientCount: totals.clientCount,
+    assets: totals.assets,
+    commissionIncome: totals.commissionIncome,
+    avgIncomePerClient: parseFloat(avgIncomePerClient.toFixed(1)),
+    transactionCount: totals.transactionCount,
+    mau: totals.mau,
+    isGroupHeader: true,
+    children,
+  };
+});
 
 // Helper function to format numbers
 const formatNumber = (value: number, type: 'count' | 'currency' | 'decimal' = 'count'): string => {
@@ -239,12 +264,12 @@ const formatNumber = (value: number, type: 'count' | 'currency' | 'decimal' = 'c
 };
 
 export const ClientBaseSection = () => {
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["individuals-resident"]));
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["0-1k"]));
 
   const getValueFn = useCallback((row: SegmentRow, column: string): number | string => {
     switch (column) {
-      case "clientType":
-        return row.clientType;
+      case "segment":
+        return row.segment;
       case "clientCount":
         return row.clientCount;
       case "assets":
@@ -258,7 +283,7 @@ export const ClientBaseSection = () => {
       case "mau":
         return row.mau;
       default:
-        return row.clientType;
+        return row.segment;
     }
   }, []);
 
@@ -351,7 +376,7 @@ export const ClientBaseSection = () => {
                 <TableHead className="min-w-[280px]">
                   <SortableHeader
                     label="Сегмент"
-                    column="clientType"
+                    column="segment"
                     currentColumn={sortState.column}
                     direction={sortState.direction}
                     onSort={handleSort}
@@ -441,7 +466,7 @@ export const ClientBaseSection = () => {
                         ) : (
                           <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         )}
-                        {group.clientType}
+                        {group.segment}
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-semibold">{formatNumber(group.clientCount)}</TableCell>
@@ -456,7 +481,7 @@ export const ClientBaseSection = () => {
                   {expandedGroups.has(group.id) &&
                     group.children?.map((child) => (
                       <TableRow key={child.id} className="hover:bg-muted/30">
-                        <TableCell className="pl-10 text-muted-foreground">{child.assetBand}</TableCell>
+                        <TableCell className="pl-10 text-muted-foreground">{child.clientType}</TableCell>
                         <TableCell className="text-right">{formatNumber(child.clientCount)}</TableCell>
                         <TableCell className="text-right">{child.assets.toFixed(2)}</TableCell>
                         <TableCell className="text-right">{child.commissionIncome.toFixed(2)}</TableCell>
