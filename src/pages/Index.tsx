@@ -1,21 +1,11 @@
 import { useState } from "react";
 import { Header } from "@/components/Header";
-import { Card } from "@/components/ui/card";
 import { ReportFilters } from "@/components/ReportFilters";
 import { ExecutiveSummary } from "@/components/report/ExecutiveSummary";
 import { FinancialResultsSection } from "@/components/report/FinancialResultsSection";
+import { BalanceSection } from "@/components/report/BalanceSection";
 import { ClientBaseSection } from "@/components/report/ClientBaseSection";
-import { Products } from "@/components/report/Products";
-import { Transactions } from "@/components/report/Transactions";
 import { Conversion } from "@/components/report/Conversion";
-
-const placeholderSections = [
-  "Риски и комплаенс",
-  "Нормативы и регуляторные показатели",
-  "Забота о клиенте и качество сервиса",
-  "Операционная деятельность",
-  "ИТ и информационная безопасность",
-];
 
 const Index = () => {
   const [period, setPeriod] = useState("month");
@@ -40,29 +30,14 @@ const Index = () => {
         {/* Financial Results Section */}
         <FinancialResultsSection />
 
+        {/* Balance Section */}
+        <BalanceSection />
+
         {/* Client Base Section */}
         <ClientBaseSection />
 
-        {/* Products Section */}
-        <Products />
-
-        {/* Transactions Section */}
-        <Transactions />
-
         {/* Conversion Section */}
         <Conversion />
-
-        {/* Remaining placeholder sections */}
-        {placeholderSections.map((section) => (
-          <section key={section}>
-            <h2 className="text-3xl font-bold text-foreground mb-6">{section}</h2>
-            <Card className="p-8">
-              <p className="text-muted-foreground text-center">
-                Раздел в разработке
-              </p>
-            </Card>
-          </section>
-        ))}
       </main>
     </div>
   );
