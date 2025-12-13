@@ -1,4 +1,56 @@
+import { KPICard } from "@/components/KPICard";
 import { FinancialTable } from "@/components/FinancialTable";
+import {
+  LandmarkIcon,
+  WalletIcon,
+  ShieldIcon,
+  DropletIcon,
+  BriefcaseIcon,
+} from "lucide-react";
+
+// KPI Data - Баланс
+const kpiMetrics = [
+  {
+    title: "Объём активов",
+    value: "₽45.2 млрд",
+    description: "Совокупные активы банка. Главная «размерная» метрика, от которой рассчитываются многие нормативы и относительные коэффициенты.",
+    change: 5.2,
+    ytdChange: 12.4,
+    icon: <LandmarkIcon className="w-5 h-5 text-accent" />,
+  },
+  {
+    title: "Депозиты клиентов",
+    value: "₽22.5 млрд",
+    description: "Объём клиентского фондирования. Даёт понимание устойчивости и зависимости от клиентских ресурсов.",
+    change: 7.3,
+    ytdChange: 15.8,
+    icon: <WalletIcon className="w-5 h-5 text-accent" />,
+  },
+  {
+    title: "Капитал",
+    value: "₽8.2 млрд",
+    description: "Собственные средства банка. Ключевой показатель устойчивости, на который опирается ROE и нормативы достаточности.",
+    change: 5.2,
+    ytdChange: 12.7,
+    icon: <ShieldIcon className="w-5 h-5 text-accent" />,
+  },
+  {
+    title: "Доля HLA",
+    value: "40.2%",
+    description: "Доля высоколиквидных активов (High Liquid Assets). Отражает способность банка исполнять обязательства, показатель ликвидности.",
+    change: 2.1,
+    ytdChange: 3.5,
+    icon: <DropletIcon className="w-5 h-5 text-accent" />,
+  },
+  {
+    title: "Рабочие активы",
+    value: "59.7%",
+    description: "Доля рабочих активов (кредитный портфель + инвестиции) в общих активах. Показывает эффективность размещения ресурсов.",
+    change: 1.8,
+    ytdChange: 4.2,
+    icon: <BriefcaseIcon className="w-5 h-5 text-accent" />,
+  },
+];
 
 // Balance Data - Assets
 const assetsData = [
@@ -23,6 +75,22 @@ export const BalanceSection = () => {
       <h2 className="text-3xl font-bold text-foreground">
         Баланс
       </h2>
+
+      {/* KPI Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {kpiMetrics.map((metric) => (
+          <KPICard
+            key={metric.title}
+            title={metric.title}
+            value={metric.value}
+            description={metric.description}
+            change={metric.change}
+            ytdChange={metric.ytdChange}
+            showChange={true}
+            icon={metric.icon}
+          />
+        ))}
+      </div>
 
       {/* Balance Structure */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
