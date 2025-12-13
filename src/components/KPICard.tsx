@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 interface KPICardProps {
   title: string;
   value: string;
-  subtitle?: string;
   description: string;
   change?: number;
+  ytdChange?: number;
   showChange?: boolean;
   icon?: React.ReactNode;
 }
@@ -21,25 +21,27 @@ interface KPICardProps {
 export const KPICard = ({
   title,
   value,
-  subtitle,
   description,
   change,
+  ytdChange,
   showChange = false,
   icon,
 }: KPICardProps) => {
   const isPositive = change !== undefined && change > 0;
+  const isYtdPositive = ytdChange !== undefined && ytdChange > 0;
   const changeColor = isPositive ? "text-success" : "text-destructive";
+  const ytdChangeColor = isYtdPositive ? "text-success" : "text-destructive";
 
   return (
-    <Card className="p-6 hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <TooltipProvider>
+    <Card className="p-4 hover:shadow-lg transition-shadow">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-sm font-medium text-muted-foreground truncate">{title}</p>
+            <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help" />
+                  <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p className="text-sm">{description}</p>
@@ -47,26 +49,47 @@ export const KPICard = ({
               </Tooltip>
             </TooltipProvider>
           </div>
-          <h3 className="text-3xl font-bold text-foreground mb-2">{value}</h3>
-          {subtitle && <p className="text-xs text-muted-foreground mb-2">{subtitle}</p>}
+          <h3 className="text-2xl font-bold text-foreground">{value}</h3>
           {showChange && change !== undefined && (
-            <div className="flex items-center gap-1">
-              {isPositive ? (
-                <ArrowUpIcon className={cn("w-4 h-4", changeColor)} />
-              ) : (
-                <ArrowDownIcon className={cn("w-4 h-4", changeColor)} />
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-0.5 cursor-help">
+                      {isPositive ? (
+                        <ArrowUpIcon className={cn("w-3.5 h-3.5", changeColor)} />
+                      ) : (
+                        <ArrowDownIcon className={cn("w-3.5 h-3.5", changeColor)} />
+                      )}
+                      <span className={cn("text-sm font-semibold", changeColor)}>
+                        {Math.abs(change)}%
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-sm">PPTD — изменение к предыдущему периоду</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {ytdChange !== undefined && (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={cn("text-sm cursor-help", ytdChangeColor)}>
+                        ({isYtdPositive ? "↑" : "↓"}{Math.abs(ytdChange)}%)
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-sm">YTD — изменение с начала года</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
-              <span className={cn("text-sm font-semibold", changeColor)}>
-                {Math.abs(change)}%
-              </span>
-              <span className="text-xs text-muted-foreground ml-1">
-                vs пред. период
-              </span>
             </div>
           )}
         </div>
         {icon && (
-          <div className="p-3 bg-accent/10 rounded-lg">{icon}</div>
+          <div className="p-2.5 bg-accent/10 rounded-lg flex-shrink-0">{icon}</div>
         )}
       </div>
     </Card>
