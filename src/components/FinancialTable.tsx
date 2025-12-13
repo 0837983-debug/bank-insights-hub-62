@@ -132,6 +132,65 @@ export const FinancialTable = ({
     return level;
   };
 
+  // Get max depth level in the hierarchy
+  const getMaxDepth = (): number => {
+    let maxDepth = 0;
+    rows.forEach((row) => {
+      const depth = getIndentLevel(row);
+      if (depth > maxDepth) maxDepth = depth;
+    });
+    return maxDepth;
+  };
+
+  // Get groups at specific depth level
+  const getGroupsAtLevel = (level: number): string[] => {
+    return rows
+      .filter((r) => r.isGroup && !r.isTotal && getIndentLevel(r) === level)
+      .map((r) => r.id);
+  };
+
+  // Calculate current collapse level (0 = all expanded, maxDepth = all collapsed)
+  const getCurrentCollapseLevel = (): number => {
+    const maxDepth = getMaxDepth();
+    for (let level = maxDepth - 1; level >= 0; level--) {
+      const groupsAtLevel = getGroupsAtLevel(level);
+      if (groupsAtLevel.some((id) => collapsedGroups.has(id))) {
+        return level;
+      }
+    }
+    return -1; // All expanded
+  };
+
+  // Collapse one level deeper
+  const collapseOneLevel = () => {
+    const currentLevel = getCurrentCollapseLevel();
+    const maxDepth = getMaxDepth();
+    const nextLevel = currentLevel + 1;
+    
+    if (nextLevel < maxDepth) {
+      const groupsToCollapse = getGroupsAtLevel(nextLevel);
+      setCollapsedGroups((prev) => {
+        const next = new Set(prev);
+        groupsToCollapse.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  // Expand one level
+  const expandOneLevel = () => {
+    const currentLevel = getCurrentCollapseLevel();
+    
+    if (currentLevel >= 0) {
+      const groupsToExpand = getGroupsAtLevel(currentLevel);
+      setCollapsedGroups((prev) => {
+        const next = new Set(prev);
+        groupsToExpand.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
+  };
+
   const visibleRows = sortedRows.filter(isRowVisible);
   const hasGroups = rows.some((r) => r.isGroup && !r.isTotal);
 
@@ -147,15 +206,12 @@ export const FinancialTable = ({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => {
-                    const groupIds = rows.filter((r) => r.isGroup && !r.isTotal).map((r) => r.id);
-                    setCollapsedGroups(new Set(groupIds));
-                  }}
+                  onClick={collapseOneLevel}
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Свернуть все</TooltipContent>
+              <TooltipContent>Свернуть уровень</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -163,12 +219,12 @@ export const FinancialTable = ({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => setCollapsedGroups(new Set())}
+                  onClick={expandOneLevel}
                 >
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Развернуть все</TooltipContent>
+              <TooltipContent>Развернуть уровень</TooltipContent>
             </Tooltip>
           </div>
         )}
