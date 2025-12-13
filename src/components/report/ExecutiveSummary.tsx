@@ -165,6 +165,7 @@ export const ExecutiveSummary = () => {
               value={kpi.value}
               description={kpi.description}
               change={kpi.change}
+              ytdChange={kpi.ytdChange}
               showChange
               icon={kpi.icon}
             />

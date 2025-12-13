@@ -184,6 +184,7 @@ export const Conversion = () => {
           title="Количество FX-сделок"
           value="705.5K"
           change={9.4}
+          ytdChange={18.7}
           showChange
           description="Общее количество конверсионных операций за период"
         />
@@ -191,6 +192,7 @@ export const Conversion = () => {
           title="Средний чек FX-сделки"
           value="₽214.8K"
           change={3.2}
+          ytdChange={5.6}
           showChange
           description="Средний объём одной конверсионной операции"
         />
@@ -198,6 +200,7 @@ export const Conversion = () => {
           title="Средневзв. FX-спред"
           value="1.82%"
           change={-0.08}
+          ytdChange={-0.15}
           showChange
           description="Средневзвешенный спред по всем FX-операциям"
         />
@@ -205,6 +208,7 @@ export const Conversion = () => {
           title="Уникальных клиентов FX"
           value="186.4K"
           change={12.6}
+          ytdChange={22.4}
           showChange
           description="Количество уникальных клиентов, совершавших конверсии"
         />
@@ -212,6 +216,7 @@ export const Conversion = () => {
           title="FX-транзакций на клиента"
           value="3.78"
           change={-2.8}
+          ytdChange={-1.5}
           showChange
           description="Среднее количество FX-операций на одного клиента"
         />

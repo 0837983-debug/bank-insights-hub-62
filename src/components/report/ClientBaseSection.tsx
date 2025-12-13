@@ -19,42 +19,42 @@ const kpiMetrics = [
   {
     title: "MAU",
     value: "2.4 млн",
-    subtitle: "Ежемесячно активные клиенты",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за месяц",
     change: 8.5,
-    icon: <UsersIcon className="w-6 h-6 text-accent" />,
+    ytdChange: 15.2,
+    icon: <UsersIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "DAU",
     value: "785 тыс",
-    subtitle: "Ежедневно активные клиенты",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за день",
     change: 6.2,
-    icon: <UserCheckIcon className="w-6 h-6 text-accent" />,
+    ytdChange: 11.8,
+    icon: <UserCheckIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "ARPU",
     value: "₽1,475",
-    subtitle: "Средний доход на клиента",
     description: "Средний доход на одного клиента за период",
     change: 5.8,
-    icon: <WalletIcon className="w-6 h-6 text-accent" />,
+    ytdChange: 9.4,
+    icon: <WalletIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "Retention",
     value: "78.5%",
-    subtitle: "Месячное удержание",
     description: "Доля клиентов, совершивших ≥1 операцию и в текущем, и в предыдущем месяце",
     change: 2.1,
-    icon: <TrendingUpIcon className="w-6 h-6 text-accent" />,
+    ytdChange: 3.8,
+    icon: <TrendingUpIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "Churn",
     value: "4.2%",
-    subtitle: "Ушедшие клиенты",
     description: "Доля клиентов, активных в прошлом месяце, но не совершивших операций в текущем",
     change: -1.3,
-    icon: <UserMinusIcon className="w-6 h-6 text-accent" />,
+    ytdChange: -2.1,
+    icon: <UserMinusIcon className="w-5 h-5 text-accent" />,
   },
 ];
 
@@ -322,6 +322,7 @@ export const ClientBaseSection = () => {
             value={metric.value}
             description={metric.description}
             change={metric.change}
+            ytdChange={metric.ytdChange}
             showChange={true}
             icon={metric.icon}
           />
