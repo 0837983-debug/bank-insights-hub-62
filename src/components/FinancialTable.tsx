@@ -81,15 +81,18 @@ export const FinancialTable = ({
     }
   }, []);
 
-  // Separate groups (top-level) and children
+  // Build hierarchical structure recursively
+  const buildHierarchy = (parentId: string | undefined): TableRowData[] => {
+    const children = rows.filter((r) => r.parentId === parentId);
+    return children.flatMap((child) => [child, ...buildHierarchy(child.id)]);
+  };
+
+  // Separate top-level rows
   const topLevelRows = rows.filter((r) => !r.parentId);
   const { sortedData: sortedTopLevel, sortState, handleSort } = useTableSort(topLevelRows, getValueFn);
 
-  // Rebuild full sorted rows with children
-  const sortedRows = sortedTopLevel.flatMap((row) => {
-    const children = rows.filter((r) => r.parentId === row.id);
-    return [row, ...children];
-  });
+  // Rebuild full sorted rows with nested children
+  const sortedRows = sortedTopLevel.flatMap((row) => [row, ...buildHierarchy(row.id)]);
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups((prev) => {
@@ -103,9 +106,30 @@ export const FinancialTable = ({
     });
   };
 
+  // Check if any ancestor is collapsed
   const isRowVisible = (row: TableRowData): boolean => {
     if (!row.parentId) return true;
-    return !collapsedGroups.has(row.parentId);
+    
+    // Check all ancestors
+    let currentParentId: string | undefined = row.parentId;
+    while (currentParentId) {
+      if (collapsedGroups.has(currentParentId)) return false;
+      const parent = rows.find((r) => r.id === currentParentId);
+      currentParentId = parent?.parentId;
+    }
+    return true;
+  };
+
+  // Calculate indent level based on hierarchy depth
+  const getIndentLevel = (row: TableRowData): number => {
+    let level = 0;
+    let currentParentId = row.parentId;
+    while (currentParentId) {
+      level++;
+      const parent = rows.find((r) => r.id === currentParentId);
+      currentParentId = parent?.parentId;
+    }
+    return level;
   };
 
   const visibleRows = sortedRows.filter(isRowVisible);
@@ -208,7 +232,7 @@ export const FinancialTable = ({
                 >
                   <TableCell
                     className="py-4"
-                    style={{ paddingLeft: row.indent ? `${row.indent * 1.5 + 1}rem` : undefined }}
+                    style={{ paddingLeft: `${getIndentLevel(row) * 1.5 + 1}rem` }}
                   >
                     <div className="flex items-center gap-2">
                       {hasChildren && (
