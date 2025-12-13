@@ -166,10 +166,10 @@ export const FinancialTable = ({
     return -1;
   };
 
-  // Find the deepest level that has collapsed groups
-  const getDeepestCollapsedLevel = (): number => {
+  // Find the shallowest level that has collapsed groups
+  const getShallowestCollapsedLevel = (): number => {
     const maxDepth = getMaxDepth();
-    for (let level = maxDepth - 1; level >= 0; level--) {
+    for (let level = 0; level < maxDepth; level++) {
       const groupsAtLevel = getCollapsibleRowsAtLevel(level);
       const hasCollapsedAtLevel = groupsAtLevel.some((id) => collapsedGroups.has(id));
       if (hasCollapsedAtLevel) {
@@ -193,12 +193,12 @@ export const FinancialTable = ({
     }
   };
 
-  // Expand one level - expand the deepest collapsed level
+  // Expand one level - expand the shallowest collapsed level (top to bottom)
   const expandOneLevel = () => {
-    const deepestCollapsed = getDeepestCollapsedLevel();
+    const shallowestCollapsed = getShallowestCollapsedLevel();
     
-    if (deepestCollapsed >= 0) {
-      const groupsToExpand = getCollapsibleRowsAtLevel(deepestCollapsed);
+    if (shallowestCollapsed >= 0) {
+      const groupsToExpand = getCollapsibleRowsAtLevel(shallowestCollapsed);
       setCollapsedGroups((prev) => {
         const next = new Set(prev);
         groupsToExpand.forEach((id) => next.delete(id));
