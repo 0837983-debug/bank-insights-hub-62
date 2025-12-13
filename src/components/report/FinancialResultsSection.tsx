@@ -13,42 +13,42 @@ const kpiMetrics = [
   {
     title: "Капитал",
     value: "₽8.2 млрд",
-    subtitle: "Регуляторный капитал",
     description: "Совокупный капитал банка, включающий уставный, добавочный и резервный капитал для покрытия рисков.",
     change: 5.2,
-    icon: <LandmarkIcon className="w-6 h-6 text-accent" />,
+    ytdChange: 12.7,
+    icon: <LandmarkIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "EBITDA",
     value: "₽2.1 млрд",
-    subtitle: "За вычетом резервов",
     description: "Прибыль до вычета процентов, налогов, износа и амортизации, скорректированная на созданные резервы.",
     change: 12.3,
-    icon: <TrendingUpIcon className="w-6 h-6 text-accent" />,
+    ytdChange: 8.4,
+    icon: <TrendingUpIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "Cost-to-Income",
     value: "42.5%",
-    subtitle: "Операционная эффективность",
     description: "Отношение операционных расходов к операционным доходам. Показывает эффективность управления расходами.",
     change: -3.1,
-    icon: <PercentIcon className="w-6 h-6 text-accent" />,
+    ytdChange: -5.2,
+    icon: <PercentIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "ROA",
     value: "2.8%",
-    subtitle: "Рентабельность активов",
     description: "Return on Assets — отношение чистой прибыли к средним активам. Показывает эффективность использования активов.",
     change: 0.4,
-    icon: <ActivityIcon className="w-6 h-6 text-accent" />,
+    ytdChange: 1.2,
+    icon: <ActivityIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "ROE",
     value: "18.2%",
-    subtitle: "Рентабельность капитала",
     description: "Return on Equity — отношение чистой прибыли к собственному капиталу. Показывает доходность для акционеров.",
     change: 2.1,
-    icon: <WalletIcon className="w-6 h-6 text-accent" />,
+    ytdChange: -0.3,
+    icon: <WalletIcon className="w-5 h-5 text-accent" />,
   },
 ];
 
@@ -133,9 +133,9 @@ export const FinancialResultsSection = () => {
             key={metric.title}
             title={metric.title}
             value={metric.value}
-            subtitle={metric.subtitle}
             description={metric.description}
             change={metric.change}
+            ytdChange={metric.ytdChange}
             showChange={true}
             icon={metric.icon}
           />

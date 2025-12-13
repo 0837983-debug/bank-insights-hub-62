@@ -320,7 +320,6 @@ export const ClientBaseSection = () => {
             key={metric.title}
             title={metric.title}
             value={metric.value}
-            subtitle={metric.subtitle}
             description={metric.description}
             change={metric.change}
             showChange={true}

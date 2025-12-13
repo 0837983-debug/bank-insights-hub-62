@@ -163,7 +163,6 @@ export const ExecutiveSummary = () => {
               key={kpi.id}
               title={kpi.title}
               value={kpi.value}
-              subtitle={kpi.subtitle}
               description={kpi.description}
               change={kpi.change}
               showChange
