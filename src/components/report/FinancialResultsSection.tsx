@@ -1,27 +1,27 @@
 import { KPICard } from "@/components/KPICard";
 import { FinancialTable } from "@/components/FinancialTable";
 import {
-  LandmarkIcon,
   TrendingUpIcon,
   PercentIcon,
   ActivityIcon,
   WalletIcon,
+  BanknoteIcon,
 } from "lucide-react";
 
-// KPI Data
+// KPI Data - Финансовые результаты
 const kpiMetrics = [
   {
-    title: "Капитал",
-    value: "₽8.2 млрд",
-    description: "Совокупный капитал банка, включающий уставный, добавочный и резервный капитал для покрытия рисков.",
-    change: 5.2,
-    ytdChange: 12.7,
-    icon: <LandmarkIcon className="w-5 h-5 text-accent" />,
+    title: "Чистая прибыль",
+    value: "₽6.5 млрд",
+    description: "Финансовый результат после всех расходов, резервов и налогов. Базовый индикатор прибыльности банка.",
+    change: 14.2,
+    ytdChange: 18.5,
+    icon: <BanknoteIcon className="w-5 h-5 text-accent" />,
   },
   {
     title: "EBITDA",
     value: "₽2.1 млрд",
-    description: "Прибыль до вычета процентов, налогов, износа и амортизации, скорректированная на созданные резервы.",
+    description: "Операционная прибыль до вычета процентов, налогов, износа и амортизации. Показывает операционную эффективность без влияния резервов.",
     change: 12.3,
     ytdChange: 8.4,
     icon: <TrendingUpIcon className="w-5 h-5 text-accent" />,
@@ -29,7 +29,7 @@ const kpiMetrics = [
   {
     title: "Cost-to-Income",
     value: "42.5%",
-    description: "Отношение операционных расходов к операционным доходам. Показывает эффективность управления расходами.",
+    description: "Отношение операционных расходов к операционным доходам. Главный показатель эффективности затрат для сравнения по времени и с конкурентами.",
     change: -3.1,
     ytdChange: -5.2,
     icon: <PercentIcon className="w-5 h-5 text-accent" />,
@@ -37,7 +37,7 @@ const kpiMetrics = [
   {
     title: "ROA",
     value: "2.8%",
-    description: "Return on Assets — отношение чистой прибыли к средним активам. Показывает эффективность использования активов.",
+    description: "Return on Assets — отношение чистой прибыли к средним активам. Показывает, насколько эффективно банк использует активы.",
     change: 0.4,
     ytdChange: 1.2,
     icon: <ActivityIcon className="w-5 h-5 text-accent" />,
@@ -45,7 +45,7 @@ const kpiMetrics = [
   {
     title: "ROE",
     value: "18.2%",
-    description: "Return on Equity — отношение чистой прибыли к собственному капиталу. Показывает доходность для акционеров.",
+    description: "Return on Equity — отношение чистой прибыли к собственному капиталу. Показывает, сколько зарабатывает капитал собственников.",
     change: 2.1,
     ytdChange: -0.3,
     icon: <WalletIcon className="w-5 h-5 text-accent" />,
