@@ -39,7 +39,7 @@ export const allDashboardKPIs: DashboardKPI[] = [
   {
     id: "capital",
     title: "Капитал",
-    value: "₽8.2 млрд",
+    value: "₽8.2B",
     description: "Совокупный капитал банка, включающий уставный, добавочный и резервный капитал для покрытия рисков.",
     change: 5.2,
     ytdChange: 12.7,
@@ -49,7 +49,7 @@ export const allDashboardKPIs: DashboardKPI[] = [
   {
     id: "ebitda",
     title: "EBITDA",
-    value: "₽2.1 млрд",
+    value: "₽2.1B",
     description: "Прибыль до вычета процентов, налогов, износа и амортизации, скорректированная на созданные резервы.",
     change: 12.3,
     ytdChange: 8.4,
@@ -91,7 +91,7 @@ export const allDashboardKPIs: DashboardKPI[] = [
   {
     id: "mau",
     title: "MAU",
-    value: "2.4 млн",
+    value: "2.4M",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за месяц",
     change: 8.5,
     ytdChange: 15.2,
@@ -101,7 +101,7 @@ export const allDashboardKPIs: DashboardKPI[] = [
   {
     id: "dau",
     title: "DAU",
-    value: "785 тыс",
+    value: "785K",
     description: "Число уникальных клиентов, совершивших ≥1 операцию за день",
     change: 6.2,
     ytdChange: 11.8,

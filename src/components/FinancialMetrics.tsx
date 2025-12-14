@@ -32,7 +32,7 @@ export const FinancialMetrics = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="AUM (Средства клиентов)"
-          value="₽82.5 млрд"
+          value="₽82.5B"
           change={6.3}
           subtitle="Общий объём"
           icon={<PiggyBankIcon className="w-6 h-6 text-accent" />}
@@ -70,7 +70,7 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="45%"
                 labelLine={true}
-                label={({ value, percent, payload }) => `₽${payload.amount} млрд (${(percent * 100).toFixed(0)}%)`}
+                label={({ value, percent, payload }) => `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`}
                 outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
@@ -86,7 +86,7 @@ export const FinancialMetrics = () => {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
-                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
+                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount}B (${value}%)`, props.payload.name]}
               />
               <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
@@ -102,7 +102,7 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="45%"
                 labelLine={true}
-                label={({ value, percent, payload }) => `₽${payload.amount} млрд (${(percent * 100).toFixed(0)}%)`}
+                label={({ value, percent, payload }) => `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`}
                 outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
@@ -118,7 +118,7 @@ export const FinancialMetrics = () => {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
-                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
+                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount}B (${value}%)`, props.payload.name]}
               />
               <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>
@@ -134,7 +134,7 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="45%"
                 labelLine={true}
-                label={({ value, percent, payload }) => `₽${payload.amount} млрд (${(percent * 100).toFixed(0)}%)`}
+                label={({ value, percent, payload }) => `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`}
                 outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
@@ -150,7 +150,7 @@ export const FinancialMetrics = () => {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
-                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount} млрд (${value}%)`, props.payload.name]}
+                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount}B (${value}%)`, props.payload.name]}
               />
               <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
             </PieChart>

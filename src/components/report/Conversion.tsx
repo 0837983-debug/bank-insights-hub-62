@@ -60,7 +60,7 @@ const formatNumber = (num: number) => {
   return num.toFixed(0);
 };
 
-const formatVolume = (num: number) => `${num.toFixed(1)} млрд`;
+const formatVolume = (num: number) => `${num.toFixed(1)}B`;
 
 interface ConversionTableProps {
   title: string;
@@ -138,7 +138,7 @@ const ConversionTable = ({ title, data, showCurrencyToggle = true }: ConversionT
             </TableHead>
             <TableHead className="text-right">
               <SortableHeader
-                label={showRub ? "Объём, млрд руб" : "Объём, млн ед."}
+                label={showRub ? "Объём, B руб" : "Объём, M ед."}
                 column="volume"
                 currentColumn={sortState.column}
                 direction={sortState.direction}
@@ -160,7 +160,7 @@ const ConversionTable = ({ title, data, showCurrencyToggle = true }: ConversionT
                 <div>
                   {showRub 
                     ? formatVolume(row.volumeRub)
-                    : `${row.volumeOriginal.toFixed(0)} млн`
+                    : `${row.volumeOriginal.toFixed(0)}M`
                   }
                 </div>
                 {renderChange(showRub ? row.volumeRubChange : row.volumeOriginalChange)}

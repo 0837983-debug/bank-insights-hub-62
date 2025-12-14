@@ -51,7 +51,7 @@ export const KPICard = ({
           </div>
           <h3 className="text-2xl font-bold text-foreground">{value}</h3>
           {showChange && change !== undefined && (
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            <div className="flex items-center gap-2 mt-2">
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
