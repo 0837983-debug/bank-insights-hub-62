@@ -32,7 +32,7 @@ export const RiskMetrics = () => {
         />
         <MetricCard
           title="Операционные потери"
-          value="₽2.1 млн"
+          value="₽2.1M"
           change={-18.2}
           subtitle="Убытки от рисков"
           icon={<TrendingDownIcon className="w-6 h-6 text-destructive" />}

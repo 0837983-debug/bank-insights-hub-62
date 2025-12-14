@@ -37,7 +37,7 @@ export const TransactionMetrics = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="MAU"
-          value="2.4 млн"
+          value="2.4M"
           change={8.5}
           subtitle="Активные пользователи"
           icon={<UsersIcon className="w-6 h-6 text-accent" />}
@@ -133,7 +133,7 @@ export const TransactionMetrics = () => {
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px'
                 }}
-                formatter={(value: any) => `₽${value} млн`}
+                formatter={(value: any) => `₽${value}M`}
               />
               <Legend align="left" />
               <Line 
