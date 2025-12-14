@@ -1,5 +1,7 @@
 # Welcome to your Lovable project
 
+<!-- Sync trigger -->
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/801c9de2-8c29-44ca-ab84-3e4bcf91ede2
