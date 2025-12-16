@@ -248,9 +248,67 @@ const incomeGroupingOptions: GroupingOption[] = [
   { id: "segment", label: "Сегмент" },
 ];
 
+// Grouping options for expenses table
+const expensesGroupingOptions: GroupingOption[] = [
+  { id: "fot", label: "ФОТ" },
+];
+
+// FOT grouped by departments with top 5 recipients
+const fotExpensesData: TableRowData[] = [
+  { id: "dept1", name: "IT департамент", value: 680000000, isGroup: true, percentage: 24.3, change: 8.5 },
+  { id: "dept1-1", name: "Иванов А.С.", value: 24000000, percentage: 3.5, parentId: "dept1", change: 5.2 },
+  { id: "dept1-2", name: "Петров М.В.", value: 21500000, percentage: 3.2, parentId: "dept1", change: 4.8 },
+  { id: "dept1-3", name: "Сидоров К.Л.", value: 19800000, percentage: 2.9, parentId: "dept1", change: 6.1 },
+  { id: "dept1-4", name: "Козлова Е.Н.", value: 18200000, percentage: 2.7, parentId: "dept1", change: 7.3 },
+  { id: "dept1-5", name: "Морозов Д.А.", value: 17500000, percentage: 2.6, parentId: "dept1", change: 5.8 },
+  { id: "dept1-6", name: "Прочие", value: 579000000, percentage: 85.1, parentId: "dept1", change: 8.9 },
+  
+  { id: "dept2", name: "Розничный бизнес", value: 620000000, isGroup: true, percentage: 22.1, change: 7.2 },
+  { id: "dept2-1", name: "Волков П.И.", value: 22000000, percentage: 3.5, parentId: "dept2", change: 6.5 },
+  { id: "dept2-2", name: "Новикова О.С.", value: 20500000, percentage: 3.3, parentId: "dept2", change: 5.9 },
+  { id: "dept2-3", name: "Федоров А.М.", value: 19200000, percentage: 3.1, parentId: "dept2", change: 7.1 },
+  { id: "dept2-4", name: "Соколов В.Д.", value: 17800000, percentage: 2.9, parentId: "dept2", change: 6.8 },
+  { id: "dept2-5", name: "Попова Н.К.", value: 16500000, percentage: 2.7, parentId: "dept2", change: 5.5 },
+  { id: "dept2-6", name: "Прочие", value: 524000000, percentage: 84.5, parentId: "dept2", change: 7.4 },
+  
+  { id: "dept3", name: "Корпоративный бизнес", value: 540000000, isGroup: true, percentage: 19.3, change: 5.8 },
+  { id: "dept3-1", name: "Лебедев С.А.", value: 28000000, percentage: 5.2, parentId: "dept3", change: 4.2 },
+  { id: "dept3-2", name: "Кузнецов И.П.", value: 25500000, percentage: 4.7, parentId: "dept3", change: 5.1 },
+  { id: "dept3-3", name: "Михайлова Т.В.", value: 23000000, percentage: 4.3, parentId: "dept3", change: 6.3 },
+  { id: "dept3-4", name: "Егоров Р.Н.", value: 21000000, percentage: 3.9, parentId: "dept3", change: 5.7 },
+  { id: "dept3-5", name: "Павлова Ю.А.", value: 19500000, percentage: 3.6, parentId: "dept3", change: 4.9 },
+  { id: "dept3-6", name: "Прочие", value: 423000000, percentage: 78.3, parentId: "dept3", change: 6.1 },
+  
+  { id: "dept4", name: "Риски и комплаенс", value: 380000000, isGroup: true, percentage: 13.6, change: 4.5 },
+  { id: "dept4-1", name: "Смирнов В.Г.", value: 18500000, percentage: 4.9, parentId: "dept4", change: 3.8 },
+  { id: "dept4-2", name: "Орлова М.С.", value: 16800000, percentage: 4.4, parentId: "dept4", change: 4.2 },
+  { id: "dept4-3", name: "Титов А.Л.", value: 15200000, percentage: 4.0, parentId: "dept4", change: 5.1 },
+  { id: "dept4-4", name: "Белова Е.О.", value: 14000000, percentage: 3.7, parentId: "dept4", change: 4.6 },
+  { id: "dept4-5", name: "Крылов Н.Д.", value: 13000000, percentage: 3.4, parentId: "dept4", change: 3.9 },
+  { id: "dept4-6", name: "Прочие", value: 302500000, percentage: 79.6, parentId: "dept4", change: 4.7 },
+  
+  { id: "dept5", name: "Финансы и бухгалтерия", value: 320000000, isGroup: true, percentage: 11.4, change: 3.2 },
+  { id: "dept5-1", name: "Захаров П.В.", value: 17000000, percentage: 5.3, parentId: "dept5", change: 2.8 },
+  { id: "dept5-2", name: "Романова А.И.", value: 15500000, percentage: 4.8, parentId: "dept5", change: 3.1 },
+  { id: "dept5-3", name: "Васильев О.М.", value: 14200000, percentage: 4.4, parentId: "dept5", change: 3.5 },
+  { id: "dept5-4", name: "Николаева С.Д.", value: 13000000, percentage: 4.1, parentId: "dept5", change: 2.9 },
+  { id: "dept5-5", name: "Алексеев К.Р.", value: 12000000, percentage: 3.8, parentId: "dept5", change: 3.3 },
+  { id: "dept5-6", name: "Прочие", value: 248300000, percentage: 77.6, parentId: "dept5", change: 3.4 },
+  
+  { id: "dept6", name: "Прочие департаменты", value: 260000000, isGroup: true, percentage: 9.3, change: 6.1 },
+  { id: "dept6-1", name: "Макаров Д.С.", value: 14000000, percentage: 5.4, parentId: "dept6", change: 5.2 },
+  { id: "dept6-2", name: "Андреева Л.П.", value: 12500000, percentage: 4.8, parentId: "dept6", change: 6.5 },
+  { id: "dept6-3", name: "Сергеев В.Н.", value: 11200000, percentage: 4.3, parentId: "dept6", change: 5.8 },
+  { id: "dept6-4", name: "Борисова К.А.", value: 10000000, percentage: 3.8, parentId: "dept6", change: 6.2 },
+  { id: "dept6-5", name: "Яковлев М.Е.", value: 9300000, percentage: 3.6, parentId: "dept6", change: 5.5 },
+  { id: "dept6-6", name: "Прочие", value: 203000000, percentage: 78.1, parentId: "dept6", change: 6.3 },
+];
+
 export const FinancialResultsSection = () => {
   const [incomeData, setIncomeData] = useState<TableRowData[]>(defaultIncomeData);
   const [isLoadingIncome, setIsLoadingIncome] = useState(false);
+  const [expensesDataState, setExpensesDataState] = useState<TableRowData[]>(expensesData);
+  const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
 
   const handleIncomeGroupingChange = useCallback((groupBy: string | null) => {
     setIsLoadingIncome(true);
@@ -271,6 +329,22 @@ export const FinancialResultsSection = () => {
           setIncomeData(defaultIncomeData);
       }
       setIsLoadingIncome(false);
+    }, 300);
+  }, []);
+
+  const handleExpensesGroupingChange = useCallback((groupBy: string | null) => {
+    setIsLoadingExpenses(true);
+    
+    // Simulate API call delay
+    setTimeout(() => {
+      switch (groupBy) {
+        case "fot":
+          setExpensesDataState(fotExpensesData);
+          break;
+        default:
+          setExpensesDataState(expensesData);
+      }
+      setIsLoadingExpenses(false);
     }, 300);
   }, []);
 
@@ -309,9 +383,12 @@ export const FinancialResultsSection = () => {
         />
         <FinancialTable
           title="Расходы и резервы"
-          rows={expensesData}
+          rows={expensesDataState}
           showPercentage={true}
           showChange={true}
+          groupingOptions={expensesGroupingOptions}
+          onGroupingChange={handleExpensesGroupingChange}
+          isLoading={isLoadingExpenses}
         />
       </div>
     </section>
