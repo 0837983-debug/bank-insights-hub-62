@@ -157,7 +157,7 @@ export const ExecutiveSummary = () => {
           <p className="text-sm mt-1">Нажмите «Настройки» чтобы выбрать метрики.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
           {selectedKPIData.map((kpi) => (
             <KPICard
               key={kpi.id}
