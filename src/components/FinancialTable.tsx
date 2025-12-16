@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ChevronsUpDown } from "lucide-react";
+import { InfoIcon, ChevronRight, ChevronDown, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useTableSort, SortDirection } from "@/hooks/use-table-sort";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { SortableHeader } from "@/components/SortableHeader";
 
 export interface TableRowData {
@@ -33,6 +33,11 @@ export interface TableRowData {
   parentId?: string;
 }
 
+export interface GroupingOption {
+  id: string;
+  label: string;
+}
+
 interface FinancialTableProps {
   title: string;
   rows: TableRowData[];
@@ -40,6 +45,10 @@ interface FinancialTableProps {
   showChange?: boolean;
   currency?: string;
   periodLabel?: string;
+  tableId?: string;
+  groupingOptions?: GroupingOption[];
+  onGroupingChange?: (groupBy: string | null) => void;
+  isLoading?: boolean;
 }
 
 const formatValueWithUnit = (num: number) => {
@@ -63,8 +72,12 @@ export const FinancialTable = ({
   showPercentage = true,
   showChange = true,
   periodLabel = "Значение",
+  groupingOptions,
+  onGroupingChange,
+  isLoading = false,
 }: FinancialTableProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
 
   const getValueFn = useCallback((row: TableRowData, column: string) => {
     switch (column) {
@@ -207,64 +220,109 @@ export const FinancialTable = ({
     }
   };
 
+  const handleGroupingClick = (groupId: string) => {
+    const newGrouping = activeGrouping === groupId ? null : groupId;
+    setActiveGrouping(newGrouping);
+    setCollapsedGroups(new Set());
+    onGroupingChange?.(newGrouping);
+  };
+
   const visibleRows = sortedRows.filter(isRowVisible);
   const hasGroups = rows.some((r) => r.isGroup && !r.isTotal);
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-        {hasGroups && (
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={collapseOneLevel}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Свернуть уровень</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={expandOneLevel}
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Развернуть уровень</TooltipContent>
-            </Tooltip>
+      <CardHeader className="flex flex-col gap-3 pb-2">
+        <div className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+          {hasGroups && (
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={collapseOneLevel}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Свернуть уровень</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={expandOneLevel}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Развернуть уровень</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+        
+        {/* Grouping buttons */}
+        {groupingOptions && groupingOptions.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {groupingOptions.map((option) => (
+              <Button
+                key={option.id}
+                variant={activeGrouping === option.id ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => handleGroupingClick(option.id)}
+                disabled={isLoading}
+              >
+                {option.label}
+              </Button>
+            ))}
           </div>
         )}
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60%]">
-                <SortableHeader
-                  label="Показатель"
-                  column="name"
-                  currentColumn={sortState.column}
-                  direction={sortState.direction}
-                  onSort={handleSort}
-                  className="text-xs font-medium uppercase tracking-wider"
-                />
-              </TableHead>
-              {showPercentage && (
-                <TableHead className="text-right w-[100px]">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60%]">
+                  <SortableHeader
+                    label="Показатель"
+                    column="name"
+                    currentColumn={sortState.column}
+                    direction={sortState.direction}
+                    onSort={handleSort}
+                    className="text-xs font-medium uppercase tracking-wider"
+                  />
+                </TableHead>
+                {showPercentage && (
+                  <TableHead className="text-right w-[100px]">
+                    <div className="flex justify-end">
+                      <SortableHeader
+                        label="Доля"
+                        column="percentage"
+                        currentColumn={sortState.column}
+                        direction={sortState.direction}
+                        onSort={handleSort}
+                        className="text-xs font-medium uppercase tracking-wider"
+                      />
+                    </div>
+                  </TableHead>
+                )}
+                <TableHead className="text-right">
                   <div className="flex justify-end">
                     <SortableHeader
-                      label="Доля"
-                      column="percentage"
+                      label={periodLabel}
+                      column="value"
                       currentColumn={sortState.column}
                       direction={sortState.direction}
                       onSort={handleSort}
@@ -272,107 +330,95 @@ export const FinancialTable = ({
                     />
                   </div>
                 </TableHead>
-              )}
-              <TableHead className="text-right">
-                <div className="flex justify-end">
-                  <SortableHeader
-                    label={periodLabel}
-                    column="value"
-                    currentColumn={sortState.column}
-                    direction={sortState.direction}
-                    onSort={handleSort}
-                    className="text-xs font-medium uppercase tracking-wider"
-                  />
-                </div>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visibleRows.map((row) => {
-              const hasChildren = rows.some((r) => r.parentId === row.id);
-              const isCollapsed = collapsedGroups.has(row.id);
-              const isPositiveChange = row.change !== undefined && row.change > 0;
-              const isNegativeChange = row.change !== undefined && row.change < 0;
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visibleRows.map((row) => {
+                const hasChildren = rows.some((r) => r.parentId === row.id);
+                const isCollapsed = collapsedGroups.has(row.id);
+                const isPositiveChange = row.change !== undefined && row.change > 0;
+                const isNegativeChange = row.change !== undefined && row.change < 0;
 
-              return (
-                <TableRow
-                  key={row.id}
-                  className={cn(
-                    "border-b border-border/50",
-                    row.isTotal && "bg-muted/30 font-bold"
-                  )}
-                >
-                  <TableCell
-                    className="py-4"
-                    style={{ paddingLeft: `${getIndentLevel(row) * 1.5 + 1}rem` }}
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={cn(
+                      "border-b border-border/50",
+                      row.isTotal && "bg-muted/30 font-bold"
+                    )}
                   >
-                    <div className="flex items-center gap-2">
-                      {hasChildren && (
-                        <button
-                          onClick={() => toggleGroup(row.id)}
-                          className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
-                        >
-                          {isCollapsed ? (
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                          )}
-                        </button>
-                      )}
-                      {!hasChildren && row.parentId && <span className="w-5 flex-shrink-0" />}
-                      <span className={cn(
-                        row.isGroup && !row.parentId && "font-semibold",
-                        row.isTotal && "font-bold"
-                      )}>
-                        {row.name}
-                      </span>
-                      {row.description && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p className="text-sm">{row.description}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-                  </TableCell>
-                  {showPercentage && (
-                    <TableCell className="text-right py-4">
-                      <span className="text-sm text-muted-foreground">
-                        {row.percentage !== undefined ? `${row.percentage.toFixed(1)}%` : "—"}
-                      </span>
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right py-4">
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span className="font-semibold text-foreground">
-                        {formatValueWithUnit(row.value)}
-                      </span>
-                      {showChange && row.change !== undefined && (
-                        <div className={cn(
-                          "flex items-center gap-1 text-sm",
-                          isPositiveChange && "text-green-600",
-                          isNegativeChange && "text-red-600",
-                          !isPositiveChange && !isNegativeChange && "text-muted-foreground"
+                    <TableCell
+                      className="py-4"
+                      style={{ paddingLeft: `${getIndentLevel(row) * 1.5 + 1}rem` }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {hasChildren && (
+                          <button
+                            onClick={() => toggleGroup(row.id)}
+                            className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                          >
+                            {isCollapsed ? (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </button>
+                        )}
+                        {!hasChildren && row.parentId && <span className="w-5 flex-shrink-0" />}
+                        <span className={cn(
+                          row.isGroup && !row.parentId && "font-semibold",
+                          row.isTotal && "font-bold"
                         )}>
-                          {isPositiveChange && <TrendingUp className="w-3 h-3" />}
-                          {isNegativeChange && <TrendingDown className="w-3 h-3" />}
-                          <span>
-                            {row.change > 0 ? "+" : ""}{row.change.toFixed(1)}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                          {row.name}
+                        </span>
+                        {row.description && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">{row.description}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </TableCell>
+                    {showPercentage && (
+                      <TableCell className="text-right py-4">
+                        <span className="text-sm text-muted-foreground">
+                          {row.percentage !== undefined ? `${row.percentage.toFixed(1)}%` : "—"}
+                        </span>
+                      </TableCell>
+                    )}
+                    <TableCell className="text-right py-4">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="font-semibold text-foreground">
+                          {formatValueWithUnit(row.value)}
+                        </span>
+                        {showChange && row.change !== undefined && (
+                          <div className={cn(
+                            "flex items-center gap-1 text-sm",
+                            isPositiveChange && "text-green-600",
+                            isNegativeChange && "text-red-600",
+                            !isPositiveChange && !isNegativeChange && "text-muted-foreground"
+                          )}>
+                            {isPositiveChange && <TrendingUp className="w-3 h-3" />}
+                            {isNegativeChange && <TrendingDown className="w-3 h-3" />}
+                            <span>
+                              {row.change > 0 ? "+" : ""}{row.change.toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );

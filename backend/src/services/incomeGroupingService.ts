@@ -1,60 +1,7 @@
-import { useState, useCallback } from "react";
-import { KPICard } from "@/components/KPICard";
-import { FinancialTable, TableRowData, GroupingOption } from "@/components/FinancialTable";
-import {
-  TrendingUpIcon,
-  PercentIcon,
-  ActivityIcon,
-  WalletIcon,
-  BanknoteIcon,
-} from "lucide-react";
+import { TableRowData } from "./tableDataService.js";
 
-// KPI Data - Финансовые результаты
-const kpiMetrics = [
-  {
-    title: "Чистая прибыль",
-    value: "₽6.5B",
-    description: "Финансовый результат после всех расходов, резервов и налогов. Базовый индикатор прибыльности банка.",
-    change: 14.2,
-    ytdChange: 18.5,
-    icon: <BanknoteIcon className="w-5 h-5 text-accent" />,
-  },
-  {
-    title: "EBITDA",
-    value: "₽2.1B",
-    description: "Операционная прибыль до вычета процентов, налогов, износа и амортизации. Показывает операционную эффективность без влияния резервов.",
-    change: 12.3,
-    ytdChange: 8.4,
-    icon: <TrendingUpIcon className="w-5 h-5 text-accent" />,
-  },
-  {
-    title: "Cost-to-Income",
-    value: "42.5%",
-    description: "Отношение операционных расходов к операционным доходам. Главный показатель эффективности затрат для сравнения по времени и с конкурентами.",
-    change: -3.1,
-    ytdChange: -5.2,
-    icon: <PercentIcon className="w-5 h-5 text-accent" />,
-  },
-  {
-    title: "ROA",
-    value: "2.8%",
-    description: "Return on Assets — отношение чистой прибыли к средним активам. Показывает, насколько эффективно банк использует активы.",
-    change: 0.4,
-    ytdChange: 1.2,
-    icon: <ActivityIcon className="w-5 h-5 text-accent" />,
-  },
-  {
-    title: "ROE",
-    value: "18.2%",
-    description: "Return on Equity — отношение чистой прибыли к собственному капиталу. Показывает, сколько зарабатывает капитал собственников.",
-    change: 2.1,
-    ytdChange: -0.3,
-    icon: <WalletIcon className="w-5 h-5 text-accent" />,
-  },
-];
-
-// Default Income Data (by income type)
-const defaultIncomeData: TableRowData[] = [
+// Default income data (by income type)
+const defaultIncomeData: Omit<TableRowData, "sortOrder">[] = [
   { id: "i1", name: "Чистый процентный доход (ЧПД)", value: 3200000000, isGroup: true, description: "Разница между процентными доходами и расходами", change: 5.2 },
   { id: "i2", name: "Процентные доходы", value: 4100000000, isGroup: true, parentId: "i1", change: 4.8 },
   { id: "i2-1", name: "Доходы по кредитам ФЛ", value: 2100000000, percentage: 51.2, parentId: "i2", change: 5.1 },
@@ -86,8 +33,8 @@ const defaultIncomeData: TableRowData[] = [
   { id: "i14", name: "Прочие финансовые", value: 200000000, percentage: 33.3, parentId: "i12", change: 3.7 },
 ];
 
-// Group by client type data
-const clientTypeIncomeData: TableRowData[] = [
+// Group by client type
+const clientTypeData: Omit<TableRowData, "sortOrder">[] = [
   { id: "ct1", name: "ИП", value: 1850000000, isGroup: true, percentage: 15.4, change: 8.2 },
   { id: "ct1-1", name: "ЧПД", value: 520000000, percentage: 28.1, parentId: "ct1", change: 6.5 },
   { id: "ct1-2", name: "ЧКД", value: 780000000, percentage: 42.2, parentId: "ct1", change: 9.8 },
@@ -119,8 +66,8 @@ const clientTypeIncomeData: TableRowData[] = [
   { id: "ct5-4", name: "Прочие", value: 100000000, percentage: 10.0, parentId: "ct5", change: 12.1 },
 ];
 
-// Group by CFO data
-const cfoIncomeData: TableRowData[] = [
+// Group by CFO (cost centers)
+const cfoData: Omit<TableRowData, "sortOrder">[] = [
   { id: "cfo1", name: "Розничный бизнес", value: 4800000000, isGroup: true, percentage: 40.0, change: 14.2 },
   { id: "cfo1-1", name: "ЧПД", value: 1920000000, percentage: 40.0, parentId: "cfo1", change: 6.8 },
   { id: "cfo1-2", name: "ЧКД", value: 1920000000, percentage: 40.0, parentId: "cfo1", change: 18.5 },
@@ -152,8 +99,8 @@ const cfoIncomeData: TableRowData[] = [
   { id: "cfo5-4", name: "Прочие", value: 48000000, percentage: 10.0, parentId: "cfo5", change: 5.1 },
 ];
 
-// Group by segment data
-const segmentIncomeData: TableRowData[] = [
+// Group by segment (by client balance)
+const segmentData: Omit<TableRowData, "sortOrder">[] = [
   { id: "s1", name: "0–1 тыс", value: 120000000, isGroup: true, percentage: 1.0, change: 2.1 },
   { id: "s1-1", name: "ЧПД", value: 36000000, percentage: 30.0, parentId: "s1", change: 1.5 },
   { id: "s1-2", name: "ЧКД", value: 60000000, percentage: 50.0, parentId: "s1", change: 2.8 },
@@ -209,111 +156,21 @@ const segmentIncomeData: TableRowData[] = [
   { id: "s9-4", name: "Прочие", value: 60000000, percentage: 10.0, parentId: "s9", change: 18.2 },
 ];
 
-// Expenses Data with 3 levels (top level moved to table title)
-const expensesData: TableRowData[] = [
-  { id: "e1", name: "ФОТ", value: 2800000000, isGroup: true, description: "Фонд оплаты труда: зарплаты и обязательные взносы", change: 6.5 },
-  { id: "e2", name: "Заработная плата", value: 2200000000, isGroup: true, parentId: "e1", change: 7.2 },
-  { id: "e2-1", name: "Основной персонал", value: 1540000000, percentage: 70.0, parentId: "e2", change: 7.5 },
-  { id: "e2-2", name: "Менеджмент", value: 440000000, percentage: 20.0, parentId: "e2", change: 6.8 },
-  { id: "e2-3", name: "Бэк-офис", value: 220000000, percentage: 10.0, parentId: "e2", change: 6.2 },
-  { id: "e3", name: "Обязательные взносы", value: 600000000, isGroup: true, parentId: "e1", change: 4.1 },
-  { id: "e3-1", name: "ПФР", value: 360000000, percentage: 60.0, parentId: "e3", change: 4.0 },
-  { id: "e3-2", name: "ФСС", value: 150000000, percentage: 25.0, parentId: "e3", change: 4.2 },
-  { id: "e3-3", name: "ФОМС", value: 90000000, percentage: 15.0, parentId: "e3", change: 4.3 },
-  { id: "e4", name: "Прочие OPEX", value: 2300000000, isGroup: true, description: "Операционные и административные расходы", change: 2.8 },
-  { id: "e5", name: "Аренда", value: 450000000, isGroup: true, parentId: "e4", change: 1.5 },
-  { id: "e5-1", name: "Офисы", value: 315000000, percentage: 70.0, parentId: "e5", change: 1.2 },
-  { id: "e5-2", name: "Дата-центры", value: 90000000, percentage: 20.0, parentId: "e5", change: 2.5 },
-  { id: "e5-3", name: "Прочая аренда", value: 45000000, percentage: 10.0, parentId: "e5", change: 1.8 },
-  { id: "e6", name: "Процессинг", value: 680000000, isGroup: true, parentId: "e4", description: "Расходы на обработку транзакций", change: 5.3 },
-  { id: "e6-1", name: "Карточный процессинг", value: 408000000, percentage: 60.0, parentId: "e6", change: 5.8 },
-  { id: "e6-2", name: "Переводы", value: 204000000, percentage: 30.0, parentId: "e6", change: 4.5 },
-  { id: "e6-3", name: "Прочий процессинг", value: 68000000, percentage: 10.0, parentId: "e6", change: 4.8 },
-  { id: "e7", name: "Эквайринг", value: 420000000, percentage: 18.3, parentId: "e4", change: 3.8 },
-  { id: "e8", name: "Услуги поставщиков", value: 380000000, percentage: 16.5, parentId: "e4", change: 2.1 },
-  { id: "e9", name: "Прочие OPEX", value: 370000000, percentage: 16.1, parentId: "e4", change: 1.2 },
-  { id: "e10", name: "Резервы", value: 400000000, isGroup: true, description: "Изменение резервов на возможные потери", change: -8.5 },
-  { id: "e11", name: "Создание резервов", value: 650000000, isGroup: true, parentId: "e10", change: -5.2 },
-  { id: "e11-1", name: "Резервы по кредитам", value: 455000000, percentage: 70.0, parentId: "e11", change: -4.8 },
-  { id: "e11-2", name: "Резервы по гарантиям", value: 130000000, percentage: 20.0, parentId: "e11", change: -6.2 },
-  { id: "e11-3", name: "Прочие резервы", value: 65000000, percentage: 10.0, parentId: "e11", change: -5.5 },
-  { id: "e12", name: "Восстановление", value: -250000000, parentId: "e10", change: 12.3 },
-  { id: "profit", name: "Финансовый результат", value: 6500000000, isTotal: true, change: 14.2 },
-];
+export function getIncomeDataByGrouping(groupBy: string | null): Omit<TableRowData, "sortOrder">[] {
+  switch (groupBy) {
+    case "client_type":
+      return clientTypeData;
+    case "cfo":
+      return cfoData;
+    case "segment":
+      return segmentData;
+    default:
+      return defaultIncomeData;
+  }
+}
 
-// Grouping options for income table
-const incomeGroupingOptions: GroupingOption[] = [
+export const incomeGroupingOptions = [
   { id: "client_type", label: "Тип клиента" },
   { id: "cfo", label: "ЦФО" },
   { id: "segment", label: "Сегмент" },
 ];
-
-export const FinancialResultsSection = () => {
-  const [incomeData, setIncomeData] = useState<TableRowData[]>(defaultIncomeData);
-  const [isLoadingIncome, setIsLoadingIncome] = useState(false);
-
-  const handleIncomeGroupingChange = useCallback((groupBy: string | null) => {
-    setIsLoadingIncome(true);
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      switch (groupBy) {
-        case "client_type":
-          setIncomeData(clientTypeIncomeData);
-          break;
-        case "cfo":
-          setIncomeData(cfoIncomeData);
-          break;
-        case "segment":
-          setIncomeData(segmentIncomeData);
-          break;
-        default:
-          setIncomeData(defaultIncomeData);
-      }
-      setIsLoadingIncome(false);
-    }, 300);
-  }, []);
-
-  return (
-    <section className="space-y-6">
-      <h2 className="text-3xl font-bold text-foreground">
-        Финансовые результаты
-      </h2>
-
-      {/* KPI Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {kpiMetrics.map((metric) => (
-          <KPICard
-            key={metric.title}
-            title={metric.title}
-            value={metric.value}
-            description={metric.description}
-            change={metric.change}
-            ytdChange={metric.ytdChange}
-            showChange={true}
-            icon={metric.icon}
-          />
-        ))}
-      </div>
-
-      {/* Income and Expenses */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FinancialTable
-          title="Доходы"
-          rows={incomeData}
-          showPercentage={true}
-          showChange={true}
-          groupingOptions={incomeGroupingOptions}
-          onGroupingChange={handleIncomeGroupingChange}
-          isLoading={isLoadingIncome}
-        />
-        <FinancialTable
-          title="Расходы и резервы"
-          rows={expensesData}
-          showPercentage={true}
-          showChange={true}
-        />
-      </div>
-    </section>
-  );
-};
