@@ -159,7 +159,7 @@ export const ExecutiveSummary = () => {
       ) : (
         <div className="flex flex-wrap gap-3">
           {selectedKPIData.map((kpi) => (
-            <div key={kpi.id} className="flex-1 min-w-[140px] max-w-[220px]">
+            <div key={kpi.id} className="flex-1 min-w-[140px] max-w-[300px]">
               <KPICard
                 title={kpi.title}
                 value={kpi.value}
