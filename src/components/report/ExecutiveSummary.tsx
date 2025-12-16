@@ -157,18 +157,19 @@ export const ExecutiveSummary = () => {
           <p className="text-sm mt-1">Нажмите «Настройки» чтобы выбрать метрики.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
+        <div className="flex flex-wrap gap-3">
           {selectedKPIData.map((kpi) => (
-            <KPICard
-              key={kpi.id}
-              title={kpi.title}
-              value={kpi.value}
-              description={kpi.description}
-              change={kpi.change}
-              ytdChange={kpi.ytdChange}
-              showChange
-              icon={kpi.icon}
-            />
+            <div key={kpi.id} className="flex-1 min-w-[140px] max-w-[220px]">
+              <KPICard
+                title={kpi.title}
+                value={kpi.value}
+                description={kpi.description}
+                change={kpi.change}
+                ytdChange={kpi.ytdChange}
+                showChange
+                icon={kpi.icon}
+              />
+            </div>
           ))}
         </div>
       )}
