@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { KPICard } from "@/components/KPICard";
+import { CollapsibleSection } from "@/components/report/CollapsibleSection";
 import {
   Table,
   TableBody,
@@ -175,9 +176,7 @@ const ConversionTable = ({ title, data, showCurrencyToggle = true }: ConversionT
 
 export const Conversion = () => {
   return (
-    <section>
-      <h2 className="text-3xl font-bold text-foreground mb-6">Конвертация</h2>
-      
+    <CollapsibleSection title="Конвертация">
       {/* KPI Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <KPICard
@@ -239,6 +238,6 @@ export const Conversion = () => {
           data={buySellData}
         />
       </div>
-    </section>
+    </CollapsibleSection>
   );
 };

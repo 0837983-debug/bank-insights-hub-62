@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { KPICard } from "@/components/KPICard";
 import { FinancialTable, TableRowData, GroupingOption } from "@/components/FinancialTable";
+import { CollapsibleSection } from "@/components/report/CollapsibleSection";
 import {
   TrendingUpIcon,
   PercentIcon,
@@ -349,13 +350,9 @@ export const FinancialResultsSection = () => {
   }, []);
 
   return (
-    <section className="space-y-6">
-      <h2 className="text-3xl font-bold text-foreground">
-        Финансовые результаты
-      </h2>
-
+    <CollapsibleSection title="Финансовые результаты">
       {/* KPI Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {kpiMetrics.map((metric) => (
           <KPICard
             key={metric.title}
@@ -391,6 +388,6 @@ export const FinancialResultsSection = () => {
           isLoading={isLoadingExpenses}
         />
       </div>
-    </section>
+    </CollapsibleSection>
   );
 };
