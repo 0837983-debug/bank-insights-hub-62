@@ -33,6 +33,7 @@ export interface TableRowData {
   value: number;
   percentage?: number;
   change?: number;
+  changeYtd?: number;
   isGroup?: boolean;
   isTotal?: boolean;
   indent?: number;
@@ -439,6 +440,11 @@ export const FinancialTable = ({
                             {isNegativeChange && <TrendingDown className="w-3 h-3" />}
                             <span>
                               {row.change > 0 ? "+" : ""}{row.change.toFixed(1)}%
+                              {row.changeYtd !== undefined && (
+                                <span className="ml-1">
+                                  ({row.changeYtd > 0 ? "↑" : row.changeYtd < 0 ? "↓" : ""}{Math.abs(row.changeYtd).toFixed(1)}%)
+                                </span>
+                              )}
                             </span>
                           </div>
                         )}
