@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -16,6 +16,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { SortableHeader } from "@/components/SortableHeader";
@@ -78,6 +84,30 @@ export const FinancialTable = ({
 }: FinancialTableProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
+  const [selectedRow, setSelectedRow] = useState<TableRowData | null>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
+  const handleRowDoubleClick = (row: TableRowData) => {
+    setSelectedRow(row);
+    setIsDetailDialogOpen(true);
+  };
+
+  // Get detail rows for selected row (children or mock breakdown)
+  const getDetailRows = (row: TableRowData): TableRowData[] => {
+    // If row has children, show them
+    const children = rows.filter((r) => r.parentId === row.id);
+    if (children.length > 0) {
+      return children;
+    }
+    
+    // Otherwise generate mock detail breakdown
+    return [
+      { id: `${row.id}-d1`, name: "Детализация 1", value: row.value * 0.35, percentage: 35.0, change: (row.change ?? 0) + 1.2 },
+      { id: `${row.id}-d2`, name: "Детализация 2", value: row.value * 0.28, percentage: 28.0, change: (row.change ?? 0) - 0.5 },
+      { id: `${row.id}-d3`, name: "Детализация 3", value: row.value * 0.22, percentage: 22.0, change: (row.change ?? 0) + 0.8 },
+      { id: `${row.id}-d4`, name: "Детализация 4", value: row.value * 0.15, percentage: 15.0, change: (row.change ?? 0) - 1.1 },
+    ];
+  };
 
   const getValueFn = useCallback((row: TableRowData, column: string) => {
     switch (column) {
@@ -343,9 +373,10 @@ export const FinancialTable = ({
                   <TableRow
                     key={row.id}
                     className={cn(
-                      "border-b border-border/50",
+                      "border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors",
                       row.isTotal && "bg-muted/30 font-bold"
                     )}
+                    onDoubleClick={() => handleRowDoubleClick(row)}
                   >
                     <TableCell
                       className="py-4"
@@ -420,6 +451,96 @@ export const FinancialTable = ({
           </Table>
         )}
       </CardContent>
+
+      {/* Detail Dialog */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg">
+              Детализация: {selectedRow?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedRow && (
+            <div className="mt-4">
+              <div className="mb-4 p-4 bg-muted/30 rounded-lg">
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Значение:</span>
+                    <span className="ml-2 font-semibold">{formatValueWithUnit(selectedRow.value)}</span>
+                  </div>
+                  {selectedRow.percentage !== undefined && (
+                    <div>
+                      <span className="text-muted-foreground">Доля:</span>
+                      <span className="ml-2 font-semibold">{selectedRow.percentage.toFixed(1)}%</span>
+                    </div>
+                  )}
+                  {selectedRow.change !== undefined && (
+                    <div>
+                      <span className="text-muted-foreground">Изменение:</span>
+                      <span className={cn(
+                        "ml-2 font-semibold",
+                        selectedRow.change > 0 && "text-green-600",
+                        selectedRow.change < 0 && "text-red-600"
+                      )}>
+                        {selectedRow.change > 0 ? "+" : ""}{selectedRow.change.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50%]">Показатель</TableHead>
+                    <TableHead className="text-right">Доля</TableHead>
+                    <TableHead className="text-right">Значение</TableHead>
+                    <TableHead className="text-right">Изм.</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {getDetailRows(selectedRow).map((detailRow) => {
+                    const isPositive = detailRow.change !== undefined && detailRow.change > 0;
+                    const isNegative = detailRow.change !== undefined && detailRow.change < 0;
+                    
+                    return (
+                      <TableRow key={detailRow.id} className="border-b border-border/50">
+                        <TableCell className="py-3">
+                          <span className={cn(detailRow.isGroup && "font-semibold")}>
+                            {detailRow.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          <span className="text-sm text-muted-foreground">
+                            {detailRow.percentage !== undefined ? `${detailRow.percentage.toFixed(1)}%` : "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3 font-semibold">
+                          {formatValueWithUnit(detailRow.value)}
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          {detailRow.change !== undefined && (
+                            <div className={cn(
+                              "flex items-center justify-end gap-1 text-sm",
+                              isPositive && "text-green-600",
+                              isNegative && "text-red-600"
+                            )}>
+                              {isPositive && <TrendingUp className="w-3 h-3" />}
+                              {isNegative && <TrendingDown className="w-3 h-3" />}
+                              <span>{detailRow.change > 0 ? "+" : ""}{detailRow.change.toFixed(1)}%</span>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
