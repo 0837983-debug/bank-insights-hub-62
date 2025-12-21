@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { KPICard } from "@/components/KPICard";
 import { FinancialTable, TableRowData } from "@/components/FinancialTable";
+import { CollapsibleSection } from "@/components/report/CollapsibleSection";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UsersIcon, UserCheckIcon, TrendingUpIcon, UserMinusIcon, WalletIcon, ChevronDown, ChevronRight } from "lucide-react";
@@ -310,9 +311,7 @@ export const ClientBaseSection = () => {
   };
 
   return (
-    <section>
-      <h2 className="text-3xl font-bold text-foreground mb-6">Клиентская база и сегменты</h2>
-
+    <CollapsibleSection title="Клиентская база и сегменты">
       {/* KPI Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
         {kpiMetrics.map((metric) => (
@@ -496,6 +495,6 @@ export const ClientBaseSection = () => {
           </Table>
         </div>
       </Card>
-    </section>
+    </CollapsibleSection>
   );
 };
