@@ -18,6 +18,7 @@ const regions = [
     transactions: 52000, 
     volume: "$985M", 
     change: 8.5,
+    changeYtd: 12.3,
     avgTransaction: "$18,942"
   },
   { 
@@ -26,6 +27,7 @@ const regions = [
     transactions: 48000, 
     volume: "$912M", 
     change: -2.3,
+    changeYtd: -1.8,
     avgTransaction: "$19,000"
   },
   { 
@@ -34,6 +36,7 @@ const regions = [
     transactions: 61000, 
     volume: "$1.15B", 
     change: 12.1,
+    changeYtd: 15.6,
     avgTransaction: "$18,852"
   },
   { 
@@ -42,6 +45,7 @@ const regions = [
     transactions: 49500, 
     volume: "$935M", 
     change: 5.7,
+    changeYtd: 8.2,
     avgTransaction: "$18,889"
   },
   { 
@@ -50,6 +54,7 @@ const regions = [
     transactions: 42000, 
     volume: "$798M", 
     change: 3.2,
+    changeYtd: 5.1,
     avgTransaction: "$19,000"
   },
 ];
@@ -95,7 +100,10 @@ export const RegionalTable = () => {
                       "text-sm font-semibold",
                       region.change > 0 ? "text-success" : "text-destructive"
                     )}>
-                      {Math.abs(region.change)}%
+                      {region.change > 0 ? "+" : ""}{region.change}%
+                      <span className="ml-1">
+                        ({region.changeYtd > 0 ? "↑" : "↓"}{Math.abs(region.changeYtd)}%)
+                      </span>
                     </span>
                   </div>
                 </TableCell>
