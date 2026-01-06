@@ -1,39 +1,39 @@
-import { pool } from "../config/database.js";
+import { readFile } from "fs/promises";
+import { join } from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface KPICategory {
   id: string;
   name: string;
-  sortOrder: number;
+  description?: string;
 }
 
 export interface KPIMetric {
   id: string;
   title: string;
-  value: string;
-  subtitle?: string;
+  value: number;
   description: string;
-  change?: number;
+  change: number;
   ytdChange?: number;
   category: string;
-  categoryId: string;
-  iconName?: string;
-  sortOrder: number;
+  icon?: string;
 }
 
 /**
  * Get all KPI categories
  */
 export async function getKPICategories(): Promise<KPICategory[]> {
-  const client = await pool.connect();
   try {
-    const result = await client.query(
-      `SELECT id, name, sort_order as "sortOrder"
-       FROM dashboard.kpi_categories
-       ORDER BY sort_order, id`
-    );
-    return result.rows;
-  } finally {
-    client.release();
+    const categoriesPath = join(__dirname, "../mockups/kpi-categories.json");
+    const categoriesData = await readFile(categoriesPath, "utf-8");
+    return JSON.parse(categoriesData);
+  } catch (error) {
+    console.error("Error reading kpi-categories.json:", error);
+    throw new Error("Failed to load KPI categories");
   }
 }
 
@@ -41,28 +41,13 @@ export async function getKPICategories(): Promise<KPICategory[]> {
  * Get all KPI metrics
  */
 export async function getAllKPIMetrics(): Promise<KPIMetric[]> {
-  const client = await pool.connect();
   try {
-    const result = await client.query(
-      `SELECT 
-        m.id,
-        m.title,
-        m.value,
-        m.subtitle,
-        m.description,
-        m.change,
-        m.ytd_change as "ytdChange",
-        c.name as category,
-        c.id as "categoryId",
-        m.icon_name as "iconName",
-        m.sort_order as "sortOrder"
-       FROM dashboard.kpi_metrics m
-       LEFT JOIN dashboard.kpi_categories c ON m.category_id = c.id
-       ORDER BY m.sort_order, m.id`
-    );
-    return result.rows;
-  } finally {
-    client.release();
+    const kpisPath = join(__dirname, "../mockups/kpis.json");
+    const kpisData = await readFile(kpisPath, "utf-8");
+    return JSON.parse(kpisData);
+  } catch (error) {
+    console.error("Error reading kpis.json:", error);
+    throw new Error("Failed to load KPI metrics");
   }
 }
 
@@ -70,30 +55,12 @@ export async function getAllKPIMetrics(): Promise<KPIMetric[]> {
  * Get KPI metrics by category
  */
 export async function getKPIMetricsByCategory(categoryId: string): Promise<KPIMetric[]> {
-  const client = await pool.connect();
   try {
-    const result = await client.query(
-      `SELECT 
-        m.id,
-        m.title,
-        m.value,
-        m.subtitle,
-        m.description,
-        m.change,
-        m.ytd_change as "ytdChange",
-        c.name as category,
-        c.id as "categoryId",
-        m.icon_name as "iconName",
-        m.sort_order as "sortOrder"
-       FROM dashboard.kpi_metrics m
-       LEFT JOIN dashboard.kpi_categories c ON m.category_id = c.id
-       WHERE m.category_id = $1
-       ORDER BY m.sort_order, m.id`,
-      [categoryId]
-    );
-    return result.rows;
-  } finally {
-    client.release();
+    const allMetrics = await getAllKPIMetrics();
+    return allMetrics.filter((metric) => metric.category === categoryId);
+  } catch (error) {
+    console.error("Error filtering KPI metrics by category:", error);
+    throw new Error("Failed to load KPI metrics by category");
   }
 }
 
@@ -101,54 +68,11 @@ export async function getKPIMetricsByCategory(categoryId: string): Promise<KPIMe
  * Get single KPI metric by ID
  */
 export async function getKPIMetricById(id: string): Promise<KPIMetric | null> {
-  const client = await pool.connect();
   try {
-    const result = await client.query(
-      `SELECT 
-        m.id,
-        m.title,
-        m.value,
-        m.subtitle,
-        m.description,
-        m.change,
-        m.ytd_change as "ytdChange",
-        c.name as category,
-        c.id as "categoryId",
-        m.icon_name as "iconName",
-        m.sort_order as "sortOrder"
-       FROM dashboard.kpi_metrics m
-       LEFT JOIN dashboard.kpi_categories c ON m.category_id = c.id
-       WHERE m.id = $1`,
-      [id]
-    );
-    return result.rows[0] || null;
-  } finally {
-    client.release();
+    const allMetrics = await getAllKPIMetrics();
+    return allMetrics.find((metric) => metric.id === id) || null;
+  } catch (error) {
+    console.error("Error finding KPI metric by ID:", error);
+    throw new Error("Failed to load KPI metric");
   }
 }
-
-/**
- * Update KPI metric value
- */
-export async function updateKPIMetricValue(
-  id: string,
-  value: string,
-  change?: number,
-  ytdChange?: number
-): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query(
-      `UPDATE dashboard.kpi_metrics
-       SET value = $1,
-           change = $2,
-           ytd_change = $3,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4`,
-      [value, change, ytdChange, id]
-    );
-  } finally {
-    client.release();
-  }
-}
-
