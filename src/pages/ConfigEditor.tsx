@@ -27,8 +27,14 @@ import {
   EyeOff,
   GripVertical,
   ChevronRight,
-  Search
+  Search,
+  Users,
+  History,
+  Upload
 } from "lucide-react";
+import { UserManagement } from "@/components/admin/UserManagement";
+import { AuthLogs } from "@/components/admin/AuthLogs";
+import { UploadManagement } from "@/components/admin/UploadManagement";
 import {
   Format,
   Component,
@@ -490,8 +496,8 @@ export default function ConfigEditor() {
       <main className="container mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Редактор конфигурации</h1>
-            <p className="text-muted-foreground mt-1">Управление форматами, компонентами и макетами отчётов</p>
+            <h1 className="text-3xl font-bold">Панель администратора</h1>
+            <p className="text-muted-foreground mt-1">Управление пользователями, загрузками и конфигурацией</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -506,8 +512,20 @@ export default function ConfigEditor() {
           </div>
         </div>
 
-        <Tabs defaultValue="formats" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full max-w-4xl grid-cols-7">
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Пользователи
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Логи
+            </TabsTrigger>
+            <TabsTrigger value="uploads" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Загрузки
+            </TabsTrigger>
             <TabsTrigger value="formats" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
               Форматы
@@ -525,6 +543,21 @@ export default function ConfigEditor() {
               Макеты
             </TabsTrigger>
           </TabsList>
+
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <UserManagement />
+          </TabsContent>
+
+          {/* Logs Tab */}
+          <TabsContent value="logs">
+            <AuthLogs />
+          </TabsContent>
+
+          {/* Uploads Tab */}
+          <TabsContent value="uploads">
+            <UploadManagement />
+          </TabsContent>
 
           {/* Formats Tab */}
           <TabsContent value="formats" className="space-y-4">
