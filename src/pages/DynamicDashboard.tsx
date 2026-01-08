@@ -116,7 +116,7 @@ export default function DynamicDashboard() {
                       <KPICard
                         key={component.id}
                         title={kpi.title}
-                        value={formatValue(kpi.value, formatConfig)}
+                        value={kpi.value}
                         description={kpi.description}
                         change={kpi.change}
                         ytdChange={kpi.ytdChange}
