@@ -29,6 +29,7 @@ export const Header = () => {
             <nav className="hidden md:flex items-center gap-1">
               <NavLink to="/">Дашборд</NavLink>
               <NavLink to="/config">Конфигурация</NavLink>
+              <NavLink to="/upload">Загрузка данных</NavLink>
             </nav>
           </div>
           
