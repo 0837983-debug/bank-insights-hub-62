@@ -1,11 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { ArrowUpIcon, ArrowDownIcon, InfoIcon } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface KPICardProps {
@@ -76,7 +71,8 @@ export const KPICard = ({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className={cn("text-xs cursor-help", ytdChangeColor)}>
-                        ({isYtdPositive ? "↑" : "↓"}{Math.abs(ytdChange)}%)
+                        ({isYtdPositive ? "↑" : "↓"}
+                        {Math.abs(ytdChange)}%)
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -88,9 +84,7 @@ export const KPICard = ({
             </div>
           )}
         </div>
-        {icon && (
-          <div className="p-2 bg-accent/10 rounded-lg flex-shrink-0">{icon}</div>
-        )}
+        {icon && <div className="p-2 bg-accent/10 rounded-lg flex-shrink-0">{icon}</div>}
       </div>
     </Card>
   );

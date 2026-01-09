@@ -120,13 +120,9 @@ export interface KPICategory {
 
 export interface KPIMetric {
   id: string;
-  title: string;
   value: number;
-  description: string;
   change: number;
   ytdChange?: number;
-  category: string;
-  icon?: string;
 }
 
 export async function fetchKPICategories(): Promise<KPICategory[]> {
@@ -164,12 +160,6 @@ export interface TableRow {
 
 export interface TableData {
   tableId: string;
-  title: string;
-  columns: Array<{
-    id: string;
-    label: string;
-    type: string;
-  }>;
   rows: TableRow[];
   requestedPeriod?: string;
   groupBy?: string[];
@@ -184,7 +174,6 @@ export async function fetchTableData(
   }
 ): Promise<TableData> {
   const queryParams = new URLSearchParams();
-  queryParams.append("tableId", tableId);
 
   if (params?.dateFrom) queryParams.append("dateFrom", params.dateFrom);
   if (params?.dateTo) queryParams.append("dateTo", params.dateTo);
@@ -196,7 +185,21 @@ export async function fetchTableData(
     }
   }
 
-  return apiFetch<TableData>(`/table-data?${queryParams.toString()}`);
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/table-data?tableId=${tableId}&${queryString}`
+    : `/table-data?tableId=${tableId}`;
+
+  return apiFetch<TableData>(endpoint);
+}
+
+export interface GroupingOption {
+  id: string;
+  label: string;
+}
+
+export async function fetchGroupingOptions(tableId: string): Promise<GroupingOption[]> {
+  return apiFetch<GroupingOption[]>(`/table-data/${tableId}/grouping-options`);
 }
 
 // ============================================================================

@@ -34,11 +34,11 @@ export const CollapsibleSection = ({
         <h2 className="text-3xl font-bold text-foreground">{title}</h2>
         {headerContent}
       </div>
-      
+
       <div
         className={cn(
           "transition-all duration-300 overflow-hidden",
-          isOpen ? "opacity-100" : "max-h-0 opacity-0"
+          isOpen ? "opacity-100 max-h-[10000px]" : "max-h-0 opacity-0"
         )}
       >
         {children}

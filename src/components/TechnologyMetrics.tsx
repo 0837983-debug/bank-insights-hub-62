@@ -1,6 +1,15 @@
 import { Card } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { MetricCard } from "./MetricCard";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { KPICard } from "./MetricCard";
 import { ActivityIcon, AlertCircleIcon, ClockIcon, TrendingUpIcon } from "lucide-react";
 
 const incidentData = [
@@ -16,34 +25,38 @@ export const TechnologyMetrics = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-foreground">3. Технологические метрики</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
+        <KPICard
           title="Uptime систем"
           value="99.97%"
+          showChange={true}
           change={0.05}
-          subtitle="Доступность"
+          description="Доступность"
           icon={<TrendingUpIcon className="w-6 h-6 text-success" />}
         />
-        <MetricCard
+        <KPICard
           title="Время обработки"
           value="0.42 сек"
+          showChange={true}
           change={-8.5}
-          subtitle="Средняя транзакция"
+          description="Средняя транзакция"
           icon={<ClockIcon className="w-6 h-6 text-accent" />}
         />
-        <MetricCard
+        <KPICard
           title="Инциденты"
           value="9"
+          showChange={true}
           change={-22.2}
-          subtitle="За текущий месяц"
+          description="За текущий месяц"
           icon={<AlertCircleIcon className="w-6 h-6 text-warning" />}
         />
-        <MetricCard
+        <KPICard
           title="Загруженность API"
           value="12.4K RPS"
+          showChange={true}
           change={15.3}
-          subtitle="Запросов в секунду"
+          description="Запросов в секунду"
           icon={<ActivityIcon className="w-6 h-6 text-accent" />}
         />
       </div>
@@ -53,32 +66,29 @@ export const TechnologyMetrics = () => {
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={incidentData}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis 
-              dataKey="month" 
+            <XAxis
+              dataKey="month"
               stroke="hsl(var(--muted-foreground))"
-              style={{ fontSize: '12px' }}
+              style={{ fontSize: "12px" }}
             />
-            <YAxis 
-              stroke="hsl(var(--muted-foreground))"
-              style={{ fontSize: '12px' }}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px'
+            <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: "12px" }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
               }}
             />
             <Legend />
-            <Bar 
-              dataKey="incidents" 
-              fill="hsl(var(--chart-1))" 
+            <Bar
+              dataKey="incidents"
+              fill="hsl(var(--chart-1))"
               name="Инциденты"
               radius={[4, 4, 0, 0]}
             />
-            <Bar 
-              dataKey="mttr" 
-              fill="hsl(var(--chart-2))" 
+            <Bar
+              dataKey="mttr"
+              fill="hsl(var(--chart-2))"
               name="MTTR (мин)"
               radius={[4, 4, 0, 0]}
             />

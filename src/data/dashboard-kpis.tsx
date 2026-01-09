@@ -40,7 +40,8 @@ export const allDashboardKPIs: DashboardKPI[] = [
     id: "capital",
     title: "Капитал",
     value: "₽8.2B",
-    description: "Совокупный капитал банка, включающий уставный, добавочный и резервный капитал для покрытия рисков.",
+    description:
+      "Совокупный капитал банка, включающий уставный, добавочный и резервный капитал для покрытия рисков.",
     change: 5.2,
     ytdChange: 12.7,
     category: "Финансы",
@@ -50,7 +51,8 @@ export const allDashboardKPIs: DashboardKPI[] = [
     id: "ebitda",
     title: "EBITDA",
     value: "₽2.1B",
-    description: "Прибыль до вычета процентов, налогов, износа и амортизации, скорректированная на созданные резервы.",
+    description:
+      "Прибыль до вычета процентов, налогов, износа и амортизации, скорректированная на созданные резервы.",
     change: 12.3,
     ytdChange: 8.4,
     category: "Финансы",
@@ -60,7 +62,8 @@ export const allDashboardKPIs: DashboardKPI[] = [
     id: "cost-to-income",
     title: "Cost-to-Income",
     value: "42.5%",
-    description: "Отношение операционных расходов к операционным доходам. Показывает эффективность управления расходами.",
+    description:
+      "Отношение операционных расходов к операционным доходам. Показывает эффективность управления расходами.",
     change: -3.1,
     ytdChange: -5.2,
     category: "Финансы",
@@ -70,7 +73,8 @@ export const allDashboardKPIs: DashboardKPI[] = [
     id: "roa",
     title: "ROA",
     value: "2.8%",
-    description: "Return on Assets — отношение чистой прибыли к средним активам. Показывает эффективность использования активов.",
+    description:
+      "Return on Assets — отношение чистой прибыли к средним активам. Показывает эффективность использования активов.",
     change: 0.4,
     ytdChange: 1.2,
     category: "Финансы",
@@ -80,7 +84,8 @@ export const allDashboardKPIs: DashboardKPI[] = [
     id: "roe",
     title: "ROE",
     value: "18.2%",
-    description: "Return on Equity — отношение чистой прибыли к собственному капиталу. Показывает доходность для акционеров.",
+    description:
+      "Return on Equity — отношение чистой прибыли к собственному капиталу. Показывает доходность для акционеров.",
     change: 2.1,
     ytdChange: -0.3,
     category: "Финансы",
@@ -192,15 +197,6 @@ export const allDashboardKPIs: DashboardKPI[] = [
   },
 ];
 
-export const defaultSelectedKPIs = [
-  "capital",
-  "ebitda",
-  "roe",
-  "mau",
-];
+export const defaultSelectedKPIs = ["capital", "ebitda", "roe", "mau"];
 
-export const kpiCategories = [
-  "Финансы",
-  "Клиенты",
-  "Конвертация",
-];
+export const kpiCategories = ["Финансы", "Клиенты", "Конвертация"];

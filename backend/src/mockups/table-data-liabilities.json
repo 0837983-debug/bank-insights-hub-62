@@ -1,0 +1,113 @@
+{
+  "tableId": "liabilities",
+  "rows": [
+    {
+      "id": "l2",
+      "name": "Депозиты клиентов",
+      "value": 22500000000,
+      "percentage": 49.8,
+      "description": "Срочные и до востребования депозиты физ. и юр. лиц",
+      "isGroup": true,
+      "change_pptd": 7.3
+    },
+    {
+      "id": "l2-1",
+      "name": "Срочные депозиты физ. лиц",
+      "value": 11200000000,
+      "percentage": 49.8,
+      "description": "Вклады населения на срок",
+      "parentId": "l2",
+      "change_pptd": 9.1
+    },
+    {
+      "id": "l2-2",
+      "name": "Срочные депозиты юр. лиц",
+      "value": 7800000000,
+      "percentage": 34.7,
+      "description": "Депозиты организаций на срок",
+      "parentId": "l2",
+      "change_pptd": 6.2
+    },
+    {
+      "id": "l2-3",
+      "name": "Накопительные счета",
+      "value": 3500000000,
+      "percentage": 15.5,
+      "description": "Счета с начислением процентов",
+      "parentId": "l2",
+      "change_pptd": 4.8
+    },
+    {
+      "id": "l3",
+      "name": "Остатки ДВС",
+      "value": 14200000000,
+      "percentage": 31.4,
+      "description": "Остатки на счетах до востребования",
+      "isGroup": true,
+      "change_pptd": 2.1
+    },
+    {
+      "id": "l3-1",
+      "name": "Текущие счета физ. лиц",
+      "value": 5800000000,
+      "percentage": 40.8,
+      "description": "Карточные и расчётные счета населения",
+      "parentId": "l3",
+      "change_pptd": 3.5
+    },
+    {
+      "id": "l3-2",
+      "name": "Расчётные счета юр. лиц",
+      "value": 6900000000,
+      "percentage": 48.6,
+      "description": "Операционные счета организаций",
+      "parentId": "l3",
+      "change_pptd": 1.2
+    },
+    {
+      "id": "l3-3",
+      "name": "Эскроу и спецсчета",
+      "value": 1500000000,
+      "percentage": 10.6,
+      "description": "Целевые и специальные счета",
+      "parentId": "l3",
+      "change_pptd": 0.8
+    },
+    {
+      "id": "l4",
+      "name": "Привлечённые средства",
+      "value": 8500000000,
+      "percentage": 18.8,
+      "description": "Межбанковские кредиты, облигации, прочие заимствования",
+      "isGroup": true,
+      "change_pptd": 4.5
+    },
+    {
+      "id": "l4-1",
+      "name": "МБК привлечённые",
+      "value": 3200000000,
+      "percentage": 37.6,
+      "description": "Межбанковские кредиты полученные",
+      "parentId": "l4",
+      "change_pptd": 5.8
+    },
+    {
+      "id": "l4-2",
+      "name": "Выпущенные облигации",
+      "value": 3800000000,
+      "percentage": 44.7,
+      "description": "Собственные долговые обязательства",
+      "parentId": "l4",
+      "change_pptd": 3.2
+    },
+    {
+      "id": "l4-3",
+      "name": "Субординированные займы",
+      "value": 1500000000,
+      "percentage": 17.7,
+      "description": "Долгосрочные субордзаймы",
+      "parentId": "l4",
+      "change_pptd": 4.1
+    }
+  ]
+}

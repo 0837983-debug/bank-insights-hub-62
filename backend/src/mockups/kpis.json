@@ -1,152 +1,92 @@
 [
   {
     "id": "capital",
-    "title": "Капитал",
-    "value": 820000,
-    "description": "Совокупный капитал банка, включающий уставный, добавочный и резервный капитал для покрытия рисков",
+    "value": 82009900,
     "change": 5.2,
-    "ytdChange": 12.7,
-    "category": "finance",
-    "icon": "Landmark"
+    "ytdChange": 12.7
   },
   {
     "id": "ebitda",
-    "title": "EBITDA",
     "value": 2100000000,
-    "description": "Прибыль до вычета процентов, налогов, износа и амортизации, скорректированная на созданные резервы",
-    "change": 12.3,
-    "ytdChange": 8.4,
-    "category": "finance",
-    "icon": "TrendingUp"
+    "change": -1.3,
+    "ytdChange": 8.4
   },
   {
     "id": "cost_to_income",
-    "title": "Cost-to-Income",
     "value": 42.5,
-    "description": "Отношение операционных расходов к операционным доходам. Показывает эффективность управления расходами",
     "change": -3.1,
-    "ytdChange": -5.2,
-    "category": "finance",
-    "icon": "Percent"
+    "ytdChange": -5.2
   },
   {
     "id": "roa",
-    "title": "ROA",
     "value": 2.8,
-    "description": "Return on Assets — отношение чистой прибыли к средним активам. Показывает эффективность использования активов",
     "change": 0.4,
-    "ytdChange": 1.2,
-    "category": "finance",
-    "icon": "Activity"
+    "ytdChange": 1.2
   },
   {
     "id": "roe",
-    "title": "ROE",
     "value": 18.2,
-    "description": "Return on Equity — отношение чистой прибыли к собственному капиталу. Показывает доходность для акционеров",
     "change": 2.1,
-    "ytdChange": -0.3,
-    "category": "finance",
-    "icon": "Wallet"
+    "ytdChange": -0.3
   },
   {
     "id": "mau",
-    "title": "MAU",
     "value": 2400000,
-    "description": "Число уникальных клиентов, совершивших ≥1 операцию за месяц",
     "change": 8.5,
-    "ytdChange": 15.2,
-    "category": "clients",
-    "icon": "Users"
+    "ytdChange": 15.2
   },
   {
     "id": "dau",
-    "title": "DAU",
     "value": 785000,
-    "description": "Число уникальных клиентов, совершивших ≥1 операцию за день",
     "change": 6.2,
-    "ytdChange": 11.8,
-    "category": "clients",
-    "icon": "UserCheck"
+    "ytdChange": 11.8
   },
   {
     "id": "arpu",
-    "title": "ARPU",
     "value": 1475,
-    "description": "Средний доход на одного клиента за период",
     "change": 5.8,
-    "ytdChange": 9.4,
-    "category": "clients",
-    "icon": "Wallet"
+    "ytdChange": 9.4
   },
   {
     "id": "retention",
-    "title": "Retention",
     "value": 78.5,
-    "description": "Доля клиентов, совершивших ≥1 операцию и в текущем, и в предыдущем месяце",
     "change": 2.1,
-    "ytdChange": 3.8,
-    "category": "clients",
-    "icon": "TrendingUp"
+    "ytdChange": 3.8
   },
   {
     "id": "churn",
-    "title": "Churn",
     "value": 4.2,
-    "description": "Доля клиентов, активных в прошлом месяце, но не совершивших операций в текущем",
     "change": -1.3,
-    "ytdChange": -2.1,
-    "category": "clients",
-    "icon": "UserMinus"
+    "ytdChange": -2.1
   },
   {
     "id": "fx_transactions",
-    "title": "FX-сделки",
     "value": 705500,
-    "description": "Общее количество конверсионных операций за период",
     "change": 9.4,
-    "ytdChange": 18.7,
-    "category": "conversion",
-    "icon": "RefreshCw"
+    "ytdChange": 18.7
   },
   {
     "id": "fx_avg_check",
-    "title": "Средний чек FX",
     "value": 214800,
-    "description": "Средний объём одной конверсионной операции",
     "change": 3.2,
-    "ytdChange": 5.6,
-    "category": "conversion",
-    "icon": "BarChart3"
+    "ytdChange": 5.6
   },
   {
     "id": "fx_spread",
-    "title": "FX-спред",
     "value": 1.82,
-    "description": "Средневзвешенный спред по всем FX-операциям",
     "change": -0.08,
-    "ytdChange": -0.15,
-    "category": "conversion",
-    "icon": "Percent"
+    "ytdChange": -0.15
   },
   {
     "id": "fx_clients",
-    "title": "FX клиенты",
     "value": 186400,
-    "description": "Количество уникальных клиентов, совершавших конверсии",
     "change": 12.6,
-    "ytdChange": 22.4,
-    "category": "conversion",
-    "icon": "Users"
+    "ytdChange": 22.4
   },
   {
     "id": "fx_per_client",
-    "title": "FX на клиента",
     "value": 3.78,
-    "description": "Среднее количество FX-операций на одного клиента",
     "change": -2.8,
-    "ytdChange": -1.5,
-    "category": "conversion",
-    "icon": "Activity"
+    "ytdChange": -1.5
   }
 ]

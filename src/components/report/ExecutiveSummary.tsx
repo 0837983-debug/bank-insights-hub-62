@@ -36,9 +36,7 @@ export const ExecutiveSummary = () => {
 
   const handleToggleKPI = (kpiId: string) => {
     setTempSelection((prev) =>
-      prev.includes(kpiId)
-        ? prev.filter((id) => id !== kpiId)
-        : [...prev, kpiId]
+      prev.includes(kpiId) ? prev.filter((id) => id !== kpiId) : [...prev, kpiId]
     );
   };
 
@@ -55,9 +53,7 @@ export const ExecutiveSummary = () => {
     setTempSelection([]);
   };
 
-  const selectedKPIData = allDashboardKPIs.filter((kpi) =>
-    selectedKPIs.includes(kpi.id)
-  );
+  const selectedKPIData = allDashboardKPIs.filter((kpi) => selectedKPIs.includes(kpi.id));
 
   const getKPIsByCategory = (category: string) =>
     allDashboardKPIs.filter((kpi) => kpi.category === category);
@@ -116,16 +112,12 @@ export const ExecutiveSummary = () => {
                           onCheckedChange={() => handleToggleKPI(kpi.id)}
                         />
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="p-1.5 bg-accent/10 rounded">
-                            {kpi.icon}
-                          </div>
+                          <div className="p-1.5 bg-accent/10 rounded">{kpi.icon}</div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-foreground truncate">
                               {kpi.title}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {kpi.value}
-                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{kpi.value}</p>
                           </div>
                         </div>
                       </div>

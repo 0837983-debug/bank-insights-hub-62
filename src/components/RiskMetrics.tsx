@@ -1,7 +1,14 @@
 import { Card } from "@/components/ui/card";
-import { MetricCard } from "./MetricCard";
+import { KPICard } from "./MetricCard";
 import { ShieldAlertIcon, AlertTriangleIcon, TrendingDownIcon } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const amlData = [
   { type: "Подозрительные переводы", count: 47, status: "В обработке" },
@@ -14,27 +21,30 @@ export const RiskMetrics = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-foreground">4. Регуляторные и риск-метрики</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <MetricCard
+        <KPICard
           title="AML события"
           value="93"
+          showChange={true}
           change={-12.5}
-          subtitle="Подозрительные операции"
+          description="Подозрительные операции"
           icon={<ShieldAlertIcon className="w-6 h-6 text-warning" />}
         />
-        <MetricCard
+        <KPICard
           title="Комплаенс нарушения"
           value="4"
+          showChange={true}
           change={-33.3}
-          subtitle="За текущий период"
+          description="За текущий период"
           icon={<AlertTriangleIcon className="w-6 h-6 text-destructive" />}
         />
-        <MetricCard
+        <KPICard
           title="Операционные потери"
           value="₽2.1M"
+          showChange={true}
           change={-18.2}
-          subtitle="Убытки от рисков"
+          description="Убытки от рисков"
           icon={<TrendingDownIcon className="w-6 h-6 text-destructive" />}
         />
       </div>
@@ -55,11 +65,15 @@ export const RiskMetrics = () => {
                 <TableCell className="font-medium">{row.type}</TableCell>
                 <TableCell>{row.count}</TableCell>
                 <TableCell>
-                  <span className={
-                    row.status === "В обработке" ? "text-warning" :
-                    row.status === "Проверено" ? "text-success" :
-                    "text-muted-foreground"
-                  }>
+                  <span
+                    className={
+                      row.status === "В обработке"
+                        ? "text-warning"
+                        : row.status === "Проверено"
+                          ? "text-success"
+                          : "text-muted-foreground"
+                    }
+                  >
                     {row.status}
                   </span>
                 </TableCell>

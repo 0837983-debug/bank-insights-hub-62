@@ -1,0 +1,75 @@
+{
+  "tableId": "conversion_currency_pairs",
+  "rows": [
+    {
+      "id": "usd-rub",
+      "name": "USD/RUB",
+      "transactions": 284500,
+      "transactionsChange": 8.2,
+      "volumeRub": 42.8,
+      "volumeRubChange": 12.4,
+      "volumeOriginal": 456,
+      "volumeOriginalChange": 11.8
+    },
+    {
+      "id": "eur-rub",
+      "name": "EUR/RUB",
+      "transactions": 156200,
+      "transactionsChange": 5.1,
+      "volumeRub": 28.4,
+      "volumeRubChange": 7.3,
+      "volumeOriginal": 285,
+      "volumeOriginalChange": 6.9
+    },
+    {
+      "id": "usd-eur",
+      "name": "USD/EUR",
+      "transactions": 45800,
+      "transactionsChange": -2.3,
+      "volumeRub": 8.2,
+      "volumeRubChange": -1.8,
+      "volumeOriginal": 87,
+      "volumeOriginalChange": -2.1
+    },
+    {
+      "id": "aed-rub",
+      "name": "AED/RUB",
+      "transactions": 89400,
+      "transactionsChange": 24.6,
+      "volumeRub": 12.6,
+      "volumeRubChange": 28.3,
+      "volumeOriginal": 134,
+      "volumeOriginalChange": 27.5
+    },
+    {
+      "id": "cny-rub",
+      "name": "CNY/RUB",
+      "transactions": 67300,
+      "transactionsChange": 18.9,
+      "volumeRub": 9.8,
+      "volumeRubChange": 22.1,
+      "volumeOriginal": 680,
+      "volumeOriginalChange": 21.4
+    },
+    {
+      "id": "try-rub",
+      "name": "TRY/RUB",
+      "transactions": 34200,
+      "transactionsChange": 15.2,
+      "volumeRub": 4.2,
+      "volumeRubChange": 17.8,
+      "volumeOriginal": 1250,
+      "volumeOriginalChange": 16.9
+    },
+    {
+      "id": "gbp-rub",
+      "name": "GBP/RUB",
+      "transactions": 28100,
+      "transactionsChange": 3.4,
+      "volumeRub": 5.6,
+      "volumeRubChange": 4.8,
+      "volumeOriginal": 48,
+      "volumeOriginalChange": 4.2
+    }
+  ]
+}

@@ -1,30 +1,28 @@
 import { Router } from "express";
-import { readFile } from "fs/promises";
-import { join } from "path";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 import { buildLayoutFromDB } from "../services/layoutService.js";
 import kpiRoutes from "./kpiRoutes.js";
 import tableDataRoutes from "./tableDataRoutes.js";
 import chartDataRoutes from "./chartDataRoutes.js";
+import commandRoutes from "./commandRoutes.js";
 
 const router = Router();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Example route
 router.get("/", (_req, res) => {
   res.json({ message: "API is working" });
 });
 
-// Layout endpoint
-router.get("/layout", async (_req, res) => {
+// Layout endpoint - builds from DB config
+router.get("/layout", async (req, res) => {
   try {
-    const layout = await buildLayoutFromDB();
-    res.json(layout);
-  } catch (error) {
-    console.error("Error building layout from database:", error);
-    res.status(500).json({ error: "Failed to load layout data from database" });
+    const { layout_id } = req.query;
+    const layout = await buildLayoutFromDB(
+      typeof layout_id === "string" ? layout_id : undefined
+    );
+    return res.json(layout);
+  } catch (error: any) {
+    console.error("Error building layout from DB:", error);
+    return res.status(500).json({ error: "Failed to load layout data" });
   }
 });
 
@@ -61,14 +59,38 @@ router.get("/table-data", async (req, res) => {
         : [];
     
     // Construct file path - if groupBy is provided, prefer grouped file
-    const fileName =
+    // File naming convention: table-data-{tableId}.json or table-data-{tableId}_{groupBy}.json
+    // Keep underscores as-is (don't normalize to dashes) to match actual file names
+    const baseFileName = `table-data-${tableId}.json`;
+    const groupedFileName =
       groupByColumns.length > 0
-        ? `${tableId}_groupby_${groupByColumns[0]}.json`
-        : `${tableId}.json`;
-    const tableDataPath = join(__dirname, "../mockups", fileName);
+        ? `table-data-${tableId}_${groupByColumns[0]}.json`
+        : null;
     
-    // Read and parse the JSON file
-    const tableData = await readFile(tableDataPath, "utf-8");
+    // Try grouped file first, then fall back to base file
+    let tableDataPath = join(__dirname, "../mockups", groupedFileName || baseFileName);
+    let tableData: string;
+    
+    try {
+      tableData = await readFile(tableDataPath, "utf-8");
+    } catch (err: any) {
+      // If grouped file not found, try base file
+      if (err.code === "ENOENT" && groupedFileName) {
+        tableDataPath = join(__dirname, "../mockups", baseFileName);
+        try {
+          tableData = await readFile(tableDataPath, "utf-8");
+        } catch (fallbackErr: any) {
+          // If base file also not found, try with normalized name (for backward compatibility)
+          const normalizedTableId = tableId.replace(/_/g, "-");
+          const normalizedFileName = `table-data-${normalizedTableId}.json`;
+          tableDataPath = join(__dirname, "../mockups", normalizedFileName);
+          tableData = await readFile(tableDataPath, "utf-8");
+        }
+      } else {
+        throw err;
+      }
+    }
+    
     const data = JSON.parse(tableData);
     
     // If dateFrom/dateTo provided, reflect them in the response
@@ -102,5 +124,6 @@ router.get("/table-data", async (req, res) => {
 router.use("/kpis", kpiRoutes);
 router.use("/table-data", tableDataRoutes);
 router.use("/chart-data", chartDataRoutes);
+router.use("/commands", commandRoutes);
 
 export default router;

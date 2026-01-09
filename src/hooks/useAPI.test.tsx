@@ -89,11 +89,9 @@ describe("useAPI hooks", () => {
       const mockKPIs = [
         {
           id: "capital",
-          title: "Капитал",
           value: 8200000000,
-          description: "Test",
           change: 5.2,
-          category: "finance",
+          ytdChange: 12.7,
         },
       ];
 
@@ -115,11 +113,9 @@ describe("useAPI hooks", () => {
       const mockKPIs = [
         {
           id: "capital",
-          title: "Капитал",
           value: 8200000000,
-          description: "Test",
           change: 5.2,
-          category: "finance",
+          ytdChange: 12.7,
         },
       ];
 
@@ -149,11 +145,9 @@ describe("useAPI hooks", () => {
     it("should fetch KPI by ID successfully", async () => {
       const mockKPI = {
         id: "capital",
-        title: "Капитал",
         value: 8200000000,
-        description: "Test",
         change: 5.2,
-        category: "finance",
+        ytdChange: 12.7,
       };
 
       vi.mocked(api.fetchKPIById).mockResolvedValueOnce(mockKPI);
@@ -182,8 +176,6 @@ describe("useAPI hooks", () => {
     it("should fetch table data successfully", async () => {
       const mockTableData = {
         tableId: "income_structure",
-        title: "Структура доходов",
-        columns: [],
         rows: [],
       };
 
@@ -202,8 +194,6 @@ describe("useAPI hooks", () => {
     it("should fetch table data with params", async () => {
       const mockTableData = {
         tableId: "income_structure",
-        title: "Структура доходов",
-        columns: [],
         rows: [],
         requestedPeriod: "2025-01-01-2025-12-31",
       };

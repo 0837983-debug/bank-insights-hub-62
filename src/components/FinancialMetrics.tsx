@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { MetricCard } from "./MetricCard";
+import { KPICard } from "./KPICard";
 import { TrendingUpIcon, DollarSignIcon, PiggyBankIcon } from "lucide-react";
 
 const chkdData = [
@@ -28,34 +28,38 @@ export const FinancialMetrics = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-foreground">1. Финансово-операционные метрики</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
+        <KPICard
           title="AUM (Средства клиентов)"
           value="₽82.5B"
+          description="Общий объём"
           change={6.3}
-          subtitle="Общий объём"
+          showChange={true}
           icon={<PiggyBankIcon className="w-6 h-6 text-accent" />}
         />
-        <MetricCard
+        <KPICard
           title="LCR"
           value="145%"
+          description="Коэффициент покрытия"
           change={2.1}
-          subtitle="Коэффициент покрытия"
+          showChange={true}
           icon={<TrendingUpIcon className="w-6 h-6 text-success" />}
         />
-        <MetricCard
+        <KPICard
           title="Cost-to-Income"
           value="42.8%"
+          description="Коэффициент эффективности"
           change={-1.5}
-          subtitle="Коэффициент эффективности"
+          showChange={true}
           icon={<DollarSignIcon className="w-6 h-6 text-accent" />}
         />
-        <MetricCard
+        <KPICard
           title="Высоколиквидные активы"
           value="38.2%"
+          description="Доля в портфеле"
           change={3.4}
-          subtitle="Доля в портфеле"
+          showChange={true}
           icon={<TrendingUpIcon className="w-6 h-6 text-success" />}
         />
       </div>
@@ -70,25 +74,30 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="45%"
                 labelLine={true}
-                label={({ value, percent, payload }) => `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`}
+                label={({ value, percent, payload }) =>
+                  `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`
+                }
                 outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: "11px" }}
               >
                 {chkdData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
                 }}
-                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount}B (${value}%)`, props.payload.name]}
+                formatter={(value: any, name: any, props: any) => [
+                  `₽${props.payload.amount}B (${value}%)`,
+                  props.payload.name,
+                ]}
               />
-              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
+              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: "12px" }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -102,25 +111,30 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="45%"
                 labelLine={true}
-                label={({ value, percent, payload }) => `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`}
+                label={({ value, percent, payload }) =>
+                  `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`
+                }
                 outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: "11px" }}
               >
                 {chpdData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
                 }}
-                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount}B (${value}%)`, props.payload.name]}
+                formatter={(value: any, name: any, props: any) => [
+                  `₽${props.payload.amount}B (${value}%)`,
+                  props.payload.name,
+                ]}
               />
-              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
+              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: "12px" }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -134,25 +148,30 @@ export const FinancialMetrics = () => {
                 cx="50%"
                 cy="45%"
                 labelLine={true}
-                label={({ value, percent, payload }) => `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`}
+                label={({ value, percent, payload }) =>
+                  `₽${payload.amount}B (${(percent * 100).toFixed(0)}%)`
+                }
                 outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
-                style={{ fontSize: '11px' }}
+                style={{ fontSize: "11px" }}
               >
                 {totalRevenueData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
                 }}
-                formatter={(value: any, name: any, props: any) => [`₽${props.payload.amount}B (${value}%)`, props.payload.name]}
+                formatter={(value: any, name: any, props: any) => [
+                  `₽${props.payload.amount}B (${value}%)`,
+                  props.payload.name,
+                ]}
               />
-              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: '12px' }} />
+              <Legend align="center" verticalAlign="bottom" wrapperStyle={{ fontSize: "12px" }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>

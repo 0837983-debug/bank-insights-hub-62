@@ -352,6 +352,78 @@ export default function DevTools() {
     return `${displayName} (${command})`;
   };
 
+  const isOutputSuccessful = (output: string, status: string): boolean => {
+    // Check output content first - it's the most reliable indicator
+    const outputLower = output.toLowerCase();
+
+    // Explicit success patterns (highest priority)
+    if (
+      output.includes("Status: ✅") ||
+      output.includes("All tests passed") ||
+      output.includes("✅ All tests passed") ||
+      output.includes("Status: ✅ All tests passed")
+    ) {
+      return true;
+    }
+
+    // Check for "Summary" with failed count
+    const summaryMatch = output.match(/Summary:\s*(\d+)\s+passed[,\s]+(\d+)\s+failed/);
+    if (summaryMatch) {
+      const failedCount = parseInt(summaryMatch[2], 10);
+      if (failedCount === 0) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    // Explicit failure patterns
+    if (
+      output.includes("Status: ❌") ||
+      output.includes("Some tests failed") ||
+      output.includes("❌ Some tests failed") ||
+      output.includes("Failed Endpoints:") ||
+      (output.includes("❌ Failed") && !output.includes("0 failed"))
+    ) {
+      return false;
+    }
+
+    // Check for passed/failed counts in output
+    const passedMatch = output.match(/✅\s+Passed:\s*(\d+)/);
+    const failedMatch = output.match(/❌\s+Failed:\s*(\d+)/);
+    if (passedMatch && failedMatch) {
+      const failedCount = parseInt(failedMatch[1], 10);
+      return failedCount === 0;
+    }
+
+    // For lint/format/typecheck, check for error patterns
+    if (
+      (outputLower.includes("error") &&
+        !outputLower.includes("0 error") &&
+        !outputLower.includes("no error")) ||
+      (outputLower.includes("problems found") && !outputLower.includes("0 problems"))
+    ) {
+      return false;
+    }
+
+    // If status is explicitly error and no success indicators found, it's not successful
+    if (status === "error") {
+      // But double-check output - sometimes status is wrong
+      if (output.includes("Status: ✅") || output.includes("All tests passed")) {
+        return true;
+      }
+      return false;
+    }
+
+    // If status is success, trust it
+    if (status === "success") {
+      return true;
+    }
+
+    // Default: if no explicit failure indicators, consider it successful
+    return true;
+  };
+
   // Handle endpoint selection
   const handleEndpointSelect = (endpointId: string) => {
     const endpoint = apiEndpoints.find((e) => e.id === endpointId);
@@ -591,9 +663,7 @@ export default function DevTools() {
                 size="sm"
                 variant={selectedCommandKey === key && cmd.output ? "default" : "outline"}
               >
-                <div className="absolute top-1 right-1">
-                  {getCommandStatusIcon(cmd.status)}
-                </div>
+                <div className="absolute top-1 right-1">{getCommandStatusIcon(cmd.status)}</div>
                 {cmd.status === "running" ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -608,7 +678,7 @@ export default function DevTools() {
               </Button>
             ))}
           </div>
-          
+
           {/* Unified Output Window */}
           {selectedCommandKey && commands[selectedCommandKey]?.output && (
             <div className="mt-6 space-y-2">
@@ -627,7 +697,10 @@ export default function DevTools() {
               </div>
               <div
                 className={`text-sm p-4 rounded-lg border max-h-96 overflow-y-auto font-mono whitespace-pre-wrap ${
-                  commands[selectedCommandKey].status === "success"
+                  isOutputSuccessful(
+                    commands[selectedCommandKey].output,
+                    commands[selectedCommandKey].status
+                  )
                     ? "bg-green-50 text-green-700 border-green-200"
                     : "bg-red-50 text-red-700 border-red-200"
                 }`}
@@ -845,23 +918,30 @@ export default function DevTools() {
         </CardHeader>
         <CardContent className="space-y-6">
           <p className="text-sm text-muted-foreground">
-            Тестирование функций форматирования чисел из <code className="bg-muted px-1 rounded">@/lib/formatters</code>
+            Тестирование функций форматирования чисел из{" "}
+            <code className="bg-muted px-1 rounded">@/lib/formatters</code>
           </p>
 
           {/* formatCurrency examples */}
           <div className="space-y-2">
-            <Label className="text-base font-semibold">formatCurrency(value, currency, shorten)</Label>
+            <Label className="text-base font-semibold">
+              formatCurrency(value, currency, shorten)
+            </Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
               <div className="flex justify-between p-2 bg-muted rounded">
                 <span className="font-mono text-muted-foreground">formatCurrency(8200000000)</span>
                 <span className="font-semibold">{formatCurrency(8200000000)}</span>
               </div>
               <div className="flex justify-between p-2 bg-muted rounded">
-                <span className="font-mono text-muted-foreground">formatCurrency(2100000000, "RUB")</span>
+                <span className="font-mono text-muted-foreground">
+                  formatCurrency(2100000000, "RUB")
+                </span>
                 <span className="font-semibold">{formatCurrency(2100000000, "RUB")}</span>
               </div>
               <div className="flex justify-between p-2 bg-muted rounded">
-                <span className="font-mono text-muted-foreground">formatCurrency(1475, "RUB", false)</span>
+                <span className="font-mono text-muted-foreground">
+                  formatCurrency(1475, "RUB", false)
+                </span>
                 <span className="font-semibold">{formatCurrency(1475, "RUB", false)}</span>
               </div>
               <div className="flex justify-between p-2 bg-muted rounded">
@@ -873,7 +953,9 @@ export default function DevTools() {
 
           {/* formatNumber examples */}
           <div className="space-y-2">
-            <Label className="text-base font-semibold">formatNumber(value, shorten, decimals)</Label>
+            <Label className="text-base font-semibold">
+              formatNumber(value, shorten, decimals)
+            </Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
               <div className="flex justify-between p-2 bg-muted rounded">
                 <span className="font-mono text-muted-foreground">formatNumber(2400000)</span>
@@ -888,7 +970,9 @@ export default function DevTools() {
                 <span className="font-semibold">{formatNumber(705500)}</span>
               </div>
               <div className="flex justify-between p-2 bg-muted rounded">
-                <span className="font-mono text-muted-foreground">formatNumber(3.78, false, 2)</span>
+                <span className="font-mono text-muted-foreground">
+                  formatNumber(3.78, false, 2)
+                </span>
                 <span className="font-semibold">{formatNumber(3.78, false, 2)}</span>
               </div>
             </div>
@@ -949,18 +1033,30 @@ export default function DevTools() {
             <div className="grid grid-cols-1 gap-2 text-sm">
               <div className="flex justify-between p-2 bg-muted rounded">
                 <span className="font-mono text-muted-foreground text-xs">
-                  formatValue(8200000, {"{"} kind: "number", prefixUnitSymbol: "₽", shorten: true {"}"})
+                  formatValue(8200000, {"{"} kind: "number", prefixUnitSymbol: "₽", shorten: true{" "}
+                  {"}"})
                 </span>
                 <span className="font-semibold">
-                  {formatValue(8200000, { kind: "number", prefixUnitSymbol: "₽", shorten: true, thousandSeparator: true })}
+                  {formatValue(8200000, {
+                    kind: "number",
+                    prefixUnitSymbol: "₽",
+                    shorten: true,
+                    thousandSeparator: true,
+                  })}
                 </span>
               </div>
               <div className="flex justify-between p-2 bg-muted rounded">
                 <span className="font-mono text-muted-foreground text-xs">
-                  formatValue(42.5, {"{"} kind: "number", suffixUnitSymbol: "%", maximumFractionDigits: 1 {"}"})
+                  formatValue(42.5, {"{"} kind: "number", suffixUnitSymbol: "%",
+                  maximumFractionDigits: 1 {"}"})
                 </span>
                 <span className="font-semibold">
-                  {formatValue(42.5, { kind: "number", suffixUnitSymbol: "%", minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                  {formatValue(42.5, {
+                    kind: "number",
+                    suffixUnitSymbol: "%",
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}
                 </span>
               </div>
               <div className="flex justify-between p-2 bg-muted rounded">

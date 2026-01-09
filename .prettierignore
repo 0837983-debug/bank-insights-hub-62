@@ -1,0 +1,11 @@
+dist
+node_modules
+build
+coverage
+*.lock
+package-lock.json
+bun.lockb
+.git
+.vscode
+.idea
+*.md

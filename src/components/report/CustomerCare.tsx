@@ -3,12 +3,12 @@ import { Card } from "@/components/ui/card";
 export const CustomerCare = () => {
   return (
     <section>
-      <h2 className="text-3xl font-bold text-foreground mb-6">Забота о клиенте и качество сервиса</h2>
-      
+      <h2 className="text-3xl font-bold text-foreground mb-6">
+        Забота о клиенте и качество сервиса
+      </h2>
+
       <Card className="p-8">
-        <p className="text-muted-foreground text-center">
-          Раздел в разработке
-        </p>
+        <p className="text-muted-foreground text-center">Раздел в разработке</p>
       </Card>
     </section>
   );

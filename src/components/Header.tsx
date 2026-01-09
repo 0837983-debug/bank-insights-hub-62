@@ -21,16 +21,23 @@ export const Header = () => {
                 <Building2Icon className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Операционные метрики небанковского банка</h1>
-                <p className="text-sm text-muted-foreground">Аналитика в режиме реального времени</p>
+                <h1 className="text-xl font-bold text-foreground">
+                  Операционные метрики небанковского банка
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Аналитика в режиме реального времени
+                </p>
               </div>
             </div>
-            
+
             <nav className="hidden md:flex items-center gap-1">
               <NavLink to="/">Дашборд</NavLink>
+              <NavLink to="/components">Компоненты</NavLink>
+              <NavLink to="/dev-tools">Dev Tools</NavLink>
+              <NavLink to="/static">Статичная версия</NavLink>
             </nav>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon">
               <BellIcon className="w-5 h-5" />

@@ -29,30 +29,174 @@ interface ConversionTableRow {
 
 // Currency pairs data
 const currencyPairsData: ConversionTableRow[] = [
-  { id: "usd-rub", name: "USD/RUB", transactions: 284500, transactionsChange: 8.2, volumeRub: 42.8, volumeRubChange: 12.4, volumeOriginal: 456, volumeOriginalChange: 11.8 },
-  { id: "eur-rub", name: "EUR/RUB", transactions: 156200, transactionsChange: 5.1, volumeRub: 28.4, volumeRubChange: 7.3, volumeOriginal: 285, volumeOriginalChange: 6.9 },
-  { id: "usd-eur", name: "USD/EUR", transactions: 45800, transactionsChange: -2.3, volumeRub: 8.2, volumeRubChange: -1.8, volumeOriginal: 87, volumeOriginalChange: -2.1 },
-  { id: "aed-rub", name: "AED/RUB", transactions: 89400, transactionsChange: 24.6, volumeRub: 12.6, volumeRubChange: 28.3, volumeOriginal: 134, volumeOriginalChange: 27.5 },
-  { id: "cny-rub", name: "CNY/RUB", transactions: 67300, transactionsChange: 18.9, volumeRub: 9.8, volumeRubChange: 22.1, volumeOriginal: 680, volumeOriginalChange: 21.4 },
-  { id: "try-rub", name: "TRY/RUB", transactions: 34200, transactionsChange: 15.2, volumeRub: 4.2, volumeRubChange: 17.8, volumeOriginal: 1250, volumeOriginalChange: 16.9 },
-  { id: "gbp-rub", name: "GBP/RUB", transactions: 28100, transactionsChange: 3.4, volumeRub: 5.6, volumeRubChange: 4.8, volumeOriginal: 48, volumeOriginalChange: 4.2 },
+  {
+    id: "usd-rub",
+    name: "USD/RUB",
+    transactions: 284500,
+    transactionsChange: 8.2,
+    volumeRub: 42.8,
+    volumeRubChange: 12.4,
+    volumeOriginal: 456,
+    volumeOriginalChange: 11.8,
+  },
+  {
+    id: "eur-rub",
+    name: "EUR/RUB",
+    transactions: 156200,
+    transactionsChange: 5.1,
+    volumeRub: 28.4,
+    volumeRubChange: 7.3,
+    volumeOriginal: 285,
+    volumeOriginalChange: 6.9,
+  },
+  {
+    id: "usd-eur",
+    name: "USD/EUR",
+    transactions: 45800,
+    transactionsChange: -2.3,
+    volumeRub: 8.2,
+    volumeRubChange: -1.8,
+    volumeOriginal: 87,
+    volumeOriginalChange: -2.1,
+  },
+  {
+    id: "aed-rub",
+    name: "AED/RUB",
+    transactions: 89400,
+    transactionsChange: 24.6,
+    volumeRub: 12.6,
+    volumeRubChange: 28.3,
+    volumeOriginal: 134,
+    volumeOriginalChange: 27.5,
+  },
+  {
+    id: "cny-rub",
+    name: "CNY/RUB",
+    transactions: 67300,
+    transactionsChange: 18.9,
+    volumeRub: 9.8,
+    volumeRubChange: 22.1,
+    volumeOriginal: 680,
+    volumeOriginalChange: 21.4,
+  },
+  {
+    id: "try-rub",
+    name: "TRY/RUB",
+    transactions: 34200,
+    transactionsChange: 15.2,
+    volumeRub: 4.2,
+    volumeRubChange: 17.8,
+    volumeOriginal: 1250,
+    volumeOriginalChange: 16.9,
+  },
+  {
+    id: "gbp-rub",
+    name: "GBP/RUB",
+    transactions: 28100,
+    transactionsChange: 3.4,
+    volumeRub: 5.6,
+    volumeRubChange: 4.8,
+    volumeOriginal: 48,
+    volumeOriginalChange: 4.2,
+  },
 ];
 
 // Client segments data
 const clientSegmentsData: ConversionTableRow[] = [
-  { id: "retail", name: "ФЛ розница", transactions: 425000, transactionsChange: 9.8, volumeRub: 38.4, volumeRubChange: 11.2, volumeOriginal: 408, volumeOriginalChange: 10.5 },
-  { id: "private", name: "ФЛ прайват", transactions: 45200, transactionsChange: 6.2, volumeRub: 28.6, volumeRubChange: 8.4, volumeOriginal: 304, volumeOriginalChange: 7.9 },
-  { id: "ie", name: "ИП", transactions: 67800, transactionsChange: 12.4, volumeRub: 12.8, volumeRubChange: 15.6, volumeOriginal: 136, volumeOriginalChange: 14.8 },
-  { id: "smb", name: "ЮЛ малый бизнес", transactions: 89400, transactionsChange: 7.3, volumeRub: 18.4, volumeRubChange: 9.1, volumeOriginal: 195, volumeOriginalChange: 8.6 },
-  { id: "corporate", name: "ЮЛ корпоративные", transactions: 34600, transactionsChange: 4.8, volumeRub: 45.2, volumeRubChange: 6.2, volumeOriginal: 480, volumeOriginalChange: 5.8 },
-  { id: "nonresident", name: "Нерезиденты", transactions: 43500, transactionsChange: 18.6, volumeRub: 8.2, volumeRubChange: 22.4, volumeOriginal: 87, volumeOriginalChange: 21.6 },
+  {
+    id: "retail",
+    name: "ФЛ розница",
+    transactions: 425000,
+    transactionsChange: 9.8,
+    volumeRub: 38.4,
+    volumeRubChange: 11.2,
+    volumeOriginal: 408,
+    volumeOriginalChange: 10.5,
+  },
+  {
+    id: "private",
+    name: "ФЛ прайват",
+    transactions: 45200,
+    transactionsChange: 6.2,
+    volumeRub: 28.6,
+    volumeRubChange: 8.4,
+    volumeOriginal: 304,
+    volumeOriginalChange: 7.9,
+  },
+  {
+    id: "ie",
+    name: "ИП",
+    transactions: 67800,
+    transactionsChange: 12.4,
+    volumeRub: 12.8,
+    volumeRubChange: 15.6,
+    volumeOriginal: 136,
+    volumeOriginalChange: 14.8,
+  },
+  {
+    id: "smb",
+    name: "ЮЛ малый бизнес",
+    transactions: 89400,
+    transactionsChange: 7.3,
+    volumeRub: 18.4,
+    volumeRubChange: 9.1,
+    volumeOriginal: 195,
+    volumeOriginalChange: 8.6,
+  },
+  {
+    id: "corporate",
+    name: "ЮЛ корпоративные",
+    transactions: 34600,
+    transactionsChange: 4.8,
+    volumeRub: 45.2,
+    volumeRubChange: 6.2,
+    volumeOriginal: 480,
+    volumeOriginalChange: 5.8,
+  },
+  {
+    id: "nonresident",
+    name: "Нерезиденты",
+    transactions: 43500,
+    transactionsChange: 18.6,
+    volumeRub: 8.2,
+    volumeRubChange: 22.4,
+    volumeOriginal: 87,
+    volumeOriginalChange: 21.6,
+  },
 ];
 
 // Buy/Sell direction data
 const buySellData: ConversionTableRow[] = [
-  { id: "buy", name: "Покупка клиентами (Buy)", transactions: 412500, transactionsChange: 10.2, volumeRub: 78.4, volumeRubChange: 12.8, volumeOriginal: 832, volumeOriginalChange: 12.1 },
-  { id: "sell", name: "Продажа клиентами (Sell)", transactions: 293000, transactionsChange: 7.6, volumeRub: 73.2, volumeRubChange: 9.4, volumeOriginal: 778, volumeOriginalChange: 8.9 },
-  { id: "net", name: "Нетто-позиция", transactions: 119500, transactionsChange: 15.8, volumeRub: 5.2, volumeRubChange: 42.6, volumeOriginal: 54, volumeOriginalChange: 41.2 },
+  {
+    id: "buy",
+    name: "Покупка клиентами (Buy)",
+    transactions: 412500,
+    transactionsChange: 10.2,
+    volumeRub: 78.4,
+    volumeRubChange: 12.8,
+    volumeOriginal: 832,
+    volumeOriginalChange: 12.1,
+  },
+  {
+    id: "sell",
+    name: "Продажа клиентами (Sell)",
+    transactions: 293000,
+    transactionsChange: 7.6,
+    volumeRub: 73.2,
+    volumeRubChange: 9.4,
+    volumeOriginal: 778,
+    volumeOriginalChange: 8.9,
+  },
+  {
+    id: "net",
+    name: "Нетто-позиция",
+    transactions: 119500,
+    transactionsChange: 15.8,
+    volumeRub: 5.2,
+    volumeRubChange: 42.6,
+    volumeOriginal: 54,
+    volumeOriginalChange: 41.2,
+  },
 ];
 
 const formatNumber = (num: number) => {
@@ -72,14 +216,21 @@ interface ConversionTableProps {
 const ConversionTable = ({ title, data, showCurrencyToggle = true }: ConversionTableProps) => {
   const [showRub, setShowRub] = useState(true);
 
-  const getValueFn = useCallback((item: ConversionTableRow, column: string) => {
-    switch (column) {
-      case "name": return item.name;
-      case "transactions": return item.transactions;
-      case "volume": return showRub ? item.volumeRub : item.volumeOriginal;
-      default: return item.name;
-    }
-  }, [showRub]);
+  const getValueFn = useCallback(
+    (item: ConversionTableRow, column: string) => {
+      switch (column) {
+        case "name":
+          return item.name;
+        case "transactions":
+          return item.transactions;
+        case "volume":
+          return showRub ? item.volumeRub : item.volumeOriginal;
+        default:
+          return item.name;
+      }
+    },
+    [showRub]
+  );
 
   const { sortedData, sortState, handleSort } = useTableSort(data, getValueFn);
 
@@ -159,10 +310,7 @@ const ConversionTable = ({ title, data, showCurrencyToggle = true }: ConversionT
               </TableCell>
               <TableCell className="text-right">
                 <div>
-                  {showRub 
-                    ? formatVolume(row.volumeRub)
-                    : `${row.volumeOriginal.toFixed(0)}M`
-                  }
+                  {showRub ? formatVolume(row.volumeRub) : `${row.volumeOriginal.toFixed(0)}M`}
                 </div>
                 {renderChange(showRub ? row.volumeRubChange : row.volumeOriginalChange)}
               </TableCell>
@@ -223,20 +371,11 @@ export const Conversion = () => {
 
       {/* Tables */}
       <div className="space-y-6">
-        <ConversionTable
-          title="По валютным парам"
-          data={currencyPairsData}
-        />
-        
-        <ConversionTable
-          title="По клиентским сегментам"
-          data={clientSegmentsData}
-        />
-        
-        <ConversionTable
-          title="По покупкам и продажам валюты"
-          data={buySellData}
-        />
+        <ConversionTable title="По валютным парам" data={currencyPairsData} />
+
+        <ConversionTable title="По клиентским сегментам" data={clientSegmentsData} />
+
+        <ConversionTable title="По покупкам и продажам валюты" data={buySellData} />
       </div>
     </CollapsibleSection>
   );

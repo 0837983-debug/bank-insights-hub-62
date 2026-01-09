@@ -1,8 +1,24 @@
 import { Card } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { MetricCard } from "./MetricCard";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { KPICard } from "./MetricCard";
 import { UsersIcon, ActivityIcon, TrendingDownIcon, CheckCircleIcon } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const currencyTransactionData = [
   { month: "Янв", RUB: 850000, USD: 420000, EUR: 180000 },
@@ -33,79 +49,82 @@ export const TransactionMetrics = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-foreground">2. Транзакционные и клиентские метрики</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
+        <KPICard
           title="MAU"
           value="2.4M"
+          showChange={true}
           change={8.5}
-          subtitle="Активные пользователи"
+          description="Активные пользователи"
           icon={<UsersIcon className="w-6 h-6 text-accent" />}
         />
-        <MetricCard
+        <KPICard
           title="Retention"
           value="87.3%"
+          showChange={true}
           change={2.1}
-          subtitle="Удержание клиентов"
+          description="Удержание клиентов"
           icon={<CheckCircleIcon className="w-6 h-6 text-success" />}
         />
-        <MetricCard
+        <KPICard
           title="Churn"
           value="3.2%"
+          showChange={true}
           change={-0.8}
-          subtitle="Отток клиентов"
+          description="Отток клиентов"
           icon={<TrendingDownIcon className="w-6 h-6 text-destructive" />}
         />
-        <MetricCard
+        <KPICard
           title="ARPU"
           value="₽1,245"
+          showChange={true}
           change={5.3}
-          subtitle="Доход на клиента"
+          description="Доход на клиента"
           icon={<ActivityIcon className="w-6 h-6 text-accent" />}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Динамика транзакций по валютам</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            Динамика транзакций по валютам
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={currencyTransactionData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis 
-                dataKey="month" 
+              <XAxis
+                dataKey="month"
                 stroke="hsl(var(--muted-foreground))"
-                style={{ fontSize: '12px' }}
+                style={{ fontSize: "12px" }}
               />
-              <YAxis 
-                stroke="hsl(var(--muted-foreground))"
-                style={{ fontSize: '12px' }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+              <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: "12px" }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
                 }}
               />
               <Legend align="left" />
-              <Line 
-                type="monotone" 
-                dataKey="RUB" 
-                stroke="hsl(var(--chart-1))" 
+              <Line
+                type="monotone"
+                dataKey="RUB"
+                stroke="hsl(var(--chart-1))"
                 strokeWidth={2}
                 name="RUB"
               />
-              <Line 
-                type="monotone" 
-                dataKey="USD" 
-                stroke="hsl(var(--chart-2))" 
+              <Line
+                type="monotone"
+                dataKey="USD"
+                stroke="hsl(var(--chart-2))"
                 strokeWidth={2}
                 name="USD"
               />
-              <Line 
-                type="monotone" 
-                dataKey="EUR" 
-                stroke="hsl(var(--chart-3))" 
+              <Line
+                type="monotone"
+                dataKey="EUR"
+                stroke="hsl(var(--chart-3))"
                 strokeWidth={2}
                 name="EUR"
               />
@@ -114,46 +133,45 @@ export const TransactionMetrics = () => {
         </Card>
 
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Динамика конверсионного дохода по валютам</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            Динамика конверсионного дохода по валютам
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={currencyRevenueData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis 
-                dataKey="month" 
+              <XAxis
+                dataKey="month"
                 stroke="hsl(var(--muted-foreground))"
-                style={{ fontSize: '12px' }}
+                style={{ fontSize: "12px" }}
               />
-              <YAxis 
-                stroke="hsl(var(--muted-foreground))"
-                style={{ fontSize: '12px' }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+              <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: "12px" }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
                 }}
                 formatter={(value: any) => `₽${value}M`}
               />
               <Legend align="left" />
-              <Line 
-                type="monotone" 
-                dataKey="RUB" 
-                stroke="hsl(var(--chart-1))" 
+              <Line
+                type="monotone"
+                dataKey="RUB"
+                stroke="hsl(var(--chart-1))"
                 strokeWidth={2}
                 name="RUB"
               />
-              <Line 
-                type="monotone" 
-                dataKey="USD" 
-                stroke="hsl(var(--chart-2))" 
+              <Line
+                type="monotone"
+                dataKey="USD"
+                stroke="hsl(var(--chart-2))"
                 strokeWidth={2}
                 name="USD"
               />
-              <Line 
-                type="monotone" 
-                dataKey="EUR" 
-                stroke="hsl(var(--chart-3))" 
+              <Line
+                type="monotone"
+                dataKey="EUR"
+                stroke="hsl(var(--chart-3))"
                 strokeWidth={2}
                 name="EUR"
               />
@@ -163,7 +181,9 @@ export const TransactionMetrics = () => {
       </div>
 
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">SLA и производительность по каналам</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">
+          SLA и производительность по каналам
+        </h3>
         <Table>
           <TableHeader>
             <TableRow>

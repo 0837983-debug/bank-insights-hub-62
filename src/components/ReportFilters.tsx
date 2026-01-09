@@ -37,10 +37,7 @@ export const ReportFilters = ({
               variant={period === opt.value ? "default" : "outline"}
               size="sm"
               onClick={() => onPeriodChange(opt.value)}
-              className={cn(
-                "transition-all",
-                period === opt.value && "shadow-sm"
-              )}
+              className={cn("transition-all", period === opt.value && "shadow-sm")}
             >
               {opt.label}
             </Button>
@@ -57,17 +54,13 @@ export const ReportFilters = ({
               variant={comparison === opt.value ? "default" : "outline"}
               size="sm"
               onClick={() => onComparisonChange(opt.value)}
-              className={cn(
-                "transition-all",
-                comparison === opt.value && "shadow-sm"
-              )}
+              className={cn("transition-all", comparison === opt.value && "shadow-sm")}
             >
               {opt.label}
             </Button>
           ))}
         </div>
       </div>
-
     </div>
   );
 };

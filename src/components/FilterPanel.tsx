@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FilterIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -27,7 +33,7 @@ export const FilterPanel = ({ onFilterChange }: FilterPanelProps) => {
         <FilterIcon className="w-4 h-4 text-primary" />
         <h3 className="font-semibold text-foreground">Фильтры</h3>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Период</label>

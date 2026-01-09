@@ -1,0 +1,266 @@
+{
+  "tableId": "income_structure",
+  "rows": [
+    {
+      "id": "i1",
+      "name": "Чистый процентный доход (ЧПД)",
+      "value": 3200000000,
+      "isGroup": true,
+      "description": "Разница между процентными доходами и расходами",
+      "change_pptd": 5.2,
+      "change_ytd": 8.1
+    },
+    {
+      "id": "i2",
+      "name": "Процентные доходы",
+      "value": 4100000000,
+      "isGroup": true,
+      "parentId": "i1",
+      "change_pptd": 4.8,
+      "change_ytd": 7.2
+    },
+    {
+      "id": "i2-1",
+      "name": "Доходы по кредитам ФЛ",
+      "value": 2100000000,
+      "percentage": 51.2,
+      "parentId": "i2",
+      "change_pptd": 5.1,
+      "change_ytd": 8.5
+    },
+    {
+      "id": "i2-2",
+      "name": "Доходы по кредитам ЮЛ",
+      "value": 1200000000,
+      "percentage": 29.3,
+      "parentId": "i2",
+      "change_pptd": 4.2,
+      "change_ytd": 6.8
+    },
+    {
+      "id": "i2-3",
+      "name": "Доходы от размещений",
+      "value": 800000000,
+      "percentage": 19.5,
+      "parentId": "i2",
+      "change_pptd": 5.8,
+      "change_ytd": 9.2
+    },
+    {
+      "id": "i3",
+      "name": "Процентные расходы",
+      "value": -900000000,
+      "isGroup": true,
+      "parentId": "i1",
+      "change_pptd": 3.2,
+      "change_ytd": 5.1
+    },
+    {
+      "id": "i3-1",
+      "name": "Расходы по депозитам ФЛ",
+      "value": -520000000,
+      "percentage": 57.8,
+      "parentId": "i3",
+      "change_pptd": 2.8,
+      "change_ytd": 4.5
+    },
+    {
+      "id": "i3-2",
+      "name": "Расходы по депозитам ЮЛ",
+      "value": -280000000,
+      "percentage": 31.1,
+      "parentId": "i3",
+      "change_pptd": 3.5,
+      "change_ytd": 5.8
+    },
+    {
+      "id": "i3-3",
+      "name": "Прочие процентные расходы",
+      "value": -100000000,
+      "percentage": 11.1,
+      "parentId": "i3",
+      "change_pptd": 4.1,
+      "change_ytd": 6.2
+    },
+    {
+      "id": "i4",
+      "name": "Чистый комиссионный доход (ЧКД)",
+      "value": 5800000000,
+      "isGroup": true,
+      "description": "Доходы от комиссий за услуги банка",
+      "change_pptd": 12.3,
+      "change_ytd": 15.8
+    },
+    {
+      "id": "i5",
+      "name": "Комиссии международных переводов",
+      "value": 3200000000,
+      "isGroup": true,
+      "parentId": "i4",
+      "change_pptd": 15.1,
+      "change_ytd": 18.5
+    },
+    {
+      "id": "i5-1",
+      "name": "Переводы в СНГ",
+      "value": 1600000000,
+      "percentage": 50.0,
+      "parentId": "i5",
+      "change_pptd": 18.2,
+      "change_ytd": 22.1
+    },
+    {
+      "id": "i5-2",
+      "name": "Переводы в Европу",
+      "value": 960000000,
+      "percentage": 30.0,
+      "parentId": "i5",
+      "change_pptd": 12.4,
+      "change_ytd": 15.2
+    },
+    {
+      "id": "i5-3",
+      "name": "Переводы в Азию",
+      "value": 640000000,
+      "percentage": 20.0,
+      "parentId": "i5",
+      "change_pptd": 11.8,
+      "change_ytd": 14.5
+    },
+    {
+      "id": "i6",
+      "name": "Комиссии обслуживания",
+      "value": 1800000000,
+      "isGroup": true,
+      "parentId": "i4",
+      "change_pptd": 8.7,
+      "change_ytd": 11.2
+    },
+    {
+      "id": "i6-1",
+      "name": "Обслуживание карт",
+      "value": 900000000,
+      "percentage": 50.0,
+      "parentId": "i6",
+      "change_pptd": 9.2,
+      "change_ytd": 12.1
+    },
+    {
+      "id": "i6-2",
+      "name": "Обслуживание счетов",
+      "value": 540000000,
+      "percentage": 30.0,
+      "parentId": "i6",
+      "change_pptd": 7.8,
+      "change_ytd": 10.5
+    },
+    {
+      "id": "i6-3",
+      "name": "Прочее обслуживание",
+      "value": 360000000,
+      "percentage": 20.0,
+      "parentId": "i6",
+      "change_pptd": 8.5,
+      "change_ytd": 11.0
+    },
+    {
+      "id": "i7",
+      "name": "Прочие комиссии",
+      "value": 800000000,
+      "percentage": 13.8,
+      "parentId": "i4",
+      "change_pptd": 6.2,
+      "change_ytd": 8.8
+    },
+    {
+      "id": "i8",
+      "name": "Доходы по FX",
+      "value": 2400000000,
+      "isGroup": true,
+      "description": "Доходы от валютно-обменных операций",
+      "change_pptd": 9.8,
+      "change_ytd": 12.5
+    },
+    {
+      "id": "i9",
+      "name": "Спред конвертаций",
+      "value": 1400000000,
+      "isGroup": true,
+      "parentId": "i8",
+      "description": "Доход от разницы курсов покупки и продажи валюты",
+      "change_pptd": 11.2,
+      "change_ytd": 14.1
+    },
+    {
+      "id": "i9-1",
+      "name": "USD/RUB",
+      "value": 700000000,
+      "percentage": 50.0,
+      "parentId": "i9",
+      "change_pptd": 12.5,
+      "change_ytd": 15.8
+    },
+    {
+      "id": "i9-2",
+      "name": "EUR/RUB",
+      "value": 420000000,
+      "percentage": 30.0,
+      "parentId": "i9",
+      "change_pptd": 10.2,
+      "change_ytd": 12.8
+    },
+    {
+      "id": "i9-3",
+      "name": "Прочие пары",
+      "value": 280000000,
+      "percentage": 20.0,
+      "parentId": "i9",
+      "change_pptd": 9.8,
+      "change_ytd": 12.1
+    },
+    {
+      "id": "i10",
+      "name": "Маржа по FX-операциям",
+      "value": 800000000,
+      "percentage": 33.3,
+      "parentId": "i8",
+      "change_pptd": 7.5,
+      "change_ytd": 9.8
+    },
+    {
+      "id": "i11",
+      "name": "Доход трейдинга",
+      "value": 200000000,
+      "percentage": 8.3,
+      "parentId": "i8",
+      "change_pptd": 5.3,
+      "change_ytd": 7.2
+    },
+    {
+      "id": "i12",
+      "name": "Прочие доходы",
+      "value": 600000000,
+      "isGroup": true,
+      "change_pptd": 3.1,
+      "change_ytd": 5.5
+    },
+    {
+      "id": "i13",
+      "name": "Операционные",
+      "value": 400000000,
+      "percentage": 66.7,
+      "parentId": "i12",
+      "change_pptd": 2.8,
+      "change_ytd": 4.8
+    },
+    {
+      "id": "i14",
+      "name": "Прочие финансовые",
+      "value": 200000000,
+      "percentage": 33.3,
+      "parentId": "i12",
+      "change_pptd": 3.7,
+      "change_ytd": 6.2
+    }
+  ]
+}

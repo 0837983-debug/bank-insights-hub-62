@@ -9,31 +9,55 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, ChevronRight, ChevronDown, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  InfoIcon,
+  ChevronRight,
+  ChevronDown,
+  TrendingUp,
+  TrendingDown,
+  Loader2,
+} from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { SortableHeader } from "@/components/SortableHeader";
 
-export interface TableRowData {
-  id: string;
-  name: string;
-  description?: string;
+// Данные для столбца с числовыми значениями
+export interface DataColumnValue {
   value: number;
   percentage?: number;
   change?: number;
   changeYtd?: number;
+}
+
+// Определение столбца таблицы
+export interface TableColumn {
+  id: string;
+  label: string;
+  type: "text" | "data";
+  align?: "left" | "right" | "center";
+  width?: string;
+  // Для data колонок:
+  showPercentage?: boolean;
+  showChange?: boolean;
+  format?: "number" | "currency" | "percent";
+}
+
+// Строка таблицы (с поддержкой обеих версий для обратной совместимости)
+export interface TableRowData {
+  id: string;
+  // Старый формат (для обратной совместимости):
+  name?: string;
+  value?: number;
+  percentage?: number;
+  change?: number;
+  changeYtd?: number;
+  // Новый формат:
+  textColumns?: Record<string, string>; // {type: "Доходы", subtype: "Услуги"}
+  dataColumns?: Record<string, DataColumnValue>; // {value1: {value: 100, change: 5}, value2: {value: 200}}
+  // Общие поля:
+  description?: string;
   isGroup?: boolean;
   isTotal?: boolean;
   indent?: number;
@@ -48,12 +72,15 @@ export interface GroupingOption {
 interface FinancialTableProps {
   title: string;
   rows: TableRowData[];
+  columns?: TableColumn[]; // Новое: явное определение столбцов
+  // Старый формат (для обратной совместимости):
   showPercentage?: boolean;
   showChange?: boolean;
   currency?: string;
   periodLabel?: string;
   tableId?: string;
   groupingOptions?: GroupingOption[];
+  activeGrouping?: string | null;
   onGroupingChange?: (groupBy: string | null) => void;
   isLoading?: boolean;
 }
@@ -80,11 +107,15 @@ export const FinancialTable = ({
   showChange = true,
   periodLabel = "Значение",
   groupingOptions,
+  activeGrouping: externalActiveGrouping,
   onGroupingChange,
   isLoading = false,
 }: FinancialTableProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
+  // Use external activeGrouping if provided, otherwise use internal state (for backward compatibility)
+  const [internalActiveGrouping, setInternalActiveGrouping] = useState<string | null>(null);
+  const activeGrouping =
+    externalActiveGrouping !== undefined ? externalActiveGrouping : internalActiveGrouping;
   const [selectedRow, setSelectedRow] = useState<TableRowData | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
@@ -100,13 +131,37 @@ export const FinancialTable = ({
     if (children.length > 0) {
       return children;
     }
-    
+
     // Otherwise generate mock detail breakdown
     return [
-      { id: `${row.id}-d1`, name: "Детализация 1", value: row.value * 0.35, percentage: 35.0, change: (row.change ?? 0) + 1.2 },
-      { id: `${row.id}-d2`, name: "Детализация 2", value: row.value * 0.28, percentage: 28.0, change: (row.change ?? 0) - 0.5 },
-      { id: `${row.id}-d3`, name: "Детализация 3", value: row.value * 0.22, percentage: 22.0, change: (row.change ?? 0) + 0.8 },
-      { id: `${row.id}-d4`, name: "Детализация 4", value: row.value * 0.15, percentage: 15.0, change: (row.change ?? 0) - 1.1 },
+      {
+        id: `${row.id}-d1`,
+        name: "Детализация 1",
+        value: row.value * 0.35,
+        percentage: 35.0,
+        change: (row.change ?? 0) + 1.2,
+      },
+      {
+        id: `${row.id}-d2`,
+        name: "Детализация 2",
+        value: row.value * 0.28,
+        percentage: 28.0,
+        change: (row.change ?? 0) - 0.5,
+      },
+      {
+        id: `${row.id}-d3`,
+        name: "Детализация 3",
+        value: row.value * 0.22,
+        percentage: 22.0,
+        change: (row.change ?? 0) + 0.8,
+      },
+      {
+        id: `${row.id}-d4`,
+        name: "Детализация 4",
+        value: row.value * 0.15,
+        percentage: 15.0,
+        change: (row.change ?? 0) - 1.1,
+      },
     ];
   };
 
@@ -133,7 +188,11 @@ export const FinancialTable = ({
 
   // Separate top-level rows
   const topLevelRows = rows.filter((r) => !r.parentId);
-  const { sortedData: sortedTopLevel, sortState, handleSort } = useTableSort(topLevelRows, getValueFn);
+  const {
+    sortedData: sortedTopLevel,
+    sortState,
+    handleSort,
+  } = useTableSort(topLevelRows, getValueFn);
 
   // Rebuild full sorted rows with nested children
   const sortedRows = sortedTopLevel.flatMap((row) => [row, ...buildHierarchy(row.id)]);
@@ -153,7 +212,7 @@ export const FinancialTable = ({
   // Check if any ancestor is collapsed
   const isRowVisible = (row: TableRowData): boolean => {
     if (!row.parentId) return true;
-    
+
     // Check all ancestors
     let currentParentId: string | undefined = row.parentId;
     while (currentParentId) {
@@ -226,7 +285,7 @@ export const FinancialTable = ({
   // Collapse one level - collapse the deepest expanded level
   const collapseOneLevel = () => {
     const deepestExpanded = getDeepestExpandedLevel();
-    
+
     if (deepestExpanded >= 0) {
       const groupsToCollapse = getCollapsibleRowsAtLevel(deepestExpanded);
       setCollapsedGroups((prev) => {
@@ -240,7 +299,7 @@ export const FinancialTable = ({
   // Expand one level - expand the shallowest collapsed level (top to bottom)
   const expandOneLevel = () => {
     const shallowestCollapsed = getShallowestCollapsedLevel();
-    
+
     if (shallowestCollapsed >= 0) {
       const groupsToExpand = getCollapsibleRowsAtLevel(shallowestCollapsed);
       setCollapsedGroups((prev) => {
@@ -253,7 +312,10 @@ export const FinancialTable = ({
 
   const handleGroupingClick = (groupId: string) => {
     const newGrouping = activeGrouping === groupId ? null : groupId;
-    setActiveGrouping(newGrouping);
+    // Update internal state only if external state is not provided
+    if (externalActiveGrouping === undefined) {
+      setInternalActiveGrouping(newGrouping);
+    }
     setCollapsedGroups(new Set());
     onGroupingChange?.(newGrouping);
   };
@@ -283,12 +345,7 @@ export const FinancialTable = ({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={expandOneLevel}
-                  >
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={expandOneLevel}>
                     <ChevronDown className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
@@ -297,7 +354,7 @@ export const FinancialTable = ({
             </div>
           )}
         </div>
-        
+
         {/* Grouping buttons */}
         {groupingOptions && groupingOptions.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -397,10 +454,12 @@ export const FinancialTable = ({
                           </button>
                         )}
                         {!hasChildren && row.parentId && <span className="w-5 flex-shrink-0" />}
-                        <span className={cn(
-                          row.isGroup && !row.parentId && "font-semibold",
-                          row.isTotal && "font-bold"
-                        )}>
+                        <span
+                          className={cn(
+                            row.isGroup && !row.parentId && "font-semibold",
+                            row.isTotal && "font-bold"
+                          )}
+                        >
                           {row.name}
                         </span>
                         {row.description && (
@@ -430,19 +489,23 @@ export const FinancialTable = ({
                           {formatValueWithUnit(row.value)}
                         </span>
                         {showChange && row.change !== undefined && (
-                          <div className={cn(
-                            "flex items-center gap-1 text-sm",
-                            isPositiveChange && "text-green-600",
-                            isNegativeChange && "text-red-600",
-                            !isPositiveChange && !isNegativeChange && "text-muted-foreground"
-                          )}>
+                          <div
+                            className={cn(
+                              "flex items-center gap-1 text-sm",
+                              isPositiveChange && "text-green-600",
+                              isNegativeChange && "text-red-600",
+                              !isPositiveChange && !isNegativeChange && "text-muted-foreground"
+                            )}
+                          >
                             {isPositiveChange && <TrendingUp className="w-3 h-3" />}
                             {isNegativeChange && <TrendingDown className="w-3 h-3" />}
                             <span>
-                              {row.change > 0 ? "+" : ""}{row.change.toFixed(1)}%
+                              {row.change > 0 ? "+" : ""}
+                              {row.change.toFixed(1)}%
                               {row.changeYtd !== undefined && (
                                 <span className="ml-1">
-                                  ({row.changeYtd > 0 ? "↑" : row.changeYtd < 0 ? "↓" : ""}{Math.abs(row.changeYtd).toFixed(1)}%)
+                                  ({row.changeYtd > 0 ? "↑" : row.changeYtd < 0 ? "↓" : ""}
+                                  {Math.abs(row.changeYtd).toFixed(1)}%)
                                 </span>
                               )}
                             </span>
@@ -462,34 +525,39 @@ export const FinancialTable = ({
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">
-              Детализация: {selectedRow?.name}
-            </DialogTitle>
+            <DialogTitle className="text-lg">Детализация: {selectedRow?.name}</DialogTitle>
           </DialogHeader>
-          
+
           {selectedRow && (
             <div className="mt-4">
               <div className="mb-4 p-4 bg-muted/30 rounded-lg">
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Значение:</span>
-                    <span className="ml-2 font-semibold">{formatValueWithUnit(selectedRow.value)}</span>
+                    <span className="ml-2 font-semibold">
+                      {formatValueWithUnit(selectedRow.value)}
+                    </span>
                   </div>
                   {selectedRow.percentage !== undefined && (
                     <div>
                       <span className="text-muted-foreground">Доля:</span>
-                      <span className="ml-2 font-semibold">{selectedRow.percentage.toFixed(1)}%</span>
+                      <span className="ml-2 font-semibold">
+                        {selectedRow.percentage.toFixed(1)}%
+                      </span>
                     </div>
                   )}
                   {selectedRow.change !== undefined && (
                     <div>
                       <span className="text-muted-foreground">Изменение:</span>
-                      <span className={cn(
-                        "ml-2 font-semibold",
-                        selectedRow.change > 0 && "text-green-600",
-                        selectedRow.change < 0 && "text-red-600"
-                      )}>
-                        {selectedRow.change > 0 ? "+" : ""}{selectedRow.change.toFixed(1)}%
+                      <span
+                        className={cn(
+                          "ml-2 font-semibold",
+                          selectedRow.change > 0 && "text-green-600",
+                          selectedRow.change < 0 && "text-red-600"
+                        )}
+                      >
+                        {selectedRow.change > 0 ? "+" : ""}
+                        {selectedRow.change.toFixed(1)}%
                       </span>
                     </div>
                   )}
@@ -509,7 +577,7 @@ export const FinancialTable = ({
                   {getDetailRows(selectedRow).map((detailRow) => {
                     const isPositive = detailRow.change !== undefined && detailRow.change > 0;
                     const isNegative = detailRow.change !== undefined && detailRow.change < 0;
-                    
+
                     return (
                       <TableRow key={detailRow.id} className="border-b border-border/50">
                         <TableCell className="py-3">
@@ -519,7 +587,9 @@ export const FinancialTable = ({
                         </TableCell>
                         <TableCell className="text-right py-3">
                           <span className="text-sm text-muted-foreground">
-                            {detailRow.percentage !== undefined ? `${detailRow.percentage.toFixed(1)}%` : "—"}
+                            {detailRow.percentage !== undefined
+                              ? `${detailRow.percentage.toFixed(1)}%`
+                              : "—"}
                           </span>
                         </TableCell>
                         <TableCell className="text-right py-3 font-semibold">
@@ -527,14 +597,19 @@ export const FinancialTable = ({
                         </TableCell>
                         <TableCell className="text-right py-3">
                           {detailRow.change !== undefined && (
-                            <div className={cn(
-                              "flex items-center justify-end gap-1 text-sm",
-                              isPositive && "text-green-600",
-                              isNegative && "text-red-600"
-                            )}>
+                            <div
+                              className={cn(
+                                "flex items-center justify-end gap-1 text-sm",
+                                isPositive && "text-green-600",
+                                isNegative && "text-red-600"
+                              )}
+                            >
                               {isPositive && <TrendingUp className="w-3 h-3" />}
                               {isNegative && <TrendingDown className="w-3 h-3" />}
-                              <span>{detailRow.change > 0 ? "+" : ""}{detailRow.change.toFixed(1)}%</span>
+                              <span>
+                                {detailRow.change > 0 ? "+" : ""}
+                                {detailRow.change.toFixed(1)}%
+                              </span>
                             </div>
                           )}
                         </TableCell>

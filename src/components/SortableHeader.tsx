@@ -31,12 +31,8 @@ export const SortableHeader = ({
       )}
     >
       <span>{label}</span>
-      {isActive && direction === "asc" && (
-        <ArrowUpIcon className="w-3.5 h-3.5" />
-      )}
-      {isActive && direction === "desc" && (
-        <ArrowDownIcon className="w-3.5 h-3.5" />
-      )}
+      {isActive && direction === "asc" && <ArrowUpIcon className="w-3.5 h-3.5" />}
+      {isActive && direction === "desc" && <ArrowDownIcon className="w-3.5 h-3.5" />}
       {!isActive && (
         <ArrowUpDownIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50 transition-opacity" />
       )}

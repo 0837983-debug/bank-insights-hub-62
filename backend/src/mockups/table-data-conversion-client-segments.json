@@ -1,0 +1,65 @@
+{
+  "tableId": "conversion_client_segments",
+  "rows": [
+    {
+      "id": "retail",
+      "name": "ФЛ розница",
+      "transactions": 425000,
+      "transactionsChange": 9.8,
+      "volumeRub": 38.4,
+      "volumeRubChange": 11.2,
+      "volumeOriginal": 408,
+      "volumeOriginalChange": 10.5
+    },
+    {
+      "id": "private",
+      "name": "ФЛ прайват",
+      "transactions": 45200,
+      "transactionsChange": 6.2,
+      "volumeRub": 28.6,
+      "volumeRubChange": 8.4,
+      "volumeOriginal": 304,
+      "volumeOriginalChange": 7.9
+    },
+    {
+      "id": "ie",
+      "name": "ИП",
+      "transactions": 67800,
+      "transactionsChange": 12.4,
+      "volumeRub": 12.8,
+      "volumeRubChange": 15.6,
+      "volumeOriginal": 136,
+      "volumeOriginalChange": 14.8
+    },
+    {
+      "id": "smb",
+      "name": "ЮЛ малый бизнес",
+      "transactions": 89400,
+      "transactionsChange": 7.3,
+      "volumeRub": 18.4,
+      "volumeRubChange": 9.1,
+      "volumeOriginal": 195,
+      "volumeOriginalChange": 8.6
+    },
+    {
+      "id": "corporate",
+      "name": "ЮЛ корпоративные",
+      "transactions": 34600,
+      "transactionsChange": 4.8,
+      "volumeRub": 45.2,
+      "volumeRubChange": 6.2,
+      "volumeOriginal": 480,
+      "volumeOriginalChange": 5.8
+    },
+    {
+      "id": "nonresident",
+      "name": "Нерезиденты",
+      "transactions": 43500,
+      "transactionsChange": 18.6,
+      "volumeRub": 8.2,
+      "volumeRubChange": 22.4,
+      "volumeOriginal": 87,
+      "volumeOriginalChange": 21.6
+    }
+  ]
+}

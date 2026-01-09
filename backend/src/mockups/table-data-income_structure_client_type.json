@@ -1,0 +1,231 @@
+{
+  "tableId": "income_structure",
+  "rows": [
+    {
+      "id": "ct1",
+      "name": "ИП",
+      "value": 1850000000,
+      "isGroup": true,
+      "percentage": 15.4,
+      "change_pptd": 8.2,
+      "change_ytd": 11.5
+    },
+    {
+      "id": "ct1-1",
+      "name": "ЧПД",
+      "value": 520000000,
+      "percentage": 28.1,
+      "parentId": "ct1",
+      "change_pptd": 6.5,
+      "change_ytd": 9.2
+    },
+    {
+      "id": "ct1-2",
+      "name": "ЧКД",
+      "value": 780000000,
+      "percentage": 42.2,
+      "parentId": "ct1",
+      "change_pptd": 9.8,
+      "change_ytd": 13.1
+    },
+    {
+      "id": "ct1-3",
+      "name": "FX",
+      "value": 350000000,
+      "percentage": 18.9,
+      "parentId": "ct1",
+      "change_pptd": 7.2,
+      "change_ytd": 10.5
+    },
+    {
+      "id": "ct1-4",
+      "name": "Прочие",
+      "value": 200000000,
+      "percentage": 10.8,
+      "parentId": "ct1",
+      "change_pptd": 4.1,
+      "change_ytd": 6.8
+    },
+    {
+      "id": "ct2",
+      "name": "ФЛ-резидент",
+      "value": 4200000000,
+      "isGroup": true,
+      "percentage": 35.0,
+      "change_pptd": 12.5,
+      "change_ytd": 16.2
+    },
+    {
+      "id": "ct2-1",
+      "name": "ЧПД",
+      "value": 1260000000,
+      "percentage": 30.0,
+      "parentId": "ct2",
+      "change_pptd": 5.8,
+      "change_ytd": 8.5
+    },
+    {
+      "id": "ct2-2",
+      "name": "ЧКД",
+      "value": 1680000000,
+      "percentage": 40.0,
+      "parentId": "ct2",
+      "change_pptd": 15.2,
+      "change_ytd": 19.8
+    },
+    {
+      "id": "ct2-3",
+      "name": "FX",
+      "value": 840000000,
+      "percentage": 20.0,
+      "parentId": "ct2",
+      "change_pptd": 11.8,
+      "change_ytd": 15.1
+    },
+    {
+      "id": "ct2-4",
+      "name": "Прочие",
+      "value": 420000000,
+      "percentage": 10.0,
+      "parentId": "ct2",
+      "change_pptd": 8.3,
+      "change_ytd": 11.5
+    },
+    {
+      "id": "ct3",
+      "name": "ФЛ-нерезидент",
+      "value": 1450000000,
+      "isGroup": true,
+      "percentage": 12.1,
+      "change_pptd": 18.7,
+      "change_ytd": 23.5
+    },
+    {
+      "id": "ct3-1",
+      "name": "ЧПД",
+      "value": 290000000,
+      "percentage": 20.0,
+      "parentId": "ct3",
+      "change_pptd": 12.1,
+      "change_ytd": 15.8
+    },
+    {
+      "id": "ct3-2",
+      "name": "ЧКД",
+      "value": 580000000,
+      "percentage": 40.0,
+      "parentId": "ct3",
+      "change_pptd": 22.5,
+      "change_ytd": 28.1
+    },
+    {
+      "id": "ct3-3",
+      "name": "FX",
+      "value": 435000000,
+      "percentage": 30.0,
+      "parentId": "ct3",
+      "change_pptd": 19.8,
+      "change_ytd": 24.5
+    },
+    {
+      "id": "ct3-4",
+      "name": "Прочие",
+      "value": 145000000,
+      "percentage": 10.0,
+      "parentId": "ct3",
+      "change_pptd": 14.2,
+      "change_ytd": 18.1
+    },
+    {
+      "id": "ct4",
+      "name": "ЮЛ-резидент",
+      "value": 3500000000,
+      "isGroup": true,
+      "percentage": 29.2,
+      "change_pptd": 7.8,
+      "change_ytd": 10.5
+    },
+    {
+      "id": "ct4-1",
+      "name": "ЧПД",
+      "value": 1050000000,
+      "percentage": 30.0,
+      "parentId": "ct4",
+      "change_pptd": 4.5,
+      "change_ytd": 7.2
+    },
+    {
+      "id": "ct4-2",
+      "name": "ЧКД",
+      "value": 1400000000,
+      "percentage": 40.0,
+      "parentId": "ct4",
+      "change_pptd": 9.2,
+      "change_ytd": 12.5
+    },
+    {
+      "id": "ct4-3",
+      "name": "FX",
+      "value": 700000000,
+      "percentage": 20.0,
+      "parentId": "ct4",
+      "change_pptd": 8.1,
+      "change_ytd": 11.2
+    },
+    {
+      "id": "ct4-4",
+      "name": "Прочие",
+      "value": 350000000,
+      "percentage": 10.0,
+      "parentId": "ct4",
+      "change_pptd": 5.8,
+      "change_ytd": 8.5
+    },
+    {
+      "id": "ct5",
+      "name": "ЮЛ-нерезидент",
+      "value": 1000000000,
+      "isGroup": true,
+      "percentage": 8.3,
+      "change_pptd": 15.3,
+      "change_ytd": 19.8
+    },
+    {
+      "id": "ct5-1",
+      "name": "ЧПД",
+      "value": 200000000,
+      "percentage": 20.0,
+      "parentId": "ct5",
+      "change_pptd": 10.2,
+      "change_ytd": 13.5
+    },
+    {
+      "id": "ct5-2",
+      "name": "ЧКД",
+      "value": 400000000,
+      "percentage": 40.0,
+      "parentId": "ct5",
+      "change_pptd": 18.5,
+      "change_ytd": 23.2
+    },
+    {
+      "id": "ct5-3",
+      "name": "FX",
+      "value": 300000000,
+      "percentage": 30.0,
+      "parentId": "ct5",
+      "change_pptd": 16.8,
+      "change_ytd": 21.5
+    },
+    {
+      "id": "ct5-4",
+      "name": "Прочие",
+      "value": 100000000,
+      "percentage": 10.0,
+      "parentId": "ct5",
+      "change_pptd": 12.1,
+      "change_ytd": 15.8
+    }
+  ]
+}
+

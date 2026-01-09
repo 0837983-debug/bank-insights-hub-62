@@ -1,5 +1,14 @@
 import { Card } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 const data = [
   { month: "Jan", transactions: 145000, volume: 2850000 },
@@ -17,32 +26,29 @@ export const TransactionChart = () => {
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis 
-            dataKey="month" 
+          <XAxis
+            dataKey="month"
             stroke="hsl(var(--muted-foreground))"
-            style={{ fontSize: '12px' }}
+            style={{ fontSize: "12px" }}
           />
-          <YAxis 
-            stroke="hsl(var(--muted-foreground))"
-            style={{ fontSize: '12px' }}
-          />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: 'hsl(var(--card))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '8px'
+          <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: "12px" }} />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "8px",
             }}
           />
           <Legend />
-          <Bar 
-            dataKey="transactions" 
-            fill="hsl(var(--chart-1))" 
+          <Bar
+            dataKey="transactions"
+            fill="hsl(var(--chart-1))"
             name="Transactions"
             radius={[4, 4, 0, 0]}
           />
-          <Bar 
-            dataKey="volume" 
-            fill="hsl(var(--chart-2))" 
+          <Bar
+            dataKey="volume"
+            fill="hsl(var(--chart-2))"
             name="Volume ($)"
             radius={[4, 4, 0, 0]}
           />

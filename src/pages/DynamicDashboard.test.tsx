@@ -9,6 +9,8 @@ import * as useAPIHooks from "@/hooks/useAPI";
 vi.mock("@/hooks/useAPI", () => ({
   useLayout: vi.fn(),
   useAllKPIs: vi.fn(),
+  useTableData: vi.fn(),
+  useGroupingOptions: vi.fn(),
 }));
 
 // Mock Header component to avoid issues
@@ -213,7 +215,92 @@ describe("DynamicDashboard", () => {
     expect(screen.queryByText("Nonexistent")).not.toBeInTheDocument();
   });
 
-  it("should show placeholder for table components", () => {
+  it("should render table components with data from API", () => {
+    const mockLayout = {
+      formats: {
+        currency_rub: { kind: "number", prefixUnitSymbol: "₽", shorten: true },
+        percent: { kind: "number", suffixUnitSymbol: "%" },
+      },
+      sections: [
+        {
+          id: "test_section",
+          title: "Test Section",
+          components: [
+            {
+              id: "test_table",
+              type: "table" as const,
+              title: "Test Table",
+              dataSourceKey: "test_data",
+              columns: [
+                { id: "name", label: "Наименование", type: "text" },
+                { id: "value", label: "Значение", type: "number" },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const mockTableData = {
+      tableId: "test_data",
+      rows: [
+        {
+          id: "row1",
+          name: "Доход 1",
+          value: 1000000,
+          percentage: 50,
+          change_pptd: 5.2,
+          change_ytd: 10.1,
+        },
+        {
+          id: "row2",
+          name: "Доход 2",
+          value: 2000000,
+          percentage: 50,
+          change_pptd: -2.1,
+          change_ytd: 3.5,
+        },
+      ],
+    };
+
+    vi.mocked(useAPIHooks.useLayout).mockReturnValue({
+      data: mockLayout,
+      isLoading: false,
+      error: null,
+    } as any);
+
+    vi.mocked(useAPIHooks.useAllKPIs).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as any);
+
+    vi.mocked(useAPIHooks.useTableData).mockReturnValue({
+      data: mockTableData,
+      isLoading: false,
+      error: null,
+    } as any);
+
+    vi.mocked(useAPIHooks.useGroupingOptions).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as any);
+
+    render(<DynamicDashboard />, { wrapper: createWrapper() });
+
+    // Section title should be rendered
+    expect(screen.getByText("Test Section")).toBeInTheDocument();
+
+    // Table title should be rendered
+    expect(screen.getByText("Test Table")).toBeInTheDocument();
+
+    // Table rows should be rendered
+    expect(screen.getByText("Доход 1")).toBeInTheDocument();
+    expect(screen.getByText("Доход 2")).toBeInTheDocument();
+  });
+
+  it("should show loading state for tables", () => {
     const mockLayout = {
       formats: {},
       sections: [
@@ -245,8 +332,81 @@ describe("DynamicDashboard", () => {
       error: null,
     } as any);
 
+    vi.mocked(useAPIHooks.useTableData).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      error: null,
+    } as any);
+
+    vi.mocked(useAPIHooks.useGroupingOptions).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as any);
+
+    const { container } = render(<DynamicDashboard />, { wrapper: createWrapper() });
+
+    // Section title should be rendered
+    expect(screen.getByText("Test Section")).toBeInTheDocument();
+
+    // Should show skeleton loaders for table
+    const skeletons = container.querySelectorAll('[class*="animate-pulse"]');
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
+
+  it("should show error state for table when API fails", () => {
+    const mockLayout = {
+      formats: {},
+      sections: [
+        {
+          id: "test_section",
+          title: "Test Section",
+          components: [
+            {
+              id: "test_table",
+              type: "table" as const,
+              title: "Test Table",
+              dataSourceKey: "test_data",
+              columns: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    vi.mocked(useAPIHooks.useLayout).mockReturnValue({
+      data: mockLayout,
+      isLoading: false,
+      error: null,
+    } as any);
+
+    vi.mocked(useAPIHooks.useAllKPIs).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as any);
+
+    vi.mocked(useAPIHooks.useTableData).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error("Failed to load table data"),
+    } as any);
+
+    vi.mocked(useAPIHooks.useGroupingOptions).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as any);
+
     render(<DynamicDashboard />, { wrapper: createWrapper() });
 
-    expect(screen.getByText("Таблицы будут добавлены в следующей версии")).toBeInTheDocument();
+    // Section title should be rendered
+    expect(screen.getByText("Test Section")).toBeInTheDocument();
+
+    // Should show error message
+    expect(screen.getByText("Ошибка загрузки таблицы")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Не удалось загрузить данные для таблицы "Test Table"/)
+    ).toBeInTheDocument();
   });
 });

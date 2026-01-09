@@ -3,10 +3,29 @@ import { pool } from "../config/database.js";
 /**
  * Builds layout JSON structure from database
  */
-export async function buildLayoutFromDB() {
+export async function buildLayoutFromDB(requestedLayoutId?: string) {
   const client = await pool.connect();
   try {
-    // 1. Fetch formats
+    // Resolve target layout
+    let layoutId = requestedLayoutId;
+    if (!layoutId) {
+      const def = await client.query(
+        `SELECT id
+         FROM config.layouts
+         WHERE is_default = TRUE AND is_active = TRUE AND deleted_at IS NULL
+         ORDER BY display_order, updated_at DESC, id
+         LIMIT 1`
+      );
+      if (def.rows.length > 0) {
+        layoutId = def.rows[0].id as string;
+      }
+    }
+    if (!layoutId) {
+      // If no layout configured yet, return minimal structure
+      return { formats: {}, sections: [] };
+    }
+
+    // 1) Formats
     const formatsResult = await client.query(`
       SELECT 
         id, kind, pattern, currency, prefix_unit_symbol, suffix_unit_symbol,
@@ -33,133 +52,116 @@ export async function buildLayoutFromDB() {
       };
     }
 
-    // 2. Fetch filter groups and items
-    const filterGroupsResult = await client.query(`
-      SELECT id, label, sort_order
-      FROM config.filter_groups
-      ORDER BY sort_order, id
-    `);
-    const filters: any[] = [];
-    for (const groupRow of filterGroupsResult.rows) {
-      const filterItemsResult = await client.query(
-        `SELECT filter_id, label, type, params, sort_order
-         FROM config.filter_items
-         WHERE filter_group_id = $1
-         ORDER BY sort_order, filter_id`,
-        [groupRow.id]
-      );
-      filters.push({
-        group: groupRow.id,
-        items: filterItemsResult.rows.map((item) => ({
-          id: item.filter_id,
-          label: item.label,
-          type: item.type,
-          ...(item.params && { params: item.params }),
-        })),
-      });
-    }
+    // 2) Sections (containers at top level)
+    const sectionsQuery = await client.query(
+      `SELECT 
+         m.instance_id AS section_instance_id,
+         COALESCE(m.title_override, c.title, m.instance_id) AS section_title
+       FROM config.layout_component_mapping m
+       JOIN config.components c ON c.id = m.component_id
+       WHERE m.layout_id = $1
+         AND m.parent_instance_id IS NULL
+         AND c.component_type = 'container'
+         AND m.deleted_at IS NULL
+       ORDER BY m.display_order, m.id`,
+      [layoutId]
+    );
 
-    // 3. Fetch sections with components
-    const sectionsResult = await client.query(`
-      SELECT id, title, sort_order
-      FROM config.sections
-      ORDER BY sort_order, id
-    `);
     const sections: any[] = [];
-    for (const sectionRow of sectionsResult.rows) {
-      // Fetch components for this section
-      const componentsResult = await client.query(
+    for (const s of sectionsQuery.rows) {
+      const sectionInstanceId: string = s.section_instance_id;
+
+      // 3) Child components for each section
+      const comps = await client.query(
         `SELECT 
-          id, type, title, tooltip, icon, data_source_key,
-          compact_display, groupable_fields, sort_order
-         FROM config.components
-         WHERE section_id = $1
-         ORDER BY sort_order, id`,
-        [sectionRow.id]
+           m.instance_id,
+           m.title_override,
+           m.tooltip_override,
+           m.icon_override,
+           m.data_source_key_override,
+           c.id AS component_id,
+           c.component_type,
+           c.title AS component_title,
+           c.tooltip,
+           c.icon,
+           c.data_source_key
+         FROM config.layout_component_mapping m
+         JOIN config.components c ON c.id = m.component_id
+         WHERE m.layout_id = $1
+           AND m.parent_instance_id = $2
+           AND m.deleted_at IS NULL
+         ORDER BY m.display_order, m.id`,
+        [layoutId, sectionInstanceId]
       );
+
       const components: any[] = [];
-      for (const compRow of componentsResult.rows) {
-        if (compRow.type === "card") {
-          // Fetch format info for card from columns table
-          const cardColumnsResult = await client.query(
-            `SELECT format_value, format_pptd, format_ytd
-             FROM config.columns
-             WHERE component_id = $1 AND column_id = 'value'
-             LIMIT 1`,
-            [compRow.id]
-          );
-          const cardComponent: any = {
-            id: compRow.id,
-            type: compRow.type,
-            title: compRow.title,
-            ...(compRow.tooltip && { tooltip: compRow.tooltip }),
-            ...(compRow.icon && { icon: compRow.icon }),
-            dataSourceKey: compRow.data_source_key,
-            ...(compRow.compact_display !== null && { compactDisplay: compRow.compact_display }),
+      for (const r of comps.rows) {
+        const type: string = r.component_type;
+        if (type === "card") {
+          const card: any = {
+            id: r.instance_id,
+            type: "card",
+            title: r.title_override ?? r.component_title ?? r.instance_id,
+            ...(r.tooltip_override ?? r.tooltip ? { tooltip: r.tooltip_override ?? r.tooltip } : {}),
+            ...(r.icon_override ?? r.icon ? { icon: r.icon_override ?? r.icon } : {}),
+            dataSourceKey: r.data_source_key_override ?? r.data_source_key,
           };
-          if (cardColumnsResult.rows.length > 0) {
-            const formatRow = cardColumnsResult.rows[0];
-            const format: any = {};
-            if (formatRow.format_value) format.value = formatRow.format_value;
-            if (formatRow.format_pptd) format.PPTD = formatRow.format_pptd;
-            if (formatRow.format_ytd) format.YTD = formatRow.format_ytd;
-            if (Object.keys(format).length > 0) {
-              cardComponent.format = format;
-            }
-          }
-          components.push(cardComponent);
-        } else if (compRow.type === "table") {
-          // Fetch columns for table
-          const tableColumnsResult = await client.query(
+          components.push(card);
+        } else if (type === "table") {
+          // Fetch fields for the referenced component
+          const fields = await client.query(
             `SELECT 
-              column_id, label, type, is_dimension, is_measure,
-              format_value, format_pptd, format_ytd, sort_order
-             FROM config.columns
+               field_id, label, field_type, format_id, is_visible, display_order
+             FROM config.component_fields
              WHERE component_id = $1
-             ORDER BY sort_order, column_id`,
-            [compRow.id]
+               AND (deleted_at IS NULL)
+               AND (is_active = TRUE)
+             ORDER BY display_order, id`,
+            [r.component_id]
           );
-          const columns = tableColumnsResult.rows.map((col) => {
-            const column: any = {
-              id: col.column_id,
-              label: col.label,
-              type: col.type,
-              ...(col.is_dimension && { isDimension: col.is_dimension }),
-              ...(col.is_measure && { isMeasure: col.is_measure }),
-            };
-            const format: any = {};
-            if (col.format_value) format.value = col.format_value;
-            if (col.format_pptd) format.PPTD = col.format_pptd;
-            if (col.format_ytd) format.YTD = col.format_ytd;
-            if (Object.keys(format).length > 0) {
-              column.format = format;
-            }
-            return column;
-          });
-          const tableComponent: any = {
-            id: compRow.id,
-            type: compRow.type,
-            title: compRow.title,
-            ...(compRow.groupable_fields && compRow.groupable_fields.length > 0 && {
-              groupableFields: compRow.groupable_fields,
-            }),
+          const columns = fields.rows
+            .filter((f) => f.is_visible !== false)
+            .map((f) => {
+              const col: any = {
+                id: f.field_id,
+                label: f.label ?? f.field_id,
+                type: f.field_type,
+              };
+              if (f.format_id) {
+                col.format = { value: f.format_id };
+              }
+              return col;
+            });
+          const table: any = {
+            id: r.instance_id,
+            type: "table",
+            title: r.title_override ?? r.component_title ?? r.instance_id,
             columns,
+            dataSourceKey: r.data_source_key_override ?? r.data_source_key,
           };
-          components.push(tableComponent);
+          components.push(table);
+        } else if (type === "chart") {
+          const chart: any = {
+            id: r.instance_id,
+            type: "chart",
+            title: r.title_override ?? r.component_title ?? r.instance_id,
+            dataSourceKey: r.data_source_key_override ?? r.data_source_key,
+          };
+          components.push(chart);
+        } else if (type === "filter") {
+          // Filters will be projected into filters[] later if needed; skip adding as component
+          continue;
         }
       }
+
       sections.push({
-        id: sectionRow.id,
-        title: sectionRow.title,
+        id: sectionInstanceId,
+        title: s.section_title,
         components,
       });
     }
 
-    return {
-      formats,
-      ...(filters.length > 0 && { filters }),
-      sections,
-    };
+    return { formats, sections };
   } finally {
     client.release();
   }
