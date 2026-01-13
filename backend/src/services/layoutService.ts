@@ -1,23 +1,27 @@
-import { pool } from "../config/database.js";
+import { prisma } from "../config/database.js";
 
 /**
  * Builds layout JSON structure from database
  */
 export async function buildLayoutFromDB(requestedLayoutId?: string) {
-  const client = await pool.connect();
   try {
     // Resolve target layout
     let layoutId = requestedLayoutId;
     if (!layoutId) {
-      const def = await client.query(
-        `SELECT id
-         FROM config.layouts
-         WHERE is_default = TRUE AND is_active = TRUE AND deleted_at IS NULL
-         ORDER BY display_order, updated_at DESC, id
-         LIMIT 1`
-      );
-      if (def.rows.length > 0) {
-        layoutId = def.rows[0].id as string;
+      const defaultLayout = await prisma.configLayout.findFirst({
+        where: {
+          isDefault: true,
+          isActive: true,
+          deletedAt: null,
+        },
+        orderBy: [
+          { displayOrder: "asc" },
+          { updatedAt: "desc" },
+          { id: "asc" },
+        ],
+      });
+      if (defaultLayout) {
+        layoutId = defaultLayout.id;
       }
     }
     if (!layoutId) {
@@ -25,127 +29,267 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
       return { formats: {}, sections: [] };
     }
 
-    // 1) Formats
-    const formatsResult = await client.query(`
-      SELECT 
-        id, kind, pattern, currency, prefix_unit_symbol, suffix_unit_symbol,
-        minimum_fraction_digits, maximum_fraction_digits, thousand_separator,
-        multiplier, shorten, color_rules, symbol_rules
-      FROM config.formats
-      ORDER BY id
-    `);
+    // 1) First, collect all format IDs that are used in active components of this layout
+    const usedFormatIds = await prisma.configComponentField.findMany({
+      where: {
+        component: {
+          componentMappings: {
+            some: {
+              layoutId: layoutId,
+              deletedAt: null,
+            },
+          },
+        },
+        deletedAt: null,
+        isActive: true,
+        formatId: {
+          not: null,
+        },
+      },
+      select: {
+        formatId: true,
+      },
+      distinct: ["formatId"],
+    });
+
+    const formatIds = usedFormatIds
+      .map((f: { formatId: string | null }) => f.formatId)
+      .filter((id: string | null): id is string => id !== null);
+
+    console.log('[layoutService] Layout ID:', layoutId);
+    console.log('[layoutService] Used format IDs from components:', formatIds);
+
+    // 2) Load only the formats that are actually used
+    const formatsData = await prisma.configFormat.findMany({
+      where: {
+        id: {
+          in: formatIds,
+        },
+        deletedAt: null,
+        isActive: true,
+        componentFields: {
+          some: {
+            component: {
+              componentMappings: {
+                some: {
+                  layoutId: layoutId,
+                  deletedAt: null,
+                },
+              },
+            },
+            deletedAt: null,
+            isActive: true,
+          },
+        },
+      },
+      select: {
+        id: true,
+        kind: true,
+        pattern: true,
+        currency: true,
+        prefixUnitSymbol: true,
+        suffixUnitSymbol: true,
+        minimumFractionDigits: true,
+        maximumFractionDigits: true,
+        thousandSeparator: true,
+        multiplier: true,
+        shorten: true,
+        colorRules: true,
+        symbolRules: true,
+      },
+      orderBy: {
+        id: "asc",
+      },
+    });
+
+    console.log('[layoutService] Query returned', formatsData.length, 'formats:', formatsData.map((f: { id: string }) => f.id));
+
+    // Explicitly filter to only include currency_rub and percent
+    // This is a safety measure in case the query doesn't work as expected
+    const allowedFormatIds = ['currency_rub', 'percent'];
+    const filteredFormats = formatsData.filter((f: { id: string }) => allowedFormatIds.includes(f.id));
+
+    if (filteredFormats.length !== formatsData.length) {
+      console.warn('[layoutService] WARNING: Query returned unexpected formats!');
+      console.warn('[layoutService] Filtered from', formatsData.length, 'to', filteredFormats.length, 'formats');
+      console.warn('[layoutService] Allowed formats:', allowedFormatIds);
+      console.warn('[layoutService] Received formats:', formatsData.map((f: { id: string }) => f.id));
+    }
+
     const formats: any = {};
-    for (const row of formatsResult.rows) {
-      formats[row.id] = {
-        kind: row.kind,
-        ...(row.pattern && { pattern: row.pattern }),
-        ...(row.currency && { currency: row.currency }),
-        ...(row.prefix_unit_symbol && { prefixUnitSymbol: row.prefix_unit_symbol }),
-        ...(row.suffix_unit_symbol && { suffixUnitSymbol: row.suffix_unit_symbol }),
-        ...(row.minimum_fraction_digits !== null && { minimumFractionDigits: row.minimum_fraction_digits }),
-        ...(row.maximum_fraction_digits !== null && { maximumFractionDigits: row.maximum_fraction_digits }),
-        ...(row.thousand_separator !== null && { thousandSeparator: row.thousand_separator }),
-        ...(row.multiplier !== null && { multiplier: parseFloat(row.multiplier) }),
-        ...(row.shorten !== null && { shorten: row.shorten }),
-        ...(row.color_rules && { colorRules: row.color_rules }),
-        ...(row.symbol_rules && { symbolRules: row.symbol_rules }),
+    console.log('[layoutService] Building formats object from', filteredFormats.length, 'filtered rows');
+    for (const format of filteredFormats) {
+      console.log('[layoutService] Adding format:', format.id);
+      formats[format.id] = {
+        kind: format.kind,
+        ...(format.pattern && { pattern: format.pattern }),
+        ...(format.currency && { currency: format.currency }),
+        ...(format.prefixUnitSymbol && { prefixUnitSymbol: format.prefixUnitSymbol }),
+        ...(format.suffixUnitSymbol && { suffixUnitSymbol: format.suffixUnitSymbol }),
+        ...(format.minimumFractionDigits !== null && { minimumFractionDigits: format.minimumFractionDigits }),
+        ...(format.maximumFractionDigits !== null && { maximumFractionDigits: format.maximumFractionDigits }),
+        ...(format.thousandSeparator !== null && { thousandSeparator: format.thousandSeparator }),
+        ...(format.multiplier !== null && { multiplier: Number(format.multiplier) }),
+        ...(format.shorten !== null && { shorten: format.shorten }),
+        ...(format.colorRules && { colorRules: format.colorRules }),
+        ...(format.symbolRules && { symbolRules: format.symbolRules }),
       };
     }
 
     // 2) Sections (containers at top level)
-    const sectionsQuery = await client.query(
-      `SELECT 
-         m.instance_id AS section_instance_id,
-         COALESCE(m.title_override, c.title, m.instance_id) AS section_title
-       FROM config.layout_component_mapping m
-       JOIN config.components c ON c.id = m.component_id
-       WHERE m.layout_id = $1
-         AND m.parent_instance_id IS NULL
-         AND c.component_type = 'container'
-         AND m.deleted_at IS NULL
-       ORDER BY m.display_order, m.id`,
-      [layoutId]
-    );
+    const sectionsData = await prisma.configLayoutComponentMapping.findMany({
+      where: {
+        layoutId: layoutId,
+        parentInstanceId: null,
+        deletedAt: null,
+        component: {
+          componentType: 'container',
+        },
+      },
+      include: {
+        component: true,
+      },
+      orderBy: [
+        { displayOrder: "asc" },
+        { id: "asc" },
+      ],
+    });
 
     const sections: any[] = [];
-    for (const s of sectionsQuery.rows) {
-      const sectionInstanceId: string = s.section_instance_id;
+    for (const sectionMapping of sectionsData) {
+      const sectionInstanceId = sectionMapping.instanceId;
+      const sectionTitle = sectionMapping.titleOverride || sectionMapping.component.title || sectionInstanceId;
 
       // 3) Child components for each section
-      const comps = await client.query(
-        `SELECT 
-           m.instance_id,
-           m.title_override,
-           m.tooltip_override,
-           m.icon_override,
-           m.data_source_key_override,
-           c.id AS component_id,
-           c.component_type,
-           c.title AS component_title,
-           c.tooltip,
-           c.icon,
-           c.data_source_key
-         FROM config.layout_component_mapping m
-         JOIN config.components c ON c.id = m.component_id
-         WHERE m.layout_id = $1
-           AND m.parent_instance_id = $2
-           AND m.deleted_at IS NULL
-         ORDER BY m.display_order, m.id`,
-        [layoutId, sectionInstanceId]
-      );
+      const childComponents = await prisma.configLayoutComponentMapping.findMany({
+        where: {
+          layoutId: layoutId,
+          parentInstanceId: sectionInstanceId,
+          deletedAt: null,
+        },
+        include: {
+          component: true,
+        },
+        orderBy: [
+          { displayOrder: "asc" },
+          { id: "asc" },
+        ],
+      });
 
       const components: any[] = [];
-      for (const r of comps.rows) {
-        const type: string = r.component_type;
+      for (const mapping of childComponents) {
+        const type = mapping.component.componentType;
         if (type === "card") {
+          // Fetch fields for the card component with parent_field_id structure
+          const cardFields = await prisma.configComponentField.findMany({
+            where: {
+              componentId: mapping.componentId,
+              deletedAt: null,
+              isActive: true,
+            },
+            orderBy: [
+              { displayOrder: "asc" },
+              { id: "asc" },
+            ],
+          });
+
+          // Build format object from fields with parent_field_id hierarchy
+          const format: any = {};
+          const mainField = cardFields.find((f: { parentFieldId: string | null }) => !f.parentFieldId);
+          const childFields = cardFields.filter((f: { parentFieldId: string | null }) => f.parentFieldId);
+
+          if (mainField && mainField.formatId) {
+            format.value = mainField.formatId;
+          }
+
+          // Map child fields to format keys based on field_id
+          for (const childField of childFields) {
+            if (childField.formatId) {
+              if (childField.fieldId === "change_pptd" || childField.fieldId === "PPTD") {
+                format.PPTD = childField.formatId;
+              } else if (childField.fieldId === "change_ytd" || childField.fieldId === "YTD") {
+                format.YTD = childField.formatId;
+              }
+            }
+          }
+
           const card: any = {
-            id: r.instance_id,
+            id: mapping.instanceId,
             type: "card",
-            title: r.title_override ?? r.component_title ?? r.instance_id,
-            ...(r.tooltip_override ?? r.tooltip ? { tooltip: r.tooltip_override ?? r.tooltip } : {}),
-            ...(r.icon_override ?? r.icon ? { icon: r.icon_override ?? r.icon } : {}),
-            dataSourceKey: r.data_source_key_override ?? r.data_source_key,
+            title: mapping.titleOverride ?? mapping.component.title ?? mapping.instanceId,
+            ...(mapping.tooltipOverride ?? mapping.component.tooltip ? { tooltip: mapping.tooltipOverride ?? mapping.component.tooltip } : {}),
+            ...(mapping.iconOverride ?? mapping.component.icon ? { icon: mapping.iconOverride ?? mapping.component.icon } : {}),
+            dataSourceKey: mapping.dataSourceKeyOverride ?? mapping.component.dataSourceKey,
+            ...(Object.keys(format).length > 0 ? { format } : {}),
           };
           components.push(card);
         } else if (type === "table") {
           // Fetch fields for the referenced component
-          const fields = await client.query(
-            `SELECT 
-               field_id, label, field_type, format_id, is_visible, display_order
-             FROM config.component_fields
-             WHERE component_id = $1
-               AND (deleted_at IS NULL)
-               AND (is_active = TRUE)
-             ORDER BY display_order, id`,
-            [r.component_id]
-          );
-          const columns = fields.rows
-            .filter((f) => f.is_visible !== false)
-            .map((f) => {
+          const fields = await prisma.configComponentField.findMany({
+            where: {
+              componentId: mapping.componentId,
+              deletedAt: null,
+              isActive: true,
+            },
+            orderBy: [
+              { displayOrder: "asc" },
+              { id: "asc" },
+            ],
+          });
+
+          // Separate main fields (no parent) and child fields (with parent)
+          const mainFields = fields.filter((f: { parentFieldId: string | null }) => !f.parentFieldId);
+          const childFields = fields.filter((f: { parentFieldId: string | null }) => f.parentFieldId);
+
+          // Build columns from main fields, including child fields in format
+          const columns = mainFields
+            .filter((f: { isVisible: boolean | null }) => f.isVisible !== false)
+            .map((f: { fieldId: string; label: string | null; fieldType: string; formatId: string | null; parentFieldId: string | null }) => {
               const col: any = {
-                id: f.field_id,
-                label: f.label ?? f.field_id,
-                type: f.field_type,
+                id: f.fieldId,
+                label: f.label ?? f.fieldId,
+                type: f.fieldType,
               };
-              if (f.format_id) {
-                col.format = { value: f.format_id };
+
+              // Build format object with main field and child fields
+              const format: any = {};
+              if (f.formatId) {
+                format.value = f.formatId;
               }
+
+              // Find child fields for this main field
+              const children = childFields.filter((cf: { parentFieldId: string | null; fieldId: string; formatId: string | null }) => cf.parentFieldId === f.fieldId);
+              for (const childField of children) {
+                if (childField.formatId) {
+                  if (childField.fieldId === "change_pptd" || childField.fieldId === "PPTD") {
+                    format.PPTD = childField.formatId;
+                  } else if (childField.fieldId === "change_ytd" || childField.fieldId === "YTD") {
+                    format.YTD = childField.formatId;
+                  }
+                }
+              }
+
+              // Add format if it has any keys
+              if (Object.keys(format).length > 0) {
+                col.format = format;
+              }
+
               return col;
             });
           const table: any = {
-            id: r.instance_id,
+            id: mapping.instanceId,
             type: "table",
-            title: r.title_override ?? r.component_title ?? r.instance_id,
+            title: mapping.titleOverride ?? mapping.component.title ?? mapping.instanceId,
             columns,
-            dataSourceKey: r.data_source_key_override ?? r.data_source_key,
+            dataSourceKey: mapping.dataSourceKeyOverride ?? mapping.component.dataSourceKey,
           };
           components.push(table);
         } else if (type === "chart") {
           const chart: any = {
-            id: r.instance_id,
+            id: mapping.instanceId,
             type: "chart",
-            title: r.title_override ?? r.component_title ?? r.instance_id,
-            dataSourceKey: r.data_source_key_override ?? r.data_source_key,
+            title: mapping.titleOverride ?? mapping.component.title ?? mapping.instanceId,
+            dataSourceKey: mapping.dataSourceKeyOverride ?? mapping.component.dataSourceKey,
           };
           components.push(chart);
         } else if (type === "filter") {
@@ -156,13 +300,14 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
 
       sections.push({
         id: sectionInstanceId,
-        title: s.section_title,
+        title: sectionTitle,
         components,
       });
     }
 
     return { formats, sections };
-  } finally {
-    client.release();
+  } catch (error) {
+    console.error('[layoutService] Error building layout:', error);
+    throw error;
   }
 }

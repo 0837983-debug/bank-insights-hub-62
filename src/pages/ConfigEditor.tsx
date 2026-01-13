@@ -7,20 +7,41 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { 
-  Settings, 
-  Palette, 
-  LayoutGrid, 
-  Table as TableIcon, 
-  Plus, 
-  Pencil, 
-  Trash2, 
+import {
+  Settings,
+  Palette,
+  LayoutGrid,
+  Table as TableIcon,
+  Plus,
+  Pencil,
+  Trash2,
   Save,
   Copy,
   Eye,
@@ -30,7 +51,7 @@ import {
   Search,
   Users,
   History,
-  Upload
+  Upload,
 } from "lucide-react";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { AuthLogs } from "@/components/admin/AuthLogs";
@@ -45,23 +66,33 @@ import {
   mockComponents,
   mockComponentFields,
   mockLayouts,
-  mockLayoutMappings
+  mockLayoutMappings,
 } from "@/types/config";
 
 // Format Editor Component
-function FormatEditor({ format, onSave, onClose }: { format: Format | null; onSave: (f: Format) => void; onClose: () => void }) {
-  const [formData, setFormData] = useState<Format>(format || {
-    id: '',
-    name: '',
-    kind: 'number',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-    thousandSeparator: true,
-    shorten: false,
-    displayOrder: 0,
-    isActive: true,
-    isSystem: false
-  });
+function FormatEditor({
+  format,
+  onSave,
+  onClose,
+}: {
+  format: Format | null;
+  onSave: (f: Format) => void;
+  onClose: () => void;
+}) {
+  const [formData, setFormData] = useState<Format>(
+    format || {
+      id: "",
+      name: "",
+      kind: "number",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+      thousandSeparator: true,
+      shorten: false,
+      displayOrder: 0,
+      isActive: true,
+      isSystem: false,
+    }
+  );
 
   const handleSubmit = () => {
     if (!formData.id || !formData.name) {
@@ -78,20 +109,20 @@ function FormatEditor({ format, onSave, onClose }: { format: Format | null; onSa
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="id">ID формата</Label>
-          <Input 
-            id="id" 
-            value={formData.id} 
-            onChange={(e) => setFormData({...formData, id: e.target.value})}
+          <Input
+            id="id"
+            value={formData.id}
+            onChange={(e) => setFormData({ ...formData, id: e.target.value })}
             disabled={!!format}
             placeholder="currency_rub"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="name">Название</Label>
-          <Input 
-            id="name" 
-            value={formData.name} 
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="Рубли с сокращением"
           />
         </div>
@@ -100,7 +131,10 @@ function FormatEditor({ format, onSave, onClose }: { format: Format | null; onSa
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="kind">Тип</Label>
-          <Select value={formData.kind} onValueChange={(v) => setFormData({...formData, kind: v as Format['kind']})}>
+          <Select
+            value={formData.kind}
+            onValueChange={(v) => setFormData({ ...formData, kind: v as Format["kind"] })}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -114,19 +148,23 @@ function FormatEditor({ format, onSave, onClose }: { format: Format | null; onSa
         </div>
         <div className="space-y-2">
           <Label htmlFor="prefix">Префикс</Label>
-          <Input 
-            id="prefix" 
-            value={formData.prefixUnitSymbol || ''} 
-            onChange={(e) => setFormData({...formData, prefixUnitSymbol: e.target.value || undefined})}
+          <Input
+            id="prefix"
+            value={formData.prefixUnitSymbol || ""}
+            onChange={(e) =>
+              setFormData({ ...formData, prefixUnitSymbol: e.target.value || undefined })
+            }
             placeholder="₽"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="suffix">Суффикс</Label>
-          <Input 
-            id="suffix" 
-            value={formData.suffixUnitSymbol || ''} 
-            onChange={(e) => setFormData({...formData, suffixUnitSymbol: e.target.value || undefined})}
+          <Input
+            id="suffix"
+            value={formData.suffixUnitSymbol || ""}
+            onChange={(e) =>
+              setFormData({ ...formData, suffixUnitSymbol: e.target.value || undefined })
+            }
             placeholder="%"
           />
         </div>
@@ -135,68 +173,74 @@ function FormatEditor({ format, onSave, onClose }: { format: Format | null; onSa
       <div className="grid grid-cols-4 gap-4">
         <div className="space-y-2">
           <Label htmlFor="minDigits">Мин. знаков</Label>
-          <Input 
-            id="minDigits" 
+          <Input
+            id="minDigits"
             type="number"
             min={0}
             max={10}
-            value={formData.minimumFractionDigits} 
-            onChange={(e) => setFormData({...formData, minimumFractionDigits: parseInt(e.target.value) || 0})}
+            value={formData.minimumFractionDigits}
+            onChange={(e) =>
+              setFormData({ ...formData, minimumFractionDigits: parseInt(e.target.value) || 0 })
+            }
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="maxDigits">Макс. знаков</Label>
-          <Input 
-            id="maxDigits" 
+          <Input
+            id="maxDigits"
             type="number"
             min={0}
             max={10}
-            value={formData.maximumFractionDigits} 
-            onChange={(e) => setFormData({...formData, maximumFractionDigits: parseInt(e.target.value) || 0})}
+            value={formData.maximumFractionDigits}
+            onChange={(e) =>
+              setFormData({ ...formData, maximumFractionDigits: parseInt(e.target.value) || 0 })
+            }
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="category">Категория</Label>
-          <Input 
-            id="category" 
-            value={formData.category || ''} 
-            onChange={(e) => setFormData({...formData, category: e.target.value || undefined})}
+          <Input
+            id="category"
+            value={formData.category || ""}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value || undefined })}
             placeholder="currency"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="order">Порядок</Label>
-          <Input 
-            id="order" 
+          <Input
+            id="order"
             type="number"
-            value={formData.displayOrder} 
-            onChange={(e) => setFormData({...formData, displayOrder: parseInt(e.target.value) || 0})}
+            value={formData.displayOrder}
+            onChange={(e) =>
+              setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })
+            }
           />
         </div>
       </div>
 
       <div className="flex gap-6">
         <div className="flex items-center space-x-2">
-          <Switch 
-            id="thousandSep" 
+          <Switch
+            id="thousandSep"
             checked={formData.thousandSeparator}
-            onCheckedChange={(v) => setFormData({...formData, thousandSeparator: v})}
+            onCheckedChange={(v) => setFormData({ ...formData, thousandSeparator: v })}
           />
           <Label htmlFor="thousandSep">Разделитель тысяч</Label>
         </div>
         <div className="flex items-center space-x-2">
-          <Switch 
-            id="shorten" 
+          <Switch
+            id="shorten"
             checked={formData.shorten}
-            onCheckedChange={(v) => setFormData({...formData, shorten: v})}
+            onCheckedChange={(v) => setFormData({ ...formData, shorten: v })}
           />
           <Label htmlFor="shorten">Сокращать (K/M/B)</Label>
         </div>
         <div className="flex items-center space-x-2">
-          <Switch 
-            id="isActive" 
+          <Switch
+            id="isActive"
             checked={formData.isActive}
-            onCheckedChange={(v) => setFormData({...formData, isActive: v})}
+            onCheckedChange={(v) => setFormData({ ...formData, isActive: v })}
           />
           <Label htmlFor="isActive">Активен</Label>
         </div>
@@ -204,26 +248,28 @@ function FormatEditor({ format, onSave, onClose }: { format: Format | null; onSa
 
       <div className="space-y-2">
         <Label htmlFor="description">Описание</Label>
-        <Textarea 
-          id="description" 
-          value={formData.description || ''} 
-          onChange={(e) => setFormData({...formData, description: e.target.value || undefined})}
+        <Textarea
+          id="description"
+          value={formData.description || ""}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value || undefined })}
           placeholder="Описание формата..."
         />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="example">Пример</Label>
-        <Input 
-          id="example" 
-          value={formData.example || ''} 
-          onChange={(e) => setFormData({...formData, example: e.target.value || undefined})}
+        <Input
+          id="example"
+          value={formData.example || ""}
+          onChange={(e) => setFormData({ ...formData, example: e.target.value || undefined })}
           placeholder="8200000 → ₽8.2B"
         />
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Отмена</Button>
+        <Button variant="outline" onClick={onClose}>
+          Отмена
+        </Button>
         <Button onClick={handleSubmit}>
           <Save className="w-4 h-4 mr-2" />
           Сохранить
@@ -234,17 +280,24 @@ function FormatEditor({ format, onSave, onClose }: { format: Format | null; onSa
 }
 
 // Component Editor
-function ComponentEditor({ component, formats, onSave, onClose }: { 
-  component: Component | null; 
+function ComponentEditor({
+  component,
+  formats,
+  onSave,
+  onClose,
+}: {
+  component: Component | null;
   formats: Format[];
-  onSave: (c: Component) => void; 
-  onClose: () => void 
+  onSave: (c: Component) => void;
+  onClose: () => void;
 }) {
-  const [formData, setFormData] = useState<Component>(component || {
-    id: '',
-    componentType: 'card',
-    isActive: true
-  });
+  const [formData, setFormData] = useState<Component>(
+    component || {
+      id: "",
+      componentType: "card",
+      isActive: true,
+    }
+  );
 
   const handleSubmit = () => {
     if (!formData.id) {
@@ -261,17 +314,22 @@ function ComponentEditor({ component, formats, onSave, onClose }: {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="id">ID компонента</Label>
-          <Input 
-            id="id" 
-            value={formData.id} 
-            onChange={(e) => setFormData({...formData, id: e.target.value})}
+          <Input
+            id="id"
+            value={formData.id}
+            onChange={(e) => setFormData({ ...formData, id: e.target.value })}
             disabled={!!component}
             placeholder="capital_card"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="type">Тип</Label>
-          <Select value={formData.componentType} onValueChange={(v) => setFormData({...formData, componentType: v as Component['componentType']})}>
+          <Select
+            value={formData.componentType}
+            onValueChange={(v) =>
+              setFormData({ ...formData, componentType: v as Component["componentType"] })
+            }
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -289,19 +347,19 @@ function ComponentEditor({ component, formats, onSave, onClose }: {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="title">Заголовок</Label>
-          <Input 
-            id="title" 
-            value={formData.title || ''} 
-            onChange={(e) => setFormData({...formData, title: e.target.value || undefined})}
+          <Input
+            id="title"
+            value={formData.title || ""}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value || undefined })}
             placeholder="Капитал"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="label">Метка</Label>
-          <Input 
-            id="label" 
-            value={formData.label || ''} 
-            onChange={(e) => setFormData({...formData, label: e.target.value || undefined})}
+          <Input
+            id="label"
+            value={formData.label || ""}
+            onChange={(e) => setFormData({ ...formData, label: e.target.value || undefined })}
             placeholder="Капитал"
           />
         </div>
@@ -310,19 +368,21 @@ function ComponentEditor({ component, formats, onSave, onClose }: {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="icon">Иконка</Label>
-          <Input 
-            id="icon" 
-            value={formData.icon || ''} 
-            onChange={(e) => setFormData({...formData, icon: e.target.value || undefined})}
+          <Input
+            id="icon"
+            value={formData.icon || ""}
+            onChange={(e) => setFormData({ ...formData, icon: e.target.value || undefined })}
             placeholder="Landmark"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="dataSource">Ключ источника данных</Label>
-          <Input 
-            id="dataSource" 
-            value={formData.dataSourceKey || ''} 
-            onChange={(e) => setFormData({...formData, dataSourceKey: e.target.value || undefined})}
+          <Input
+            id="dataSource"
+            value={formData.dataSourceKey || ""}
+            onChange={(e) =>
+              setFormData({ ...formData, dataSourceKey: e.target.value || undefined })
+            }
             placeholder="capital"
           />
         </div>
@@ -331,7 +391,10 @@ function ComponentEditor({ component, formats, onSave, onClose }: {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="category">Категория</Label>
-          <Select value={formData.category || ''} onValueChange={(v) => setFormData({...formData, category: v || undefined})}>
+          <Select
+            value={formData.category || ""}
+            onValueChange={(v) => setFormData({ ...formData, category: v || undefined })}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Выберите категорию" />
             </SelectTrigger>
@@ -346,10 +409,10 @@ function ComponentEditor({ component, formats, onSave, onClose }: {
         </div>
         <div className="flex items-end gap-4">
           <div className="flex items-center space-x-2">
-            <Switch 
-              id="isActive" 
+            <Switch
+              id="isActive"
               checked={formData.isActive}
-              onCheckedChange={(v) => setFormData({...formData, isActive: v})}
+              onCheckedChange={(v) => setFormData({ ...formData, isActive: v })}
             />
             <Label htmlFor="isActive">Активен</Label>
           </div>
@@ -358,26 +421,28 @@ function ComponentEditor({ component, formats, onSave, onClose }: {
 
       <div className="space-y-2">
         <Label htmlFor="tooltip">Подсказка</Label>
-        <Textarea 
-          id="tooltip" 
-          value={formData.tooltip || ''} 
-          onChange={(e) => setFormData({...formData, tooltip: e.target.value || undefined})}
+        <Textarea
+          id="tooltip"
+          value={formData.tooltip || ""}
+          onChange={(e) => setFormData({ ...formData, tooltip: e.target.value || undefined })}
           placeholder="Подсказка при наведении..."
         />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="description">Описание</Label>
-        <Textarea 
-          id="description" 
-          value={formData.description || ''} 
-          onChange={(e) => setFormData({...formData, description: e.target.value || undefined})}
+        <Textarea
+          id="description"
+          value={formData.description || ""}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value || undefined })}
           placeholder="Описание компонента..."
         />
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>Отмена</Button>
+        <Button variant="outline" onClick={onClose}>
+          Отмена
+        </Button>
         <Button onClick={handleSubmit}>
           <Save className="w-4 h-4 mr-2" />
           Сохранить
@@ -393,117 +458,136 @@ export default function ConfigEditor() {
   const [components, setComponents] = useState<Component[]>(mockComponents);
   const [componentFields, setComponentFields] = useState<ComponentField[]>(mockComponentFields);
   const [layouts, setLayouts] = useState<Layout[]>(mockLayouts);
-  const [layoutMappings, setLayoutMappings] = useState<LayoutComponentMapping[]>(mockLayoutMappings);
-  
+  const [layoutMappings, setLayoutMappings] =
+    useState<LayoutComponentMapping[]>(mockLayoutMappings);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [editingFormat, setEditingFormat] = useState<Format | null>(null);
   const [isFormatDialogOpen, setIsFormatDialogOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<Component | null>(null);
   const [isComponentDialogOpen, setIsComponentDialogOpen] = useState(false);
-  const [selectedLayout, setSelectedLayout] = useState<string>(layouts[0]?.id || '');
+  const [selectedLayout, setSelectedLayout] = useState<string>(layouts[0]?.id || "");
 
   // Formats tab handlers
   const handleSaveFormat = (format: Format) => {
     if (editingFormat) {
-      setFormats(formats.map(f => f.id === format.id ? format : f));
+      setFormats(formats.map((f) => (f.id === format.id ? format : f)));
     } else {
       setFormats([...formats, format]);
     }
   };
 
   const handleDeleteFormat = (id: string) => {
-    const format = formats.find(f => f.id === id);
+    const format = formats.find((f) => f.id === id);
     if (format?.isSystem) {
       toast.error("Системные форматы нельзя удалить");
       return;
     }
-    setFormats(formats.filter(f => f.id !== id));
+    setFormats(formats.filter((f) => f.id !== id));
     toast.success("Формат удалён");
   };
 
   // Components tab handlers
   const handleSaveComponent = (component: Component) => {
     if (editingComponent) {
-      setComponents(components.map(c => c.id === component.id ? component : c));
+      setComponents(components.map((c) => (c.id === component.id ? component : c)));
     } else {
       setComponents([...components, component]);
     }
   };
 
   const handleDeleteComponent = (id: string) => {
-    setComponents(components.filter(c => c.id !== id));
+    setComponents(components.filter((c) => c.id !== id));
     toast.success("Компонент удалён");
   };
 
   const handleToggleComponentActive = (id: string) => {
-    setComponents(components.map(c => c.id === id ? {...c, isActive: !c.isActive} : c));
+    setComponents(components.map((c) => (c.id === id ? { ...c, isActive: !c.isActive } : c)));
   };
 
   // Layout mapping handlers
   const handleToggleMappingVisible = (id: number) => {
-    setLayoutMappings(layoutMappings.map(m => m.id === id ? {...m, isVisible: !m.isVisible} : m));
+    setLayoutMappings(
+      layoutMappings.map((m) => (m.id === id ? { ...m, isVisible: !m.isVisible } : m))
+    );
     toast.success("Видимость изменена");
   };
 
   // Filter functions
-  const filteredFormats = formats.filter(f => 
-    f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFormats = formats.filter(
+    (f) =>
+      f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredComponents = components.filter(c => 
-    c.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredComponents = components.filter(
+    (c) =>
+      c.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const selectedLayoutMappings = layoutMappings
-    .filter(m => m.layoutId === selectedLayout)
+    .filter((m) => m.layoutId === selectedLayout)
     .sort((a, b) => a.displayOrder - b.displayOrder);
 
   // Group mappings by section
-  const sectionMappings = selectedLayoutMappings.filter(m => !m.parentInstanceId);
-  const getChildMappings = (parentId: string) => 
-    selectedLayoutMappings.filter(m => m.parentInstanceId === parentId);
+  const sectionMappings = selectedLayoutMappings.filter((m) => !m.parentInstanceId);
+  const getChildMappings = (parentId: string) =>
+    selectedLayoutMappings.filter((m) => m.parentInstanceId === parentId);
 
-  const getComponentById = (id: string) => components.find(c => c.id === id);
+  const getComponentById = (id: string) => components.find((c) => c.id === id);
 
   const getCategoryBadgeColor = (category?: string) => {
     switch (category) {
-      case 'section': return 'bg-blue-500/10 text-blue-600 border-blue-200';
-      case 'card': return 'bg-green-500/10 text-green-600 border-green-200';
-      case 'table': return 'bg-purple-500/10 text-purple-600 border-purple-200';
-      case 'chart': return 'bg-orange-500/10 text-orange-600 border-orange-200';
-      case 'filter': return 'bg-gray-500/10 text-gray-600 border-gray-200';
-      default: return 'bg-muted text-muted-foreground';
+      case "section":
+        return "bg-blue-500/10 text-blue-600 border-blue-200";
+      case "card":
+        return "bg-green-500/10 text-green-600 border-green-200";
+      case "table":
+        return "bg-purple-500/10 text-purple-600 border-purple-200";
+      case "chart":
+        return "bg-orange-500/10 text-orange-600 border-orange-200";
+      case "filter":
+        return "bg-gray-500/10 text-gray-600 border-gray-200";
+      default:
+        return "bg-muted text-muted-foreground";
     }
   };
 
   const getTypeBadgeColor = (type: string) => {
     switch (type) {
-      case 'container': return 'bg-blue-500/10 text-blue-600';
-      case 'card': return 'bg-green-500/10 text-green-600';
-      case 'table': return 'bg-purple-500/10 text-purple-600';
-      case 'chart': return 'bg-orange-500/10 text-orange-600';
-      case 'filter': return 'bg-gray-500/10 text-gray-600';
-      default: return 'bg-muted text-muted-foreground';
+      case "container":
+        return "bg-blue-500/10 text-blue-600";
+      case "card":
+        return "bg-green-500/10 text-green-600";
+      case "table":
+        return "bg-purple-500/10 text-purple-600";
+      case "chart":
+        return "bg-orange-500/10 text-orange-600";
+      case "filter":
+        return "bg-gray-500/10 text-gray-600";
+      default:
+        return "bg-muted text-muted-foreground";
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold">Панель администратора</h1>
-            <p className="text-muted-foreground mt-1">Управление пользователями, загрузками и конфигурацией</p>
+            <p className="text-muted-foreground mt-1">
+              Управление пользователями, загрузками и конфигурацией
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Поиск..." 
+              <Input
+                placeholder="Поиск..."
                 className="pl-10 w-64"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -565,24 +649,33 @@ export default function ConfigEditor() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Форматы отображения</CardTitle>
-                  <CardDescription>Настройки форматирования чисел, валют и процентов</CardDescription>
+                  <CardDescription>
+                    Настройки форматирования чисел, валют и процентов
+                  </CardDescription>
                 </div>
                 <Dialog open={isFormatDialogOpen} onOpenChange={setIsFormatDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingFormat(null); setIsFormatDialogOpen(true); }}>
+                    <Button
+                      onClick={() => {
+                        setEditingFormat(null);
+                        setIsFormatDialogOpen(true);
+                      }}
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Добавить формат
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>{editingFormat ? 'Редактировать формат' : 'Новый формат'}</DialogTitle>
+                      <DialogTitle>
+                        {editingFormat ? "Редактировать формат" : "Новый формат"}
+                      </DialogTitle>
                       <DialogDescription>
                         Настройте параметры форматирования значений
                       </DialogDescription>
                     </DialogHeader>
-                    <FormatEditor 
-                      format={editingFormat} 
+                    <FormatEditor
+                      format={editingFormat}
                       onSave={handleSaveFormat}
                       onClose={() => setIsFormatDialogOpen(false)}
                     />
@@ -609,37 +702,52 @@ export default function ConfigEditor() {
                           <TableCell className="font-mono text-sm">{format.id}</TableCell>
                           <TableCell className="font-medium">{format.name}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={format.category === 'currency' ? 'bg-green-500/10 text-green-600' : format.category === 'percent' ? 'bg-blue-500/10 text-blue-600' : 'bg-gray-500/10'}>
+                            <Badge
+                              variant="outline"
+                              className={
+                                format.category === "currency"
+                                  ? "bg-green-500/10 text-green-600"
+                                  : format.category === "percent"
+                                    ? "bg-blue-500/10 text-blue-600"
+                                    : "bg-gray-500/10"
+                              }
+                            >
                               {format.category || format.kind}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-mono">
-                            {format.prefixUnitSymbol || ''}{format.suffixUnitSymbol || '-'}
+                            {format.prefixUnitSymbol || ""}
+                            {format.suffixUnitSymbol || "-"}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{format.example || '-'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {format.example || "-"}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {format.isActive ? (
-                                <Badge className="bg-green-500/10 text-green-600 border-green-200">Активен</Badge>
+                                <Badge className="bg-green-500/10 text-green-600 border-green-200">
+                                  Активен
+                                </Badge>
                               ) : (
                                 <Badge variant="secondary">Неактивен</Badge>
                               )}
-                              {format.isSystem && (
-                                <Badge variant="outline">Системный</Badge>
-                              )}
+                              {format.isSystem && <Badge variant="outline">Системный</Badge>}
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="icon"
-                                onClick={() => { setEditingFormat(format); setIsFormatDialogOpen(true); }}
+                                onClick={() => {
+                                  setEditingFormat(format);
+                                  setIsFormatDialogOpen(true);
+                                }}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="icon"
                                 onClick={() => {
                                   navigator.clipboard.writeText(format.id);
@@ -648,8 +756,8 @@ export default function ConfigEditor() {
                               >
                                 <Copy className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="icon"
                                 disabled={format.isSystem}
                                 onClick={() => handleDeleteFormat(format.id)}
@@ -677,19 +785,24 @@ export default function ConfigEditor() {
                 </div>
                 <Dialog open={isComponentDialogOpen} onOpenChange={setIsComponentDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingComponent(null); setIsComponentDialogOpen(true); }}>
+                    <Button
+                      onClick={() => {
+                        setEditingComponent(null);
+                        setIsComponentDialogOpen(true);
+                      }}
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Добавить компонент
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>{editingComponent ? 'Редактировать компонент' : 'Новый компонент'}</DialogTitle>
-                      <DialogDescription>
-                        Настройте параметры компонента
-                      </DialogDescription>
+                      <DialogTitle>
+                        {editingComponent ? "Редактировать компонент" : "Новый компонент"}
+                      </DialogTitle>
+                      <DialogDescription>Настройте параметры компонента</DialogDescription>
                     </DialogHeader>
-                    <ComponentEditor 
+                    <ComponentEditor
                       component={editingComponent}
                       formats={formats}
                       onSave={handleSaveComponent}
@@ -714,39 +827,51 @@ export default function ConfigEditor() {
                     </TableHeader>
                     <TableBody>
                       {filteredComponents.map((component) => (
-                        <TableRow key={component.id} className={!component.isActive ? 'opacity-50' : ''}>
+                        <TableRow
+                          key={component.id}
+                          className={!component.isActive ? "opacity-50" : ""}
+                        >
                           <TableCell className="font-mono text-sm">{component.id}</TableCell>
-                          <TableCell className="font-medium">{component.title || '-'}</TableCell>
+                          <TableCell className="font-medium">{component.title || "-"}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={getTypeBadgeColor(component.componentType)}>
+                            <Badge
+                              variant="outline"
+                              className={getTypeBadgeColor(component.componentType)}
+                            >
                               {component.componentType}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={getCategoryBadgeColor(component.category)}>
-                              {component.category || '-'}
+                            <Badge
+                              variant="outline"
+                              className={getCategoryBadgeColor(component.category)}
+                            >
+                              {component.category || "-"}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-mono text-sm text-muted-foreground">
-                            {component.dataSourceKey || '-'}
+                            {component.dataSourceKey || "-"}
                           </TableCell>
                           <TableCell>
-                            <Switch 
+                            <Switch
                               checked={component.isActive}
                               onCheckedChange={() => handleToggleComponentActive(component.id)}
                             />
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="icon"
-                                onClick={() => { setEditingComponent(component); setIsComponentDialogOpen(true); }}
+                                onClick={() => {
+                                  setEditingComponent(component);
+                                  setIsComponentDialogOpen(true);
+                                }}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 size="icon"
                                 onClick={() => handleDeleteComponent(component.id)}
                               >
@@ -779,9 +904,13 @@ export default function ConfigEditor() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Все компоненты</SelectItem>
-                      {components.filter(c => c.componentType === 'table').map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.title || c.id}</SelectItem>
-                      ))}
+                      {components
+                        .filter((c) => c.componentType === "table")
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.title || c.id}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -804,12 +933,12 @@ export default function ConfigEditor() {
                         <TableRow key={field.id}>
                           <TableCell className="font-mono text-sm">{field.componentId}</TableCell>
                           <TableCell className="font-mono text-sm">{field.fieldId}</TableCell>
-                          <TableCell className="font-medium">{field.label || '-'}</TableCell>
+                          <TableCell className="font-medium">{field.label || "-"}</TableCell>
                           <TableCell>
                             <Badge variant="outline">{field.fieldType}</Badge>
                           </TableCell>
                           <TableCell className="font-mono text-sm text-muted-foreground">
-                            {field.formatId || '-'}
+                            {field.formatId || "-"}
                           </TableCell>
                           <TableCell>{field.displayOrder}</TableCell>
                           <TableCell>
@@ -838,19 +967,21 @@ export default function ConfigEditor() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {layouts.map((layout) => (
-                    <div 
+                    <div
                       key={layout.id}
                       className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedLayout === layout.id 
-                          ? 'border-primary bg-primary/5' 
-                          : 'hover:bg-muted/50'
+                        selectedLayout === layout.id
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50"
                       }`}
                       onClick={() => setSelectedLayout(layout.id)}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{layout.name}</span>
                         {layout.isDefault && (
-                          <Badge variant="outline" className="text-xs">По умолчанию</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            По умолчанию
+                          </Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{layout.description}</p>
@@ -875,22 +1006,30 @@ export default function ConfigEditor() {
                       {sectionMappings.map((section) => {
                         const sectionComponent = getComponentById(section.componentId);
                         const children = getChildMappings(section.instanceId);
-                        
+
                         return (
                           <div key={section.id} className="border rounded-lg">
                             <div className="flex items-center justify-between p-3 bg-muted/30">
                               <div className="flex items-center gap-2">
                                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                                <Badge variant="outline" className="bg-blue-500/10 text-blue-600">Секция</Badge>
-                                <span className="font-medium">{sectionComponent?.title || section.instanceId}</span>
+                                <Badge variant="outline" className="bg-blue-500/10 text-blue-600">
+                                  Секция
+                                </Badge>
+                                <span className="font-medium">
+                                  {sectionComponent?.title || section.instanceId}
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="icon"
                                   onClick={() => handleToggleMappingVisible(section.id)}
                                 >
-                                  {section.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                  {section.isVisible ? (
+                                    <Eye className="h-4 w-4" />
+                                  ) : (
+                                    <EyeOff className="h-4 w-4" />
+                                  )}
                                 </Button>
                               </div>
                             </div>
@@ -898,27 +1037,40 @@ export default function ConfigEditor() {
                               {children.map((child) => {
                                 const childComponent = getComponentById(child.componentId);
                                 return (
-                                  <div 
-                                    key={child.id} 
-                                    className={`flex items-center justify-between p-2 rounded hover:bg-muted/50 ${!child.isVisible ? 'opacity-50' : ''}`}
+                                  <div
+                                    key={child.id}
+                                    className={`flex items-center justify-between p-2 rounded hover:bg-muted/50 ${!child.isVisible ? "opacity-50" : ""}`}
                                   >
                                     <div className="flex items-center gap-2 ml-6">
                                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                       <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                                      <Badge variant="outline" className={getTypeBadgeColor(childComponent?.componentType || '')}>
+                                      <Badge
+                                        variant="outline"
+                                        className={getTypeBadgeColor(
+                                          childComponent?.componentType || ""
+                                        )}
+                                      >
                                         {childComponent?.componentType}
                                       </Badge>
-                                      <span className="text-sm">{childComponent?.title || child.instanceId}</span>
+                                      <span className="text-sm">
+                                        {childComponent?.title || child.instanceId}
+                                      </span>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <span className="text-xs text-muted-foreground mr-2">#{child.displayOrder}</span>
-                                      <Button 
-                                        variant="ghost" 
+                                      <span className="text-xs text-muted-foreground mr-2">
+                                        #{child.displayOrder}
+                                      </span>
+                                      <Button
+                                        variant="ghost"
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={() => handleToggleMappingVisible(child.id)}
                                       >
-                                        {child.isVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                        {child.isVisible ? (
+                                          <Eye className="h-3 w-3" />
+                                        ) : (
+                                          <EyeOff className="h-3 w-3" />
+                                        )}
                                       </Button>
                                       <Button variant="ghost" size="icon" className="h-8 w-8">
                                         <Pencil className="h-3 w-3" />

@@ -1,69 +1,74 @@
 import { Router } from "express";
 import {
-  getKPICategories,
-  getAllKPIMetrics,
+  getKPIMetrics,
   getKPIMetricsByCategory,
   getKPIMetricById,
-} from "../services/kpiService.js";
+} from "../services/mart/kpi/kpiService.js";
 
 const router = Router();
 
 /**
- * GET /api/kpis/categories
- * Get all KPI categories
- */
-router.get("/categories", async (_req, res) => {
-  try {
-    const categories = await getKPICategories();
-    res.json(categories);
-  } catch (error) {
-    console.error("Error fetching KPI categories:", error);
-    res.status(500).json({ error: "Failed to fetch KPI categories" });
-  }
-});
-
-/**
  * GET /api/kpis
  * Get all KPI metrics
+ * Query params:
+ *   - category: Filter by category (e.g., 'finance', 'balance')
+ *   - periodDate: Optional period date (YYYY-MM-DD format)
  */
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const metrics = await getAllKPIMetrics();
+    const { category, periodDate } = req.query;
+
+    let targetPeriod: Date | undefined;
+    if (periodDate && typeof periodDate === "string") {
+      targetPeriod = new Date(periodDate);
+      if (isNaN(targetPeriod.getTime())) {
+        return res.status(400).json({ error: "Invalid periodDate format. Use YYYY-MM-DD" });
+      }
+    }
+
+    // Get metrics from MART only (mocks are archived)
+    const metrics = category
+      ? await getKPIMetricsByCategory(category as string, targetPeriod)
+      : await getKPIMetrics(undefined, targetPeriod);
+    
+    console.log(`Fetched ${metrics.length} metrics from MART${category ? ` for category ${category}` : ""}`);
+    
+    if (metrics.length === 0) {
+      console.warn("No KPI metrics found in MART. Ensure data is loaded via migration 011_insert_test_data_mart.sql");
+    }
+
     res.json(metrics);
   } catch (error) {
-    console.error("Error fetching KPI metrics:", error);
+    console.error("Error fetching KPI metrics from MART:", error);
     res.status(500).json({ error: "Failed to fetch KPI metrics" });
   }
 });
 
 /**
- * GET /api/kpis/category/:categoryId
- * Get KPI metrics by category
- */
-router.get("/category/:categoryId", async (req, res) => {
-  try {
-    const { categoryId } = req.params;
-    const metrics = await getKPIMetricsByCategory(categoryId);
-    res.json(metrics);
-  } catch (error) {
-    console.error("Error fetching KPI metrics by category:", error);
-    res.status(500).json({ error: "Failed to fetch KPI metrics by category" });
-  }
-});
-
-/**
  * GET /api/kpis/:id
- * Get single KPI metric by ID
+ * Get single KPI metric by component ID
+ * Query params:
+ *   - periodDate: Optional period date (YYYY-MM-DD format)
  */
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const metric = await getKPIMetricById(id);
-    
+    const { periodDate } = req.query;
+
+    let targetPeriod: Date | undefined;
+    if (periodDate && typeof periodDate === "string") {
+      targetPeriod = new Date(periodDate);
+      if (isNaN(targetPeriod.getTime())) {
+        return res.status(400).json({ error: "Invalid periodDate format. Use YYYY-MM-DD" });
+      }
+    }
+
+    const metric = await getKPIMetricById(id, targetPeriod);
+
     if (!metric) {
       return res.status(404).json({ error: "KPI metric not found" });
     }
-    
+
     res.json(metric);
   } catch (error) {
     console.error("Error fetching KPI metric:", error);

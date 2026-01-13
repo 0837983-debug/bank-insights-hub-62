@@ -10,7 +10,6 @@ vi.mock("@/hooks/useAPI", () => ({
   useLayout: vi.fn(),
   useAllKPIs: vi.fn(),
   useTableData: vi.fn(),
-  useGroupingOptions: vi.fn(),
 }));
 
 // Mock Header component to avoid issues
@@ -281,12 +280,6 @@ describe("DynamicDashboard", () => {
       error: null,
     } as any);
 
-    vi.mocked(useAPIHooks.useGroupingOptions).mockReturnValue({
-      data: [],
-      isLoading: false,
-      error: null,
-    } as any);
-
     render(<DynamicDashboard />, { wrapper: createWrapper() });
 
     // Section title should be rendered
@@ -338,12 +331,6 @@ describe("DynamicDashboard", () => {
       error: null,
     } as any);
 
-    vi.mocked(useAPIHooks.useGroupingOptions).mockReturnValue({
-      data: [],
-      isLoading: false,
-      error: null,
-    } as any);
-
     const { container } = render(<DynamicDashboard />, { wrapper: createWrapper() });
 
     // Section title should be rendered
@@ -390,12 +377,6 @@ describe("DynamicDashboard", () => {
       data: undefined,
       isLoading: false,
       error: new Error("Failed to load table data"),
-    } as any);
-
-    vi.mocked(useAPIHooks.useGroupingOptions).mockReturnValue({
-      data: [],
-      isLoading: false,
-      error: null,
     } as any);
 
     render(<DynamicDashboard />, { wrapper: createWrapper() });

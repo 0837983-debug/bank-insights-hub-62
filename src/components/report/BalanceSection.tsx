@@ -1,9 +1,9 @@
 import { KPICard } from "@/components/KPICard";
 import { FinancialTable } from "@/components/FinancialTable";
 import { CollapsibleSection } from "@/components/report/CollapsibleSection";
-import { LandmarkIcon, WalletIcon, ShieldIcon, DropletIcon, BriefcaseIcon } from "lucide-react";
+import { LandmarkIcon, WalletIcon } from "lucide-react";
 
-// KPI Data - Баланс
+// KPI Data - Баланс (только 2 карточки)
 const kpiMetrics = [
   {
     title: "Объём активов",
@@ -22,33 +22,6 @@ const kpiMetrics = [
     change: 7.3,
     ytdChange: 15.8,
     icon: <WalletIcon className="w-5 h-5 text-accent" />,
-  },
-  {
-    title: "Капитал",
-    value: "₽8.2B",
-    description:
-      "Собственные средства банка. Ключевой показатель устойчивости, на который опирается ROE и нормативы достаточности.",
-    change: 5.2,
-    ytdChange: 12.7,
-    icon: <ShieldIcon className="w-5 h-5 text-accent" />,
-  },
-  {
-    title: "Доля HLA",
-    value: "40.2%",
-    description:
-      "Доля высоколиквидных активов (High Liquid Assets). Отражает способность банка исполнять обязательства, показатель ликвидности.",
-    change: 2.1,
-    ytdChange: 3.5,
-    icon: <DropletIcon className="w-5 h-5 text-accent" />,
-  },
-  {
-    title: "Рабочие активы",
-    value: "59.7%",
-    description:
-      "Доля рабочих активов (кредитный портфель + инвестиции) в общих активах. Показывает эффективность размещения ресурсов.",
-    change: 1.8,
-    ytdChange: 4.2,
-    icon: <BriefcaseIcon className="w-5 h-5 text-accent" />,
   },
 ];
 
@@ -207,128 +180,12 @@ const assetsData = [
   },
 ];
 
-// Balance Data - Liabilities with 2 levels of hierarchy (no top-level "Пассивы")
-const liabilitiesData = [
-  // Депозиты клиентов - Level 1
-  {
-    id: "l2",
-    name: "Депозиты клиентов",
-    value: 22500000000,
-    percentage: 49.8,
-    description: "Срочные и до востребования депозиты физ. и юр. лиц",
-    isGroup: true,
-    change: 7.3,
-  },
-  {
-    id: "l2-1",
-    name: "Срочные депозиты физ. лиц",
-    value: 11200000000,
-    percentage: 49.8,
-    description: "Вклады населения на срок",
-    parentId: "l2",
-    change: 9.1,
-  },
-  {
-    id: "l2-2",
-    name: "Срочные депозиты юр. лиц",
-    value: 7800000000,
-    percentage: 34.7,
-    description: "Депозиты организаций на срок",
-    parentId: "l2",
-    change: 6.2,
-  },
-  {
-    id: "l2-3",
-    name: "Накопительные счета",
-    value: 3500000000,
-    percentage: 15.5,
-    description: "Счета с начислением процентов",
-    parentId: "l2",
-    change: 4.8,
-  },
-
-  // Остатки ДВС - Level 1
-  {
-    id: "l3",
-    name: "Остатки ДВС",
-    value: 14200000000,
-    percentage: 31.4,
-    description: "Остатки на счетах до востребования",
-    isGroup: true,
-    change: 2.1,
-  },
-  {
-    id: "l3-1",
-    name: "Текущие счета физ. лиц",
-    value: 5800000000,
-    percentage: 40.8,
-    description: "Карточные и расчётные счета населения",
-    parentId: "l3",
-    change: 3.5,
-  },
-  {
-    id: "l3-2",
-    name: "Расчётные счета юр. лиц",
-    value: 6900000000,
-    percentage: 48.6,
-    description: "Операционные счета организаций",
-    parentId: "l3",
-    change: 1.2,
-  },
-  {
-    id: "l3-3",
-    name: "Эскроу и спецсчета",
-    value: 1500000000,
-    percentage: 10.6,
-    description: "Целевые и специальные счета",
-    parentId: "l3",
-    change: 0.8,
-  },
-
-  // Привлечённые средства - Level 1
-  {
-    id: "l4",
-    name: "Привлечённые средства",
-    value: 8500000000,
-    percentage: 18.8,
-    description: "Межбанковские кредиты, облигации, прочие заимствования",
-    isGroup: true,
-    change: 4.5,
-  },
-  {
-    id: "l4-1",
-    name: "МБК привлечённые",
-    value: 3200000000,
-    percentage: 37.6,
-    description: "Межбанковские кредиты полученные",
-    parentId: "l4",
-    change: 5.8,
-  },
-  {
-    id: "l4-2",
-    name: "Выпущенные облигации",
-    value: 3800000000,
-    percentage: 44.7,
-    description: "Собственные долговые обязательства",
-    parentId: "l4",
-    change: 3.2,
-  },
-  {
-    id: "l4-3",
-    name: "Субординированные займы",
-    value: 1500000000,
-    percentage: 17.7,
-    description: "Долгосрочные субордзаймы",
-    parentId: "l4",
-    change: 4.1,
-  },
-];
 
 export const BalanceSection = () => {
   return (
     <CollapsibleSection title="Баланс">
-      {/* KPI Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      {/* KPI Metrics - только 2 карточки */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {kpiMetrics.map((metric) => (
           <KPICard
             key={metric.title}
@@ -343,10 +200,9 @@ export const BalanceSection = () => {
         ))}
       </div>
 
-      {/* Balance Structure */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Balance Structure - только 1 таблица */}
+      <div className="grid grid-cols-1 gap-6">
         <FinancialTable title="Активы" rows={assetsData} showPercentage={true} />
-        <FinancialTable title="Пассивы" rows={liabilitiesData} showPercentage={true} />
       </div>
     </CollapsibleSection>
   );

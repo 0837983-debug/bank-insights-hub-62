@@ -2,7 +2,16 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileSpreadsheet, FileText, Database, Users, DollarSign, TrendingUp, Building } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  FileText,
+  Database,
+  Users,
+  DollarSign,
+  TrendingUp,
+  Building,
+} from "lucide-react";
 import { UploadModal } from "@/components/upload/UploadModal";
 
 export interface UploadType {
@@ -21,7 +30,7 @@ const uploadTypes: UploadType[] = [
     description: "Загрузка данных по доходам и расходам",
     icon: <DollarSign className="h-6 w-6" />,
     acceptedFormats: [".xlsx", ".xls", ".csv"],
-    expectedColumns: ["Период", "Категория", "Сумма", "Валюта"]
+    expectedColumns: ["Период", "Категория", "Сумма", "Валюта"],
   },
   {
     id: "client_base",
@@ -29,7 +38,7 @@ const uploadTypes: UploadType[] = [
     description: "Данные по клиентам и сегментам",
     icon: <Users className="h-6 w-6" />,
     acceptedFormats: [".xlsx", ".xls", ".csv"],
-    expectedColumns: ["ID клиента", "Сегмент", "Дата регистрации", "Статус"]
+    expectedColumns: ["ID клиента", "Сегмент", "Дата регистрации", "Статус"],
   },
   {
     id: "balance_data",
@@ -37,7 +46,7 @@ const uploadTypes: UploadType[] = [
     description: "Остатки и движение средств",
     icon: <Database className="h-6 w-6" />,
     acceptedFormats: [".xlsx", ".xls", ".csv"],
-    expectedColumns: ["Счёт", "Дата", "Остаток", "Валюта"]
+    expectedColumns: ["Счёт", "Дата", "Остаток", "Валюта"],
   },
   {
     id: "kpi_targets",
@@ -45,7 +54,7 @@ const uploadTypes: UploadType[] = [
     description: "Плановые показатели эффективности",
     icon: <TrendingUp className="h-6 w-6" />,
     acceptedFormats: [".xlsx", ".xls", ".csv", ".txt"],
-    expectedColumns: ["KPI", "План", "Период", "Подразделение"]
+    expectedColumns: ["KPI", "План", "Период", "Подразделение"],
   },
   {
     id: "org_structure",
@@ -53,7 +62,7 @@ const uploadTypes: UploadType[] = [
     description: "Данные по подразделениям и иерархии",
     icon: <Building className="h-6 w-6" />,
     acceptedFormats: [".xlsx", ".xls", ".csv"],
-    expectedColumns: ["Код подразделения", "Наименование", "Родительский код", "Уровень"]
+    expectedColumns: ["Код подразделения", "Наименование", "Родительский код", "Уровень"],
   },
   {
     id: "transactions",
@@ -61,7 +70,7 @@ const uploadTypes: UploadType[] = [
     description: "Детальные данные по операциям",
     icon: <FileSpreadsheet className="h-6 w-6" />,
     acceptedFormats: [".xlsx", ".xls", ".csv"],
-    expectedColumns: ["ID транзакции", "Дата", "Сумма", "Тип", "Статус"]
+    expectedColumns: ["ID транзакции", "Дата", "Сумма", "Тип", "Статус"],
   },
   {
     id: "manual_adjustments",
@@ -69,7 +78,7 @@ const uploadTypes: UploadType[] = [
     description: "Корректирующие проводки",
     icon: <FileText className="h-6 w-6" />,
     acceptedFormats: [".xlsx", ".xls", ".csv", ".txt"],
-    expectedColumns: ["Дата", "Счёт", "Сумма", "Комментарий"]
+    expectedColumns: ["Дата", "Счёт", "Сумма", "Комментарий"],
   },
 ];
 
@@ -90,7 +99,7 @@ const FileUpload = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Загрузка данных</h1>
@@ -101,8 +110,8 @@ const FileUpload = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {uploadTypes.map((uploadType) => (
-            <Card 
-              key={uploadType.id} 
+            <Card
+              key={uploadType.id}
               className="hover:shadow-lg transition-shadow cursor-pointer group"
               onClick={() => handleUploadClick(uploadType)}
             >
@@ -134,11 +143,7 @@ const FileUpload = () => {
       </main>
 
       {selectedUpload && (
-        <UploadModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          uploadType={selectedUpload}
-        />
+        <UploadModal isOpen={isModalOpen} onClose={handleCloseModal} uploadType={selectedUpload} />
       )}
     </div>
   );

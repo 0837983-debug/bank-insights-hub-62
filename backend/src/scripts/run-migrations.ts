@@ -44,6 +44,22 @@ async function runMigrations() {
       join(__dirname, "../migrations/009_migrate_layout_data.sql"),
       "utf-8"
     );
+    const migrationMartTables = await readFile(
+      join(__dirname, "../migrations/010_create_mart_tables.sql"),
+      "utf-8"
+    );
+    const migrationMartTestData = await readFile(
+      join(__dirname, "../migrations/011_insert_test_data_mart.sql"),
+      "utf-8"
+    );
+    const migrationComponentFields = await readFile(
+      join(__dirname, "../migrations/012_insert_component_fields_for_cards.sql"),
+      "utf-8"
+    );
+    const migrationComponentFieldsMetadata = await readFile(
+      join(__dirname, "../migrations/013_add_component_fields_metadata.sql"),
+      "utf-8"
+    );
 
     // Execute migrations in order
     console.log("Running migration 001: Create schemas...");
@@ -77,6 +93,22 @@ async function runMigrations() {
     console.log("Running migration 009: Migrate layout data (placeholder)...");
     await client.query(migrationLayoutData);
     console.log("✅ Migration 009 completed (note: actual data migration via npm run migrate-data)");
+
+    console.log("Running migration 010: Create MART tables...");
+    await client.query(migrationMartTables);
+    console.log("✅ Migration 010 (MART tables) completed");
+
+    console.log("Running migration 011: Insert test data into MART...");
+    await client.query(migrationMartTestData);
+    console.log("✅ Migration 011 (MART test data) completed");
+
+    console.log("Running migration 012: Insert component_fields for cards...");
+    await client.query(migrationComponentFields);
+    console.log("✅ Migration 012 (component_fields for cards) completed");
+
+    console.log("Running migration 013: Add component_fields metadata...");
+    await client.query(migrationComponentFieldsMetadata);
+    console.log("✅ Migration 013 (component_fields metadata) completed");
 
     console.log("✅ All migrations completed successfully!");
     console.log("💡 To migrate layout data from layout.json, run: npm run migrate-data");

@@ -104,18 +104,6 @@ export default function DevTools() {
       responseExample: JSON.stringify({ formats: {}, sections: [] }, null, 2),
     },
     {
-      id: "kpi-categories",
-      name: "Get KPI Categories",
-      method: "GET",
-      path: "/api/kpis/categories",
-      description: "Получить список всех категорий KPI",
-      responseExample: JSON.stringify(
-        [{ id: "finance", name: "Финансы", description: "..." }],
-        null,
-        2
-      ),
-    },
-    {
       id: "all-kpis",
       name: "Get All KPIs",
       method: "GET",
@@ -135,51 +123,13 @@ export default function DevTools() {
       ),
     },
     {
-      id: "kpi-by-id",
-      name: "Get KPI by ID",
-      method: "GET",
-      path: "/api/kpis/:id",
-      description: "Получить конкретный KPI по ID",
-      pathParams: [
-        {
-          name: "id",
-          example: "capital",
-          description: "ID метрики (capital, ebitda, mau, etc.)",
-        },
-      ],
-      responseExample: JSON.stringify(
-        {
-          id: "capital",
-          title: "Капитал",
-          value: 8200000000,
-        },
-        null,
-        2
-      ),
-    },
-    {
-      id: "kpis-by-category",
-      name: "Get KPIs by Category",
-      method: "GET",
-      path: "/api/kpis/category/:categoryId",
-      description: "Получить KPI по категории",
-      pathParams: [
-        {
-          name: "categoryId",
-          example: "finance",
-          description: "ID категории (finance, clients, conversion)",
-        },
-      ],
-      responseExample: JSON.stringify([{ id: "capital" }], null, 2),
-    },
-    {
       id: "table-data",
       name: "Get Table Data",
       method: "GET",
-      path: "/api/table-data",
+      path: "/api/table-data/:tableId",
       description: "Получить данные таблицы с фильтрами",
+      pathParams: [{ name: "tableId", example: "income_structure", description: "ID таблицы" }],
       queryParams: [
-        { name: "tableId", example: "income_structure", description: "ID таблицы" },
         {
           name: "dateFrom",
           example: "2025-01-01",
@@ -622,17 +572,19 @@ export default function DevTools() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {resources.map((resource) => (
-              <a
+              <button
                 key={resource.name}
-                href={resource.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent transition-colors"
+                onClick={() => {
+                  if (resource.url) {
+                    window.open(resource.url, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent transition-colors text-left w-full cursor-pointer"
               >
                 <resource.icon className="h-5 w-5 text-muted-foreground" />
                 <span className="font-medium">{resource.name}</span>
                 <ExternalLink className="h-4 w-4 ml-auto text-muted-foreground" />
-              </a>
+              </button>
             ))}
           </div>
         </CardContent>

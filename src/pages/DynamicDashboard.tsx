@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useLayout, useAllKPIs, useTableData, useGroupingOptions } from "@/hooks/useAPI";
+import { useLayout, useAllKPIs, useTableData } from "@/hooks/useAPI";
 import { KPICard } from "@/components/KPICard";
 import { Header } from "@/components/Header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -107,11 +107,8 @@ interface DynamicTableProps {
 function DynamicTable({ component }: DynamicTableProps) {
   const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
 
-  // Load grouping options from backend
-  const { data: backendGroupingOptions = [] } = useGroupingOptions(component.dataSourceKey);
-
   // Generate grouping options from layout component's groupableFields
-  const layoutGroupingOptions: GroupingOption[] = component.groupableFields
+  const groupingOptions: GroupingOption[] = component.groupableFields
     ? component.groupableFields.map((field) => {
         // Map common field names to readable labels
         const labelMap: Record<string, string> = {
@@ -135,10 +132,6 @@ function DynamicTable({ component }: DynamicTableProps) {
         };
       })
     : [];
-
-  // Combine backend and layout grouping options (backend takes precedence)
-  const groupingOptions =
-    backendGroupingOptions.length > 0 ? backendGroupingOptions : layoutGroupingOptions;
 
   // Load table data with grouping parameter
   const { data, isLoading, error } = useTableData(component.dataSourceKey, {
@@ -294,7 +287,7 @@ export default function DynamicDashboard() {
           return (
             <CollapsibleSection key={section.id} title={section.title}>
               {cardKPIs.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${cardKPIs.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
                   {cardKPIs.map(({ component, kpi }) => {
                     // Get format config from layout for this component
                     const formatId = component.format?.value;
@@ -302,11 +295,26 @@ export default function DynamicDashboard() {
                       ? (layout.formats[formatId] as FormatConfig)
                       : undefined;
 
+                    // Debug: log format info if formatConfig is missing (only in dev)
+                    if (import.meta.env.DEV && !formatConfig && formatId) {
+                      console.warn(`Format config not found for formatId: ${formatId}`, {
+                        componentId: component.id,
+                        availableFormats: Object.keys(layout.formats),
+                      });
+                    }
+
+                    // Format the value with the config, or pass formats dictionary as fallback
+                    const formattedValue = formatValue(
+                      kpi.value,
+                      formatConfig || formatId,
+                      layout.formats as Record<string, FormatConfig>
+                    );
+
                     return (
                       <KPICard
                         key={component.id}
                         title={component.title}
-                        value={formatValue(kpi.value, formatConfig)}
+                        value={formattedValue}
                         description={component.tooltip || ""}
                         icon={renderIcon(component.icon)}
                         change={kpi.change}

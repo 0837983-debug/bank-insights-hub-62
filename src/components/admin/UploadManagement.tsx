@@ -3,12 +3,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { 
+import {
   Search,
   Upload,
   FileCheck,
@@ -20,7 +40,7 @@ import {
   CheckCircle,
   XCircle,
   Filter,
-  Download
+  Download,
 } from "lucide-react";
 
 interface UploadRecord {
@@ -29,7 +49,7 @@ interface UploadRecord {
   fileName: string;
   uploadedBy: string;
   uploadedAt: string;
-  status: 'pending' | 'validated' | 'applied' | 'failed' | 'cancelled';
+  status: "pending" | "validated" | "applied" | "failed" | "cancelled";
   rowCount: number;
   errors?: number;
   appliedAt?: string;
@@ -37,46 +57,107 @@ interface UploadRecord {
 
 // Mock data
 const mockUploads: UploadRecord[] = [
-  { id: '1', uploadType: 'Финансовые результаты', fileName: 'fin_results_2024_q1.xlsx', uploadedBy: 'Иван Иванов', uploadedAt: '2024-01-15 10:30', status: 'applied', rowCount: 156, appliedAt: '2024-01-15 10:35' },
-  { id: '2', uploadType: 'Клиентская база', fileName: 'clients_jan_2024.csv', uploadedBy: 'Анна Смирнова', uploadedAt: '2024-01-15 09:45', status: 'validated', rowCount: 2340 },
-  { id: '3', uploadType: 'Операционные данные', fileName: 'operations_w2.xlsx', uploadedBy: 'Пётр Петров', uploadedAt: '2024-01-15 08:20', status: 'failed', rowCount: 890, errors: 15 },
-  { id: '4', uploadType: 'Транзакции', fileName: 'transactions_daily.csv', uploadedBy: 'Иван Иванов', uploadedAt: '2024-01-14 17:00', status: 'applied', rowCount: 15420, appliedAt: '2024-01-14 17:15' },
-  { id: '5', uploadType: 'Показатели риска', fileName: 'risk_metrics_jan.xlsx', uploadedBy: 'Козлов Дмитрий', uploadedAt: '2024-01-14 14:30', status: 'cancelled', rowCount: 234 },
-  { id: '6', uploadType: 'Финансовые результаты', fileName: 'fin_results_2023_q4.xlsx', uploadedBy: 'Иван Иванов', uploadedAt: '2024-01-13 11:00', status: 'applied', rowCount: 162, appliedAt: '2024-01-13 11:10' },
-  { id: '7', uploadType: 'Клиентская база', fileName: 'clients_dec_2023.csv', uploadedBy: 'Анна Смирнова', uploadedAt: '2024-01-12 16:30', status: 'applied', rowCount: 2180, appliedAt: '2024-01-12 16:45' },
+  {
+    id: "1",
+    uploadType: "Финансовые результаты",
+    fileName: "fin_results_2024_q1.xlsx",
+    uploadedBy: "Иван Иванов",
+    uploadedAt: "2024-01-15 10:30",
+    status: "applied",
+    rowCount: 156,
+    appliedAt: "2024-01-15 10:35",
+  },
+  {
+    id: "2",
+    uploadType: "Клиентская база",
+    fileName: "clients_jan_2024.csv",
+    uploadedBy: "Анна Смирнова",
+    uploadedAt: "2024-01-15 09:45",
+    status: "validated",
+    rowCount: 2340,
+  },
+  {
+    id: "3",
+    uploadType: "Операционные данные",
+    fileName: "operations_w2.xlsx",
+    uploadedBy: "Пётр Петров",
+    uploadedAt: "2024-01-15 08:20",
+    status: "failed",
+    rowCount: 890,
+    errors: 15,
+  },
+  {
+    id: "4",
+    uploadType: "Транзакции",
+    fileName: "transactions_daily.csv",
+    uploadedBy: "Иван Иванов",
+    uploadedAt: "2024-01-14 17:00",
+    status: "applied",
+    rowCount: 15420,
+    appliedAt: "2024-01-14 17:15",
+  },
+  {
+    id: "5",
+    uploadType: "Показатели риска",
+    fileName: "risk_metrics_jan.xlsx",
+    uploadedBy: "Козлов Дмитрий",
+    uploadedAt: "2024-01-14 14:30",
+    status: "cancelled",
+    rowCount: 234,
+  },
+  {
+    id: "6",
+    uploadType: "Финансовые результаты",
+    fileName: "fin_results_2023_q4.xlsx",
+    uploadedBy: "Иван Иванов",
+    uploadedAt: "2024-01-13 11:00",
+    status: "applied",
+    rowCount: 162,
+    appliedAt: "2024-01-13 11:10",
+  },
+  {
+    id: "7",
+    uploadType: "Клиентская база",
+    fileName: "clients_dec_2023.csv",
+    uploadedBy: "Анна Смирнова",
+    uploadedAt: "2024-01-12 16:30",
+    status: "applied",
+    rowCount: 2180,
+    appliedAt: "2024-01-12 16:45",
+  },
 ];
 
-const getStatusBadge = (status: UploadRecord['status']) => {
+const getStatusBadge = (status: UploadRecord["status"]) => {
   switch (status) {
-    case 'pending':
+    case "pending":
       return (
         <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-200">
           <Clock className="h-3 w-3 mr-1" />
           Ожидает
         </Badge>
       );
-    case 'validated':
+    case "validated":
       return (
         <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
           <FileCheck className="h-3 w-3 mr-1" />
           Проверено
         </Badge>
       );
-    case 'applied':
+    case "applied":
       return (
         <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
           <CheckCircle className="h-3 w-3 mr-1" />
           Применено
         </Badge>
       );
-    case 'failed':
+    case "failed":
       return (
         <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200">
           <XCircle className="h-3 w-3 mr-1" />
           Ошибка
         </Badge>
       );
-    case 'cancelled':
+    case "cancelled":
       return (
         <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-200">
           <FileX className="h-3 w-3 mr-1" />
@@ -97,7 +178,9 @@ export function UploadManagement() {
 
   const handleCancel = () => {
     if (!uploadToCancel) return;
-    setUploads(uploads.map(u => u.id === uploadToCancel.id ? { ...u, status: 'cancelled' as const } : u));
+    setUploads(
+      uploads.map((u) => (u.id === uploadToCancel.id ? { ...u, status: "cancelled" as const } : u))
+    );
     toast.success(`Загрузка "${uploadToCancel.fileName}" отменена`);
     setCancelDialogOpen(false);
     setUploadToCancel(null);
@@ -105,36 +188,48 @@ export function UploadManagement() {
 
   const handleReupload = (upload: UploadRecord) => {
     // Mock re-upload - just reset status to pending
-    setUploads(uploads.map(u => u.id === upload.id ? { ...u, status: 'pending' as const, errors: undefined } : u));
+    setUploads(
+      uploads.map((u) =>
+        u.id === upload.id ? { ...u, status: "pending" as const, errors: undefined } : u
+      )
+    );
     toast.success(`Файл "${upload.fileName}" отправлен на повторную загрузку`);
   };
 
   const handleApply = (upload: UploadRecord) => {
-    setUploads(uploads.map(u => u.id === upload.id ? { 
-      ...u, 
-      status: 'applied' as const, 
-      appliedAt: new Date().toLocaleString('ru-RU', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).replace(',', '') 
-    } : u));
+    setUploads(
+      uploads.map((u) =>
+        u.id === upload.id
+          ? {
+              ...u,
+              status: "applied" as const,
+              appliedAt: new Date()
+                .toLocaleString("ru-RU", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+                .replace(",", ""),
+            }
+          : u
+      )
+    );
     toast.success(`Данные из "${upload.fileName}" применены`);
   };
 
-  const filteredUploads = uploads.filter(upload => {
-    const matchesSearch = 
+  const filteredUploads = uploads.filter((upload) => {
+    const matchesSearch =
       upload.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       upload.uploadType.toLowerCase().includes(searchTerm.toLowerCase()) ||
       upload.uploadedBy.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || upload.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || upload.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const pendingCount = uploads.filter(u => u.status === 'validated').length;
-  const failedCount = uploads.filter(u => u.status === 'failed').length;
+  const pendingCount = uploads.filter((u) => u.status === "validated").length;
+  const failedCount = uploads.filter((u) => u.status === "failed").length;
 
   return (
     <div className="space-y-6">
@@ -155,7 +250,7 @@ export function UploadManagement() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-green-600">
-              {uploads.filter(u => u.status === 'applied').length}
+              {uploads.filter((u) => u.status === "applied").length}
             </div>
             <p className="text-sm text-muted-foreground">Применено</p>
           </CardContent>
@@ -185,8 +280,8 @@ export function UploadManagement() {
           <div className="flex items-center gap-4 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Поиск по файлу, типу или автору..." 
+              <Input
+                placeholder="Поиск по файлу, типу или автору..."
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -239,12 +334,14 @@ export function UploadManagement() {
                     </TableCell>
                     <TableCell>{upload.uploadedBy}</TableCell>
                     <TableCell className="text-muted-foreground">{upload.uploadedAt}</TableCell>
-                    <TableCell className="text-center">{upload.rowCount.toLocaleString()}</TableCell>
+                    <TableCell className="text-center">
+                      {upload.rowCount.toLocaleString()}
+                    </TableCell>
                     <TableCell>{getStatusBadge(upload.status)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="icon"
                           onClick={() => {
                             setSelectedUpload(upload);
@@ -253,9 +350,9 @@ export function UploadManagement() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        
-                        {upload.status === 'validated' && (
-                          <Button 
+
+                        {upload.status === "validated" && (
+                          <Button
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"
                             onClick={() => handleApply(upload)}
@@ -264,10 +361,10 @@ export function UploadManagement() {
                             Применить
                           </Button>
                         )}
-                        
-                        {upload.status === 'failed' && (
-                          <Button 
-                            variant="outline" 
+
+                        {upload.status === "failed" && (
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleReupload(upload)}
                           >
@@ -275,10 +372,10 @@ export function UploadManagement() {
                             Перезагрузить
                           </Button>
                         )}
-                        
-                        {(upload.status === 'validated' || upload.status === 'pending') && (
-                          <Button 
-                            variant="ghost" 
+
+                        {(upload.status === "validated" || upload.status === "pending") && (
+                          <Button
+                            variant="ghost"
                             size="icon"
                             className="text-destructive hover:text-destructive"
                             onClick={() => {
@@ -305,7 +402,8 @@ export function UploadManagement() {
           <DialogHeader>
             <DialogTitle>Отмена загрузки</DialogTitle>
             <DialogDescription>
-              Вы уверены, что хотите отменить загрузку файла <strong>{uploadToCancel?.fileName}</strong>?
+              Вы уверены, что хотите отменить загрузку файла{" "}
+              <strong>{uploadToCancel?.fileName}</strong>?
               <br />
               Данные не будут применены к базе данных.
             </DialogDescription>
@@ -352,7 +450,9 @@ export function UploadManagement() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Записей</p>
-                  <p className="text-lg font-semibold">{selectedUpload.rowCount.toLocaleString()}</p>
+                  <p className="text-lg font-semibold">
+                    {selectedUpload.rowCount.toLocaleString()}
+                  </p>
                 </div>
               </div>
               {selectedUpload.appliedAt && (
@@ -377,7 +477,7 @@ export function UploadManagement() {
             <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
               Закрыть
             </Button>
-            {selectedUpload?.status === 'applied' && (
+            {selectedUpload?.status === "applied" && (
               <Button variant="outline">
                 <Download className="h-4 w-4 mr-2" />
                 Скачать файл

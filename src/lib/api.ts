@@ -112,12 +112,6 @@ export async function fetchLayout(): Promise<Layout> {
 // KPI API
 // ============================================================================
 
-export interface KPICategory {
-  id: string;
-  name: string;
-  description?: string;
-}
-
 export interface KPIMetric {
   id: string;
   value: number;
@@ -125,20 +119,8 @@ export interface KPIMetric {
   ytdChange?: number;
 }
 
-export async function fetchKPICategories(): Promise<KPICategory[]> {
-  return apiFetch<KPICategory[]>("/kpis/categories");
-}
-
 export async function fetchAllKPIs(): Promise<KPIMetric[]> {
   return apiFetch<KPIMetric[]>("/kpis");
-}
-
-export async function fetchKPIsByCategory(categoryId: string): Promise<KPIMetric[]> {
-  return apiFetch<KPIMetric[]>(`/kpis/category/${categoryId}`);
-}
-
-export async function fetchKPIById(id: string): Promise<KPIMetric> {
-  return apiFetch<KPIMetric>(`/kpis/${id}`);
 }
 
 // ============================================================================
@@ -186,9 +168,7 @@ export async function fetchTableData(
   }
 
   const queryString = queryParams.toString();
-  const endpoint = queryString
-    ? `/table-data?tableId=${tableId}&${queryString}`
-    : `/table-data?tableId=${tableId}`;
+  const endpoint = queryString ? `/table-data/${tableId}?${queryString}` : `/table-data/${tableId}`;
 
   return apiFetch<TableData>(endpoint);
 }
@@ -196,31 +176,6 @@ export async function fetchTableData(
 export interface GroupingOption {
   id: string;
   label: string;
-}
-
-export async function fetchGroupingOptions(tableId: string): Promise<GroupingOption[]> {
-  return apiFetch<GroupingOption[]>(`/table-data/${tableId}/grouping-options`);
-}
-
-// ============================================================================
-// Chart Data API
-// ============================================================================
-
-export interface ChartDataPoint {
-  period: string;
-  value: number;
-  label: string;
-}
-
-export interface ChartData {
-  chartId: string;
-  title: string;
-  type: "line" | "bar" | "area";
-  data: ChartDataPoint[];
-}
-
-export async function fetchChartData(chartId: string): Promise<ChartData> {
-  return apiFetch<ChartData>(`/chart-data/${chartId}`);
 }
 
 // ============================================================================

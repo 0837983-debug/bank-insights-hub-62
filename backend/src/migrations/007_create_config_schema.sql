@@ -122,6 +122,13 @@ CREATE TABLE IF NOT EXISTS config.component_fields (
   deleted_at        TIMESTAMP
 );
 
+-- Unique constraint: one field_id per component (when not deleted)
+-- Note: Using partial index for soft-delete support, but ON CONFLICT needs full unique constraint
+-- We'll add a unique constraint that allows multiple deleted records but only one active
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cf_component_field_active 
+  ON config.component_fields(component_id, field_id) 
+  WHERE deleted_at IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_cf_component ON config.component_fields(component_id);
 CREATE INDEX IF NOT EXISTS idx_cf_field_id ON config.component_fields(field_id);
 CREATE INDEX IF NOT EXISTS idx_cf_display_order ON config.component_fields(display_order);

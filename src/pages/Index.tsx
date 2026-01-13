@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { Header } from "@/components/Header";
 import { ReportFilters } from "@/components/ReportFilters";
-import { ExecutiveSummary } from "@/components/report/ExecutiveSummary";
-import { FinancialResultsSection } from "@/components/report/FinancialResultsSection";
 import { BalanceSection } from "@/components/report/BalanceSection";
-import { ClientBaseSection } from "@/components/report/ClientBaseSection";
-import { Conversion } from "@/components/report/Conversion";
 
 const Index = () => {
   const [period, setPeriod] = useState("month");
@@ -24,20 +20,8 @@ const Index = () => {
           onComparisonChange={setComparison}
         />
 
-        {/* Executive Summary */}
-        <ExecutiveSummary />
-
-        {/* Financial Results Section */}
-        <FinancialResultsSection />
-
         {/* Balance Section */}
         <BalanceSection />
-
-        {/* Client Base Section */}
-        <ClientBaseSection />
-
-        {/* Conversion Section */}
-        <Conversion />
       </main>
     </div>
   );

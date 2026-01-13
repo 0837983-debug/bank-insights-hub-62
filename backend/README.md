@@ -90,17 +90,12 @@ npm start
 ### KPI Endpoints
 
 - `GET /api/kpis` - Получить все KPI метрики
-- `GET /api/kpis/categories` - Получить все категории KPI
-- `GET /api/kpis/category/:categoryId` - Получить KPI метрики по категории
-- `GET /api/kpis/:id` - Получить конкретную KPI метрику
 
 ### Table Data Endpoints
 
 - `GET /api/table-data/:tableId` - Получить данные таблицы по ID
-
-### Chart Data Endpoints
-
-- `GET /api/chart-data/:chartId` - Получить данные графика по ID
+  - Query параметры: `groupBy` (опционально), `dateFrom` (опционально), `dateTo` (опционально)
+  - Опции группировки берутся из `groupableFields` в layout
 
 ### Layout Endpoints
 
@@ -114,10 +109,8 @@ npm start
 
 ### Схема `dashboard`
 
-- `kpi_categories` - Категории KPI метрик
 - `kpi_metrics` - KPI метрики с лейблами, значениями, изменениями
 - `table_data` - Иерархические данные для таблиц
-- `chart_data` - Данные для графиков (JSONB)
 
 ### Схема `config`
 
@@ -137,8 +130,8 @@ curl http://localhost:3001/api/kpis
 curl http://localhost:3001/api/table-data/income
 ```
 
-### Получить данные графика
+### Получить данные таблицы с группировкой
 
 ```bash
-curl http://localhost:3001/api/chart-data/currency-transactions
+curl "http://localhost:3001/api/table-data/income?groupBy=product_line"
 ```

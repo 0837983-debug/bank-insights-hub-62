@@ -1,15 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  useLayout,
-  useKPICategories,
-  useAllKPIs,
-  useKPIsByCategory,
-  useKPIById,
-  useTableData,
-  useHealth,
-} from "./useAPI";
+import { useLayout, useAllKPIs, useTableData, useHealth } from "./useAPI";
 import * as api from "@/lib/api";
 
 // Mock the API module
@@ -67,23 +59,6 @@ describe("useAPI hooks", () => {
     });
   });
 
-  describe("useKPICategories", () => {
-    it("should fetch KPI categories successfully", async () => {
-      const mockCategories = [{ id: "finance", name: "Финансы", description: "Test" }];
-
-      vi.mocked(api.fetchKPICategories).mockResolvedValueOnce(mockCategories);
-
-      const { result } = renderHook(() => useKPICategories(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-      expect(result.current.data).toEqual(mockCategories);
-      expect(api.fetchKPICategories).toHaveBeenCalledTimes(1);
-    });
-  });
-
   describe("useAllKPIs", () => {
     it("should fetch all KPIs successfully", async () => {
       const mockKPIs = [
@@ -105,70 +80,6 @@ describe("useAPI hooks", () => {
 
       expect(result.current.data).toEqual(mockKPIs);
       expect(api.fetchAllKPIs).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("useKPIsByCategory", () => {
-    it("should fetch KPIs by category successfully", async () => {
-      const mockKPIs = [
-        {
-          id: "capital",
-          value: 8200000000,
-          change: 5.2,
-          ytdChange: 12.7,
-        },
-      ];
-
-      vi.mocked(api.fetchKPIsByCategory).mockResolvedValueOnce(mockKPIs);
-
-      const { result } = renderHook(() => useKPIsByCategory("finance"), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-      expect(result.current.data).toEqual(mockKPIs);
-      expect(api.fetchKPIsByCategory).toHaveBeenCalledWith("finance");
-    });
-
-    it("should not fetch when categoryId is empty", () => {
-      const { result } = renderHook(() => useKPIsByCategory(""), {
-        wrapper: createWrapper(),
-      });
-
-      expect(result.current.fetchStatus).toBe("idle");
-      expect(api.fetchKPIsByCategory).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("useKPIById", () => {
-    it("should fetch KPI by ID successfully", async () => {
-      const mockKPI = {
-        id: "capital",
-        value: 8200000000,
-        change: 5.2,
-        ytdChange: 12.7,
-      };
-
-      vi.mocked(api.fetchKPIById).mockResolvedValueOnce(mockKPI);
-
-      const { result } = renderHook(() => useKPIById("capital"), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-      expect(result.current.data).toEqual(mockKPI);
-      expect(api.fetchKPIById).toHaveBeenCalledWith("capital");
-    });
-
-    it("should not fetch when id is empty", () => {
-      const { result } = renderHook(() => useKPIById(""), {
-        wrapper: createWrapper(),
-      });
-
-      expect(result.current.fetchStatus).toBe("idle");
-      expect(api.fetchKPIById).not.toHaveBeenCalled();
     });
   });
 

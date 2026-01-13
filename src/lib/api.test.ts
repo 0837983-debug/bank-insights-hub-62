@@ -1,14 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
-import {
-  fetchLayout,
-  fetchKPICategories,
-  fetchAllKPIs,
-  fetchKPIsByCategory,
-  fetchKPIById,
-  fetchTableData,
-  fetchHealth,
-  APIError,
-} from "./api";
+import { fetchLayout, fetchAllKPIs, fetchTableData, fetchHealth, APIError } from "./api";
 
 // Mock fetch globally
 const originalFetch = global.fetch;
@@ -85,25 +76,6 @@ describe("API Client", () => {
     });
   });
 
-  describe("fetchKPICategories", () => {
-    it("should fetch KPI categories successfully", async () => {
-      const mockCategories = [{ id: "finance", name: "Финансы", description: "Test" }];
-
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockCategories,
-      } as Response);
-
-      const result = await fetchKPICategories();
-
-      expect(result).toEqual(mockCategories);
-      expect(global.fetch).toHaveBeenCalledWith(
-        "http://localhost:3001/api/kpis/categories",
-        expect.any(Object)
-      );
-    });
-  });
-
   describe("fetchAllKPIs", () => {
     it("should fetch all KPIs successfully", async () => {
       const mockKPIs = [
@@ -130,67 +102,6 @@ describe("API Client", () => {
     });
   });
 
-  describe("fetchKPIsByCategory", () => {
-    it("should fetch KPIs by category successfully", async () => {
-      const mockKPIs = [
-        {
-          id: "capital",
-          value: 8200000000,
-          change: 5.2,
-          ytdChange: 12.7,
-        },
-      ];
-
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockKPIs,
-      } as Response);
-
-      const result = await fetchKPIsByCategory("finance");
-
-      expect(result).toEqual(mockKPIs);
-      expect(global.fetch).toHaveBeenCalledWith(
-        "http://localhost:3001/api/kpis/category/finance",
-        expect.any(Object)
-      );
-    });
-  });
-
-  describe("fetchKPIById", () => {
-    it("should fetch single KPI by ID successfully", async () => {
-      const mockKPI = {
-        id: "capital",
-        value: 8200000000,
-        change: 5.2,
-        ytdChange: 12.7,
-      };
-
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockKPI,
-      } as Response);
-
-      const result = await fetchKPIById("capital");
-
-      expect(result).toEqual(mockKPI);
-      expect(global.fetch).toHaveBeenCalledWith(
-        "http://localhost:3001/api/kpis/capital",
-        expect.any(Object)
-      );
-    });
-
-    it("should throw APIError when KPI not found", async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        statusText: "Not Found",
-        json: async () => ({ error: "KPI metric not found" }),
-      } as Response);
-
-      await expect(fetchKPIById("nonexistent")).rejects.toThrow(APIError);
-    });
-  });
-
   describe("fetchTableData", () => {
     it("should fetch table data without params", async () => {
       const mockTableData = {
@@ -207,7 +118,7 @@ describe("API Client", () => {
 
       expect(result).toEqual(mockTableData);
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("tableId=income_structure"),
+        "http://localhost:3001/api/table-data/income_structure",
         expect.any(Object)
       );
     });
@@ -231,7 +142,7 @@ describe("API Client", () => {
 
       expect(result).toEqual(mockTableData);
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("dateFrom=2025-01-01"),
+        "http://localhost:3001/api/table-data/income_structure?dateFrom=2025-01-01&dateTo=2025-12-31",
         expect.any(Object)
       );
     });
@@ -254,7 +165,7 @@ describe("API Client", () => {
 
       expect(result).toEqual(mockTableData);
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("groupBy=region"),
+        "http://localhost:3001/api/table-data/income_structure?groupBy=region",
         expect.any(Object)
       );
     });

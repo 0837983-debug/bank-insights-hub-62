@@ -1,21 +1,16 @@
 import { useState, useCallback } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Upload, 
-  FileIcon, 
-  X, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Upload,
+  FileIcon,
+  X,
+  CheckCircle2,
+  XCircle,
   Loader2,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UploadType } from "@/pages/FileUpload";
@@ -59,43 +54,46 @@ export const UploadModal = ({ isOpen, onClose, uploadType }: UploadModalProps) =
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (selectedFiles) {
-      const newFiles: UploadedFile[] = Array.from(selectedFiles).map(file => ({
+      const newFiles: UploadedFile[] = Array.from(selectedFiles).map((file) => ({
         file,
-        id: `${file.name}-${Date.now()}-${Math.random()}`
+        id: `${file.name}-${Date.now()}-${Math.random()}`,
       }));
-      setFiles(prev => [...prev, ...newFiles]);
+      setFiles((prev) => [...prev, ...newFiles]);
       setValidationComplete(false);
       setValidationSteps([]);
       setHasErrors(false);
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const droppedFiles = e.dataTransfer.files;
-    if (droppedFiles) {
-      const newFiles: UploadedFile[] = Array.from(droppedFiles)
-        .filter(file => {
-          const ext = `.${file.name.split('.').pop()?.toLowerCase()}`;
-          return uploadType.acceptedFormats.includes(ext);
-        })
-        .map(file => ({
-          file,
-          id: `${file.name}-${Date.now()}-${Math.random()}`
-        }));
-      setFiles(prev => [...prev, ...newFiles]);
-      setValidationComplete(false);
-      setValidationSteps([]);
-      setHasErrors(false);
-    }
-  }, [uploadType.acceptedFormats]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const droppedFiles = e.dataTransfer.files;
+      if (droppedFiles) {
+        const newFiles: UploadedFile[] = Array.from(droppedFiles)
+          .filter((file) => {
+            const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
+            return uploadType.acceptedFormats.includes(ext);
+          })
+          .map((file) => ({
+            file,
+            id: `${file.name}-${Date.now()}-${Math.random()}`,
+          }));
+        setFiles((prev) => [...prev, ...newFiles]);
+        setValidationComplete(false);
+        setValidationSteps([]);
+        setHasErrors(false);
+      }
+    },
+    [uploadType.acceptedFormats]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
   }, []);
 
   const removeFile = (id: string) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
+    setFiles((prev) => prev.filter((f) => f.id !== id));
     setValidationComplete(false);
     setValidationSteps([]);
     setHasErrors(false);
@@ -123,14 +121,12 @@ export const UploadModal = ({ isOpen, onClose, uploadType }: UploadModalProps) =
 
     for (let i = 0; i < steps.length; i++) {
       // Update current step to running
-      setValidationSteps(prev => 
-        prev.map((step, idx) => 
-          idx === i ? { ...step, status: "running" } : step
-        )
+      setValidationSteps((prev) =>
+        prev.map((step, idx) => (idx === i ? { ...step, status: "running" } : step))
       );
 
       // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
+      await new Promise((resolve) => setTimeout(resolve, 800 + Math.random() * 700));
 
       const isError = i === errorStepIndex;
 
@@ -142,14 +138,14 @@ export const UploadModal = ({ isOpen, onClose, uploadType }: UploadModalProps) =
           { row: 47, column: "Сумма", value: "-", expected: "Число" },
         ];
 
-        setValidationSteps(prev =>
+        setValidationSteps((prev) =>
           prev.map((step, idx) =>
             idx === i
-              ? { 
-                  ...step, 
-                  status: "error", 
+              ? {
+                  ...step,
+                  status: "error",
                   message: "Обнаружены ошибки в данных",
-                  details: sampleErrors
+                  details: sampleErrors,
                 }
               : step
           )
@@ -158,11 +154,9 @@ export const UploadModal = ({ isOpen, onClose, uploadType }: UploadModalProps) =
         setProgress(((i + 1) / steps.length) * 100);
         break;
       } else {
-        setValidationSteps(prev =>
+        setValidationSteps((prev) =>
           prev.map((step, idx) =>
-            idx === i
-              ? { ...step, status: "success", message: "Успешно" }
-              : step
+            idx === i ? { ...step, status: "success", message: "Успешно" } : step
           )
         );
       }
@@ -208,7 +202,8 @@ export const UploadModal = ({ isOpen, onClose, uploadType }: UploadModalProps) =
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const allStepsSuccessful = validationComplete && !hasErrors && validationSteps.every(s => s.status === "success");
+  const allStepsSuccessful =
+    validationComplete && !hasErrors && validationSteps.every((s) => s.status === "success");
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -269,11 +264,7 @@ export const UploadModal = ({ isOpen, onClose, uploadType }: UploadModalProps) =
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeFile(uploadedFile.id)}
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => removeFile(uploadedFile.id)}>
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -288,10 +279,7 @@ export const UploadModal = ({ isOpen, onClose, uploadType }: UploadModalProps) =
               <h4 className="font-medium text-sm mb-2">Ожидаемые колонки:</h4>
               <div className="flex flex-wrap gap-2">
                 {uploadType.expectedColumns.map((col) => (
-                  <span
-                    key={col}
-                    className="px-2 py-1 bg-background rounded text-xs font-medium"
-                  >
+                  <span key={col} className="px-2 py-1 bg-background rounded text-xs font-medium">
                     {col}
                   </span>
                 ))}

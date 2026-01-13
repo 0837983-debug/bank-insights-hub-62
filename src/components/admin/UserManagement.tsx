@@ -3,35 +3,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { 
-  Check, 
-  X, 
-  UserX, 
-  Search,
-  Clock,
-  Shield,
-  ShieldCheck,
-  ShieldX
-} from "lucide-react";
+import { Check, X, UserX, Search, Clock, Shield, ShieldCheck, ShieldX } from "lucide-react";
 
 interface UserRequest {
   id: string;
   email: string;
   name: string;
   requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
-  provider: 'google' | 'apple';
+  status: "pending" | "approved" | "rejected";
+  provider: "google" | "apple";
 }
 
 interface ActiveUser {
   id: string;
   email: string;
   name: string;
-  provider: 'google' | 'apple';
+  provider: "google" | "apple";
   authorizedAt: string;
   lastLogin: string;
   isActive: boolean;
@@ -39,16 +44,69 @@ interface ActiveUser {
 
 // Mock data
 const mockRequests: UserRequest[] = [
-  { id: '1', email: 'petrov@example.com', name: 'Пётр Петров', requestedAt: '2024-01-15 10:30', status: 'pending', provider: 'google' },
-  { id: '2', email: 'sidorov@example.com', name: 'Сидор Сидоров', requestedAt: '2024-01-15 09:15', status: 'pending', provider: 'apple' },
-  { id: '3', email: 'kozlov@example.com', name: 'Козлов Иван', requestedAt: '2024-01-14 16:45', status: 'pending', provider: 'google' },
+  {
+    id: "1",
+    email: "petrov@example.com",
+    name: "Пётр Петров",
+    requestedAt: "2024-01-15 10:30",
+    status: "pending",
+    provider: "google",
+  },
+  {
+    id: "2",
+    email: "sidorov@example.com",
+    name: "Сидор Сидоров",
+    requestedAt: "2024-01-15 09:15",
+    status: "pending",
+    provider: "apple",
+  },
+  {
+    id: "3",
+    email: "kozlov@example.com",
+    name: "Козлов Иван",
+    requestedAt: "2024-01-14 16:45",
+    status: "pending",
+    provider: "google",
+  },
 ];
 
 const mockActiveUsers: ActiveUser[] = [
-  { id: '1', email: 'admin@bank.ru', name: 'Администратор', provider: 'google', authorizedAt: '2024-01-01 09:00', lastLogin: '2024-01-15 08:30', isActive: true },
-  { id: '2', email: 'ivanov@bank.ru', name: 'Иван Иванов', provider: 'google', authorizedAt: '2024-01-05 11:00', lastLogin: '2024-01-14 17:45', isActive: true },
-  { id: '3', email: 'smirnova@bank.ru', name: 'Анна Смирнова', provider: 'apple', authorizedAt: '2024-01-08 14:30', lastLogin: '2024-01-15 10:00', isActive: true },
-  { id: '4', email: 'kuznetsov@bank.ru', name: 'Алексей Кузнецов', provider: 'google', authorizedAt: '2024-01-10 10:00', lastLogin: '2024-01-12 09:30', isActive: false },
+  {
+    id: "1",
+    email: "admin@bank.ru",
+    name: "Администратор",
+    provider: "google",
+    authorizedAt: "2024-01-01 09:00",
+    lastLogin: "2024-01-15 08:30",
+    isActive: true,
+  },
+  {
+    id: "2",
+    email: "ivanov@bank.ru",
+    name: "Иван Иванов",
+    provider: "google",
+    authorizedAt: "2024-01-05 11:00",
+    lastLogin: "2024-01-14 17:45",
+    isActive: true,
+  },
+  {
+    id: "3",
+    email: "smirnova@bank.ru",
+    name: "Анна Смирнова",
+    provider: "apple",
+    authorizedAt: "2024-01-08 14:30",
+    lastLogin: "2024-01-15 10:00",
+    isActive: true,
+  },
+  {
+    id: "4",
+    email: "kuznetsov@bank.ru",
+    name: "Алексей Кузнецов",
+    provider: "google",
+    authorizedAt: "2024-01-10 10:00",
+    lastLogin: "2024-01-12 09:30",
+    isActive: false,
+  },
 ];
 
 export function UserManagement() {
@@ -59,32 +117,35 @@ export function UserManagement() {
   const [userToRevoke, setUserToRevoke] = useState<ActiveUser | null>(null);
 
   const handleApprove = (id: string) => {
-    setRequests(requests.map(r => r.id === id ? { ...r, status: 'approved' as const } : r));
+    setRequests(requests.map((r) => (r.id === id ? { ...r, status: "approved" as const } : r)));
     toast.success("Пользователь авторизован");
   };
 
   const handleReject = (id: string) => {
-    setRequests(requests.map(r => r.id === id ? { ...r, status: 'rejected' as const } : r));
+    setRequests(requests.map((r) => (r.id === id ? { ...r, status: "rejected" as const } : r)));
     toast.success("Запрос отклонён");
   };
 
   const handleRevoke = () => {
     if (!userToRevoke) return;
-    setActiveUsers(activeUsers.map(u => u.id === userToRevoke.id ? { ...u, isActive: false } : u));
+    setActiveUsers(
+      activeUsers.map((u) => (u.id === userToRevoke.id ? { ...u, isActive: false } : u))
+    );
     toast.success(`Доступ пользователя ${userToRevoke.name} отозван`);
     setRevokeDialogOpen(false);
     setUserToRevoke(null);
   };
 
   const handleReactivate = (id: string) => {
-    setActiveUsers(activeUsers.map(u => u.id === id ? { ...u, isActive: true } : u));
+    setActiveUsers(activeUsers.map((u) => (u.id === id ? { ...u, isActive: true } : u)));
     toast.success("Доступ восстановлен");
   };
 
-  const pendingRequests = requests.filter(r => r.status === 'pending');
-  const filteredUsers = activeUsers.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const pendingRequests = requests.filter((r) => r.status === "pending");
+  const filteredUsers = activeUsers.filter(
+    (u) =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -131,22 +192,22 @@ export function UserManagement() {
                     <TableCell>{request.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {request.provider === 'google' ? 'Google' : 'Apple'}
+                        {request.provider === "google" ? "Google" : "Apple"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{request.requestedAt}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           onClick={() => handleApprove(request.id)}
                           className="bg-green-600 hover:bg-green-700"
                         >
                           <Check className="h-4 w-4 mr-1" />
                           Одобрить
                         </Button>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="destructive"
                           onClick={() => handleReject(request.id)}
                         >
@@ -176,8 +237,8 @@ export function UserManagement() {
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Поиск пользователя..." 
+              <Input
+                placeholder="Поиск пользователя..."
                 className="pl-10 w-64"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -201,12 +262,12 @@ export function UserManagement() {
               </TableHeader>
               <TableBody>
                 {filteredUsers.map((user) => (
-                  <TableRow key={user.id} className={!user.isActive ? 'opacity-60' : ''}>
+                  <TableRow key={user.id} className={!user.isActive ? "opacity-60" : ""}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {user.provider === 'google' ? 'Google' : 'Apple'}
+                        {user.provider === "google" ? "Google" : "Apple"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{user.authorizedAt}</TableCell>
@@ -226,8 +287,8 @@ export function UserManagement() {
                     </TableCell>
                     <TableCell className="text-right">
                       {user.isActive ? (
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           className="text-destructive hover:text-destructive"
                           onClick={() => {
@@ -239,8 +300,8 @@ export function UserManagement() {
                           Отозвать
                         </Button>
                       ) : (
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => handleReactivate(user.id)}
                         >
@@ -263,7 +324,8 @@ export function UserManagement() {
           <DialogHeader>
             <DialogTitle>Отзыв авторизации</DialogTitle>
             <DialogDescription>
-              Вы уверены, что хотите отозвать доступ пользователя <strong>{userToRevoke?.name}</strong>?
+              Вы уверены, что хотите отозвать доступ пользователя{" "}
+              <strong>{userToRevoke?.name}</strong>?
               <br />
               Пользователь не сможет войти в систему до повторной авторизации.
             </DialogDescription>
