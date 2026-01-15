@@ -1,0 +1,78 @@
+Неиспользуемые файлы в проекте bank-insights-hub-62
+====================================================
+
+СТРАНИЦЫ (Pages):
+-----------------
+src/pages/Index.tsx
+src/pages/ComponentsShowcase.tsx
+src/pages/Auth.tsx
+src/pages/ConfigEditor.tsx
+src/pages/FileUpload.tsx
+
+КОМПОНЕНТЫ (Components):
+------------------------
+src/components/report/BalanceSection.tsx
+src/components/report/ClientBaseSection.tsx
+src/components/report/Conversion.tsx
+src/components/report/CustomerCare.tsx
+src/components/report/ExecutiveSummary.tsx
+src/components/report/FinancialResultsSection.tsx
+src/components/report/ITSecurity.tsx
+src/components/report/Operations.tsx
+src/components/report/Regulations.tsx
+src/components/report/Risks.tsx
+src/components/admin/AuthLogs.tsx
+src/components/admin/UploadManagement.tsx
+src/components/admin/UserManagement.tsx
+src/components/upload/UploadModal.tsx
+src/components/ChannelBreakdown.tsx
+src/components/FilterPanel.tsx
+src/components/FinancialMetrics.tsx
+src/components/ReportFilters.tsx
+src/components/RiskMetrics.tsx
+src/components/StrategyMetrics.tsx
+src/components/TechnologyMetrics.tsx
+src/components/TransactionChart.tsx
+src/components/TransactionMetrics.tsx
+src/components/ui/sidebar.tsx
+
+ХУКИ (Hooks):
+------------
+src/hooks/use-mobile.tsx
+
+ДАННЫЕ (Data):
+--------------
+src/data/dashboard-kpis.tsx
+
+ТИПЫ (Types):
+-------------
+src/types/config.ts
+
+ТЕСТОВЫЕ ФАЙЛЫ:
+---------------
+src/pages/DynamicDashboard.test.tsx
+src/hooks/useAPI.test.tsx
+src/components/FinancialTable.test.tsx
+src/components/KPICard.test.tsx
+src/lib/api.test.ts
+src/test/setup.ts
+
+СКРИПТЫ (Scripts):
+------------------
+scripts/copy-from-prototype.sh
+scripts/view-prototype.sh
+
+PUBLIC ФАЙЛЫ:
+-------------
+public/placeholder.svg
+public/favicon.ico
+public/robots.txt
+
+CSS ФАЙЛЫ:
+-----------
+src/App.css
+
+СГЕНЕРИРОВАННЫЕ ДИРЕКТОРИИ:
+---------------------------
+playwright-report/
+test-results/

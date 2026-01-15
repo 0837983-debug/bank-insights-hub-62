@@ -73,3 +73,13 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Восстановление файлов
+
+Если при работе с проектом вы столкнулись с отсутствием какого-либо файла:
+
+1. **Сначала проверьте** наличие файла в списке неиспользуемых файлов: `docs/unused-files.txt`
+2. **Попытайтесь восстановить** файл из архива `archive/` с сохранением полной структуры путей
+3. **Только в случае неудачи** восстановления или необнаружения файла в списке - создавайте новый файл
+
+Подробная инструкция: [docs/RESTORATION_GUIDE.md](docs/RESTORATION_GUIDE.md)

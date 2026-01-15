@@ -3,7 +3,9 @@
 # CI/CD Validation Script
 # Выполняет полную проверку кода перед деплоем
 
-set -e  # Exit on error
+# Получаем путь к директории скрипта
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "🚀 Starting CI/CD Pipeline..."
 echo "================================"
@@ -12,6 +14,7 @@ echo "================================"
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Счетчик ошибок
@@ -27,9 +30,34 @@ print_status() {
     fi
 }
 
+# 0. Проверка и запуск серверов
+echo ""
+echo -e "${BLUE}🔌 Step 0/6: Проверка и запуск серверов...${NC}"
+echo "-----------------------------------"
+if "$SCRIPT_DIR/start-servers.sh"; then
+    print_status 0 "Серверы запущены и работают"
+else
+    SERVER_EXIT_CODE=$?
+    case $SERVER_EXIT_CODE in
+        1)
+            print_status 1 "Ошибка запуска backend сервера"
+            ;;
+        2)
+            print_status 1 "Ошибка запуска frontend сервера"
+            ;;
+        3)
+            print_status 1 "Ошибка запуска обоих серверов"
+            ;;
+        *)
+            print_status 1 "Неизвестная ошибка при запуске серверов"
+            ;;
+    esac
+    echo -e "${YELLOW}⚠️  Продолжаем валидацию, но некоторые тесты могут не пройти${NC}"
+fi
+
 # 1. Type Checking
 echo ""
-echo "📝 Step 1/5: TypeScript Type Checking..."
+echo "📝 Step 1/6: TypeScript Type Checking..."
 echo "-----------------------------------"
 if npm run type-check; then
     print_status 0 "Type checking passed"
@@ -39,7 +67,7 @@ fi
 
 # 2. Linting
 echo ""
-echo "🔍 Step 2/5: ESLint (Code Quality & Security)..."
+echo "🔍 Step 2/6: ESLint (Code Quality & Security)..."
 echo "-----------------------------------"
 if npm run lint; then
     print_status 0 "Linting passed"
@@ -50,7 +78,7 @@ fi
 
 # 3. Code Formatting
 echo ""
-echo "🎨 Step 3/5: Prettier (Code Formatting)..."
+echo "🎨 Step 3/6: Prettier (Code Formatting)..."
 echo "-----------------------------------"
 if npm run format:check; then
     print_status 0 "Formatting check passed"
@@ -61,7 +89,7 @@ fi
 
 # 4. Unit Tests
 echo ""
-echo "🧪 Step 4/5: Running Unit Tests..."
+echo "🧪 Step 4/6: Running Unit Tests..."
 echo "-----------------------------------"
 if npm run test; then
     print_status 0 "All tests passed"
@@ -71,12 +99,23 @@ fi
 
 # 5. Build
 echo ""
-echo "🏗️  Step 5/5: Production Build..."
+echo "🏗️  Step 5/6: Production Build..."
 echo "-----------------------------------"
 if npm run build; then
     print_status 0 "Build successful"
 else
     print_status 1 "Build failed"
+fi
+
+# 6. E2E Tests (требуют запущенных серверов)
+echo ""
+echo "🌐 Step 6/6: E2E Tests..."
+echo "-----------------------------------"
+cd "$PROJECT_ROOT"
+if npm run test:e2e; then
+    print_status 0 "E2E tests passed"
+else
+    print_status 1 "Some E2E tests failed"
 fi
 
 # Final Report
