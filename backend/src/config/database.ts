@@ -1,26 +1,41 @@
-import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Создаем Prisma Client
-// DATABASE_URL должен быть установлен в .env или через переменные окружения
-// Если не установлен, формируем из отдельных переменных
-if (!process.env.DATABASE_URL) {
-  const password = encodeURIComponent(process.env.DB_PASSWORD || "2Lu125JK$CB#NCJak");
-  process.env.DATABASE_URL = 
-    `postgresql://${process.env.DB_USER || "pm"}:${password}@${process.env.DB_HOST || "bankdb.ctogouqa8w5k.eu-north-1.rds.amazonaws.com"}:${process.env.DB_PORT || "5432"}/${process.env.DB_NAME || "bankdb"}?sslmode=require`;
+// Определяем SSL настройки
+// Для AWS RDS с самоподписанными сертификатами нужно отключить проверку
+const requiresSSL = process.env.DB_HOST?.includes("bankdb.ctogouqa8w5k.eu-north-1.rds.amazonaws.com") ||
+                    process.env.DATABASE_URL?.includes("bankdb.ctogouqa8w5k.eu-north-1.rds.amazonaws.com");
+
+// Создаем Pool для PostgreSQL с правильными SSL настройками
+// Используем явные параметры для AWS RDS для лучшей поддержки SSL
+const poolConfig: any = {
+  host: process.env.DB_HOST || "bankdb.ctogouqa8w5k.eu-north-1.rds.amazonaws.com",
+  port: parseInt(process.env.DB_PORT || "5432"),
+  database: process.env.DB_NAME || "bankdb",
+  user: process.env.DB_USER || "pm",
+  password: process.env.DB_PASSWORD || "2Lu125JK$CB#NCJak",
+  // Дополнительные настройки для надежности соединения
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+};
+
+// Настраиваем SSL для AWS RDS (всегда требуется для этого хоста)
+if (requiresSSL) {
+  poolConfig.ssl = {
+    require: true,
+    rejectUnauthorized: false  // Отключаем проверку сертификата для самоподписанных сертификатов AWS RDS
+  };
 }
 
-// Создаем экземпляр Prisma Client
-export const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-});
+const pool = new Pool(poolConfig);
 
-// Обработка подключения
-prisma.$connect()
+// Тест подключения при старте
+pool.query('SELECT NOW()')
   .then(() => {
-    console.log("Database connected via Prisma");
+    console.log("Database connected successfully");
   })
   .catch((err) => {
     console.error("Failed to connect to database:", err);
@@ -28,9 +43,8 @@ prisma.$connect()
 
 // Обработка отключения при завершении приложения
 process.on("beforeExit", async () => {
-  await prisma.$disconnect();
+  await pool.end();
 });
 
-// Экспортируем также старый pool для обратной совместимости (можно будет удалить позже)
-// @deprecated Используйте prisma вместо pool
-export { prisma as pool };
+// Экспортируем pool для использования в сервисах
+export { pool };

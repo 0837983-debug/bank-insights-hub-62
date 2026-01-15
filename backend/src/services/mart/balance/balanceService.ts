@@ -3,7 +3,7 @@ import { getLatestPeriodForTable, getPreviousPeriod, formatDateForSQL } from "..
 import { calculateChange, calculatePercentage } from "../base/calculationService.js";
 import { TableRowData, KPIMetric } from "../types.js";
 import { getKPIMetricsByCategory } from "../kpi/kpiService.js";
-import { getRowName, isRowGroup, getParentId, getSortOrder } from "../base/rowNameMapper.js";
+import { getRowName, getRowDescription, isRowGroup, getParentId, getSortOrder } from "../base/rowNameMapper.js";
 
 /**
  * Get balance KPI metrics
@@ -91,7 +91,7 @@ export async function getAssets(periodDate?: Date): Promise<TableRowData[]> {
       return {
         id: rowCode,
         name: getRowName(rowCode),
-        description: row.description || undefined,
+        description: getRowDescription(rowCode) || row.description || undefined,
         value: value,
         percentage: percentage,
         change: change,
@@ -187,7 +187,7 @@ export async function getLiabilities(periodDate?: Date): Promise<TableRowData[]>
       return {
         id: rowCode,
         name: getRowName(rowCode),
-        description: row.description || undefined,
+        description: getRowDescription(rowCode) || row.description || undefined,
         value: value,
         percentage: percentage,
         change: change,

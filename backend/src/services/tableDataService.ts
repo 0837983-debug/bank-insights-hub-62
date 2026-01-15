@@ -1,4 +1,4 @@
-import { prisma } from "../config/database.js";
+import { pool } from "../config/database.js";
 
 export interface TableRowData {
   id: string;
@@ -17,17 +17,18 @@ export interface TableRowData {
  * Get table data by table ID
  */
 export async function getTableData(tableId: string): Promise<TableRowData[]> {
-  const rows = await prisma.dashboardTableData.findMany({
-    where: {
-      tableId: tableId,
-    },
-    orderBy: [
-      { sortOrder: "asc" },
-      { rowId: "asc" },
-    ],
-  });
+  const result = await pool.query(
+    `SELECT 
+      row_id as "rowId", name, description, value, percentage, change,
+      is_group as "isGroup", is_total as "isTotal", parent_id as "parentId",
+      sort_order as "sortOrder"
+    FROM dashboard.table_data
+    WHERE table_id = $1
+    ORDER BY sort_order ASC, row_id ASC`,
+    [tableId]
+  );
 
-  return rows.map((row) => ({
+  return result.rows.map((row) => ({
     id: row.rowId,
     name: row.name,
     description: row.description || undefined,
@@ -48,41 +49,50 @@ export async function upsertTableData(
   tableId: string,
   rows: Omit<TableRowData, "sortOrder">[]
 ): Promise<void> {
-  await prisma.$transaction(
-    rows.map((row, index) =>
-      prisma.dashboardTableData.upsert({
-        where: {
-          tableId_rowId: {
-            tableId: tableId,
-            rowId: row.id,
-          },
-        },
-        update: {
-          name: row.name,
-          description: row.description || null,
-          value: row.value,
-          percentage: row.percentage || null,
-          change: row.change || null,
-          isGroup: row.isGroup || false,
-          isTotal: row.isTotal || false,
-          parentId: row.parentId || null,
-          sortOrder: index,
-          updatedAt: new Date(),
-        },
-        create: {
-          tableId: tableId,
-          rowId: row.id,
-          name: row.name,
-          description: row.description || null,
-          value: row.value,
-          percentage: row.percentage || null,
-          change: row.change || null,
-          isGroup: row.isGroup || false,
-          isTotal: row.isTotal || false,
-          parentId: row.parentId || null,
-          sortOrder: index,
-        },
-      })
-    )
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      await client.query(
+        `INSERT INTO dashboard.table_data 
+         (table_id, row_id, name, description, value, percentage, change, 
+          is_group, is_total, parent_id, sort_order, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
+         ON CONFLICT (table_id, row_id)
+         DO UPDATE SET
+           name = EXCLUDED.name,
+           description = EXCLUDED.description,
+           value = EXCLUDED.value,
+           percentage = EXCLUDED.percentage,
+           change = EXCLUDED.change,
+           is_group = EXCLUDED.is_group,
+           is_total = EXCLUDED.is_total,
+           parent_id = EXCLUDED.parent_id,
+           sort_order = EXCLUDED.sort_order,
+           updated_at = CURRENT_TIMESTAMP`,
+        [
+          tableId,
+          row.id,
+          row.name,
+          row.description || null,
+          row.value,
+          row.percentage || null,
+          row.change || null,
+          row.isGroup || false,
+          row.isTotal || false,
+          row.parentId || null,
+          index,
+        ]
+      );
+    }
+    
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
