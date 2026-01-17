@@ -160,29 +160,33 @@ export async function getKPIMetrics(
       return [];
     }
 
-    // 4. Объединяем данные из БД с метаданными компонентов
+    // 4. Формируем результат с данными из БД
     const periodDateFormatted = formatDateForSQL(periodDates.current);
     const metrics: KPIMetric[] = result.rows
       .filter(row => componentsMap.has(row.component_id)) // Фильтруем только нужные компоненты
       .map((row) => {
-        const component = componentsMap.get(row.component_id)!;
         const currentValue = parseFloat(row.value) || 0;
         const previousValue = parseFloat(row.prev_period) || 0;
         const ytdValue = parseFloat(row.prev_year) || 0;
         
-        // Расчет изменений в процентах
-        const change = calculateChange(currentValue, previousValue);
-        const ytdChange = row.prev_year !== null ? calculateChange(currentValue, ytdValue) : undefined;
+        // Расчет изменений в долях (не в процентах)
+        const ppChange = calculateChange(currentValue, previousValue) / 100;
+        const ytdChange = row.prev_year !== null ? calculateChange(currentValue, ytdValue) / 100 : undefined;
         
         // Расчет изменений в абсолютных значениях
-        const changeAbsolute = currentValue - previousValue;
+        const ppChangeAbsolute = currentValue - previousValue;
         const ytdChangeAbsolute = row.prev_year !== null ? currentValue - ytdValue : undefined;
 
         return {
           id: row.component_id,
+          periodDate: periodDateFormatted,
           value: currentValue,
-          change: change,
+          previousValue: previousValue,
+          ytdValue: row.prev_year !== null ? ytdValue : undefined,
+          ppChange: ppChange,
+          ppChangeAbsolute: ppChangeAbsolute,
           ytdChange: ytdChange,
+          ytdChangeAbsolute: ytdChangeAbsolute,
         };
       });
 

@@ -208,33 +208,58 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
           );
           const cardFields = cardFieldsResult.rows;
 
-          // Строим объект формата из полей с иерархией parent_field_id
-          const format: any = {};
-          const mainField = cardFields.find((f: { parentFieldId: string | null }) => !f.parentFieldId);
+          // Разделяем основные поля (без родителя) и дочерние поля (с родителем)
+          const mainFields = cardFields.filter((f: { parentFieldId: string | null }) => !f.parentFieldId);
           const childFields = cardFields.filter((f: { parentFieldId: string | null }) => f.parentFieldId);
 
-          console.log(`[layoutService] Card ${mapping.id} (componentId: ${mapping.componentId}) fields:`, {
-            total: cardFields.length,
-            mainField: mainField ? { fieldId: mainField.fieldId, formatId: mainField.formatId } : null,
-            childFields: childFields.map((f: any) => ({ fieldId: f.fieldId, formatId: f.formatId, parentFieldId: f.parentFieldId }))
-          });
+          // Строим columns из основных полей, включая sub_columns для дочерних полей
+          const columns = mainFields
+            .filter((f: { isVisible: boolean | null }) => f.isVisible !== false)
+            .map((f: any) => {
+              const column: any = {
+                id: f.fieldId,
+                label: f.label ?? f.fieldId,
+                type: f.fieldType,
+              };
 
-          if (mainField && mainField.formatId) {
-            format.value = mainField.formatId;
-          }
-
-          // Сопоставляем дочерние поля с ключами формата на основе field_id
-          for (const childField of childFields) {
-            if (childField.formatId) {
-              if (childField.fieldId === "change_pptd" || childField.fieldId === "PPTD") {
-                format.PPTD = childField.formatId;
-              } else if (childField.fieldId === "change_ytd" || childField.fieldId === "YTD") {
-                format.YTD = childField.formatId;
+              // Добавляем формат, если есть
+              if (f.formatId) {
+                column.format = f.formatId;
               }
-            }
-          }
 
-          console.log(`[layoutService] Final format for card ${mapping.id}:`, format);
+              // Добавляем описание, если есть
+              if (f.description) {
+                column.description = f.description;
+              }
+
+              // Находим дочерние поля для этого основного поля
+              const subColumns = childFields
+                .filter((cf: any) => cf.parentFieldId === f.fieldId)
+                .map((childField: any) => {
+                  const subCol: any = {
+                    id: childField.fieldId,
+                    label: childField.label ?? childField.fieldId,
+                    type: childField.fieldType,
+                  };
+
+                  if (childField.formatId) {
+                    subCol.format = childField.formatId;
+                  }
+
+                  if (childField.description) {
+                    subCol.description = childField.description;
+                  }
+
+                  return subCol;
+                });
+
+              // Добавляем sub_columns, если они есть
+              if (subColumns.length > 0) {
+                column.sub_columns = subColumns;
+              }
+
+              return column;
+            });
 
           const card: any = {
             id: mapping.id.toString(),
@@ -244,7 +269,7 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             ...(mapping.component.tooltip ? { tooltip: mapping.component.tooltip } : {}),
             ...(mapping.component.icon ? { icon: mapping.component.icon } : {}),
             dataSourceKey: mapping.componentId,
-            ...(Object.keys(format).length > 0 ? { format } : {}),
+            ...(columns.length > 0 ? { columns } : {}),
           };
           components.push(card);
         } else if (type === "table") {

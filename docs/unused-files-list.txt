@@ -1,0 +1,103 @@
+# Список неиспользуемых файлов в проекте
+# Дата проверки: 2025-01-09
+
+## Backend утилиты (не используются в основном коде, но могут запускаться напрямую)
+backend/create-schemas.js
+backend/db.config.js
+backend/drop-all-tables.js
+backend/drop-dashboard-schema.js
+backend/list-all-tables.js
+backend/refresh-balance-data.js
+backend/test-connection.js
+
+## Backend скрипты (утилиты для разработки/отладки)
+backend/src/scripts/check-db-connection.ts
+backend/src/scripts/check-layout-formats.ts
+backend/src/scripts/check-period-dates.ts
+backend/src/scripts/create-schemas.ts
+backend/src/scripts/debug-formats.ts
+backend/src/scripts/dump-config-schema.ts
+backend/src/scripts/export-config-to-json.ts
+backend/src/scripts/insert-november-kpi-data.ts
+backend/src/scripts/migrate-layout-data.ts
+backend/src/scripts/run-migration-014.ts
+backend/src/scripts/run-migration-015.ts
+backend/src/scripts/run-migration-017.ts
+backend/src/scripts/run-migrations.ts
+backend/src/scripts/show-exact-kpi-result.ts
+backend/src/scripts/show-kpi-service-result.ts
+backend/src/scripts/test-kpi-service-current.ts
+backend/src/scripts/test-kpi-service-new.ts
+backend/src/scripts/test-layout-api.ts
+backend/src/scripts/test-period-service.ts
+backend/src/scripts/test-query-directly.ts
+backend/src/scripts/test-service-directly.ts
+backend/src/scripts/verify-mart-data.ts
+
+## Frontend UI компоненты - ИСПОЛЬЗУЮТСЯ (не удалять):
+# src/components/ui/accordion.tsx - используется
+# src/components/ui/alert-dialog.tsx - используется
+# src/components/ui/alert.tsx - используется в DynamicDashboard
+# src/components/ui/aspect-ratio.tsx - используется
+# src/components/ui/avatar.tsx - используется
+# src/components/ui/badge.tsx - используется в DevTools
+# src/components/ui/checkbox.tsx - используется
+# src/components/ui/collapsible.tsx - используется
+# src/components/ui/context-menu.tsx - используется
+# src/components/ui/dropdown-menu.tsx - используется в Header
+# src/components/ui/form.tsx - используется
+# src/components/ui/hover-card.tsx - используется
+# src/components/ui/popover.tsx - используется
+# src/components/ui/progress.tsx - используется
+# src/components/ui/scroll-area.tsx - используется
+# src/components/ui/select.tsx - используется в DevTools
+# src/components/ui/separator.tsx - используется
+# src/components/ui/skeleton.tsx - используется в DynamicDashboard
+# src/components/ui/switch.tsx - используется
+# src/components/ui/table.tsx - используется в FinancialTable
+# src/components/ui/tabs.tsx - используется
+# src/components/ui/textarea.tsx - используется в DevTools
+# src/components/ui/toast.tsx - используется в toaster
+# src/components/ui/toaster.tsx - используется в App
+# src/components/ui/toggle.tsx - используется
+# src/components/ui/chart.tsx - используется
+
+## Frontend UI компоненты - НЕ ИСПОЛЬЗУЮТСЯ (можно удалить):
+src/components/ui/breadcrumb.tsx
+src/components/ui/calendar.tsx
+src/components/ui/carousel.tsx
+src/components/ui/command.tsx
+src/components/ui/drawer.tsx
+src/components/ui/input-otp.tsx
+src/components/ui/menubar.tsx
+src/components/ui/navigation-menu.tsx
+src/components/ui/pagination.tsx
+src/components/ui/radio-group.tsx
+src/components/ui/resizable.tsx
+src/components/ui/sheet.tsx
+src/components/ui/slider.tsx
+src/components/ui/toggle-group.tsx
+
+## Frontend компоненты (ИСПОЛЬЗУЮТСЯ - не удалять)
+# src/components/FinancialTable.tsx - используется в DynamicDashboard
+# src/components/SortableHeader.tsx - используется в FinancialTable
+# src/components/report/CollapsibleSection.tsx - используется в DynamicDashboard
+
+## Frontend хуки (ИСПОЛЬЗУЮТСЯ - не удалять)
+# src/hooks/use-table-sort.ts - используется в FinancialTable
+# src/hooks/use-toast.ts - используется в toaster и use-toast
+
+## Документация (не импортируется, но нужна)
+# Все файлы в docs/ - это документация, не удалять
+
+## Конфигурационные файлы (используются системой сборки)
+# Все .config.*, tsconfig.*, package.json - не удалять
+
+## Миграции (используются при развертывании)
+# Все файлы в backend/src/migrations/ - не удалять
+
+## Примечания:
+- Backend скрипты могут запускаться напрямую через npm scripts или вручную
+- UI компоненты shadcn/ui могут использоваться в будущем
+- Некоторые компоненты могут использоваться динамически через строковые ссылки
+- Рекомендуется проверить использование каждого файла перед удалением
