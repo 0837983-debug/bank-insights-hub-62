@@ -1,54 +1,70 @@
 /**
- * Universal formatting utilities for numbers, currency, and percentages
- * Based on format definitions from layout API
+ * Универсальные утилиты форматирования для чисел, валют и процентов
+ * Основано на определениях форматов из layout API
+ * 
+ * Форматы загружаются из layout API при загрузке страницы и кэшируются
+ * для использования во всем приложении.
  */
 
-export interface FormatConfig {
-  kind: "number" | "currency" | "percent" | "date";
-  prefixUnitSymbol?: string;
-  suffixUnitSymbol?: string;
-  minimumFractionDigits?: number;
-  maximumFractionDigits?: number;
-  thousandSeparator?: boolean;
-  multiplier?: number;
-  shorten?: boolean;
-  currency?: string;
-  pattern?: string;
+import type { LayoutFormat } from "@/lib/api";
+
+// Глобальный кэш для форматов, загруженных из layout API
+let formatsCache: Record<string, LayoutFormat> = {};
+
+/**
+ * Инициализирует кэш форматов из данных layout API
+ * Должна вызываться при загрузке layout при инициализации страницы
+ * 
+ * @param formats - Объект форматов из layout API (layout.formats)
+ */
+export function initializeFormats(formats: Record<string, LayoutFormat>): void {
+  formatsCache = formats;
 }
 
 /**
- * Format a number value according to the format configuration
+ * Получить кэш форматов (для целей тестирования/отладки)
+ */
+export function getFormatsCache(): Record<string, LayoutFormat> {
+  return formatsCache;
+}
+
+/**
+ * Форматирует числовое значение согласно конфигурации формата из layout API
+ * 
+ * @param formatId - ID формата (ключ из layout.formats)
+ * @param value - Числовое значение для форматирования
+ * @returns Отформатированная строка или "-" если значение null/undefined/NaN
+ * 
+ * @example
+ * // Предполагая, что формат "currency_rub" загружен из layout API
+ * formatValue("currency_rub", 1000000) // "₽1.0M"
+ * formatValue("percent", 5.2) // "5.2%"
  */
 export function formatValue(
-  value: number | null | undefined,
-  formatConfig?: FormatConfig | string,
-  formats?: Record<string, FormatConfig>
+  formatId: string,
+  value: number | null | undefined
 ): string {
   if (value === null || value === undefined || isNaN(value)) {
     return "-";
   }
 
-  // If formatConfig is a string (format ID), look it up in formats dictionary
-  let config: FormatConfig | undefined;
-  if (typeof formatConfig === "string") {
-    config = formats?.[formatConfig];
-  } else {
-    config = formatConfig;
-  }
+  // Получить конфигурацию формата из кэша
+  const config = formatsCache[formatId];
 
-  // If no config, return raw number
+  // Если конфигурация не найдена, вернуть исходное число как запасной вариант
   if (!config) {
+    console.warn(`Format config not found for formatId: ${formatId}. Available formats:`, Object.keys(formatsCache));
     return value.toString();
   }
 
   let processedValue = value;
 
-  // Apply multiplier
+  // Применить множитель из конфигурации формата
   if (config.multiplier) {
     processedValue = processedValue * config.multiplier;
   }
 
-  // Handle shortening (K, M, B)
+  // Обработать сокращение (K, M, B)
   let suffix = "";
   if (config.shorten) {
     const absValue = Math.abs(processedValue);
@@ -64,24 +80,28 @@ export function formatValue(
     }
   }
 
-  // Format the number
+  // Форматировать число
   const minDigits = config.minimumFractionDigits ?? 0;
   const maxDigits = config.maximumFractionDigits ?? 2;
-  let formattedNumber = processedValue.toFixed(maxDigits);
+  
+  // Используем Intl.NumberFormat для правильного форматирования с min/max digits
+  // Используем 'en-US' чтобы получить точку в качестве десятичного разделителя
+  const formatter = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: minDigits,
+    maximumFractionDigits: maxDigits,
+    useGrouping: false, // Разделители тысяч обрабатываем отдельно
+  });
+  
+  let formattedNumber = formatter.format(processedValue);
 
-  // Remove trailing zeros if not required by minimumFractionDigits
-  if (minDigits < maxDigits) {
-    formattedNumber = parseFloat(formattedNumber).toFixed(minDigits);
-  }
-
-  // Add thousand separators
+  // Добавить разделители тысяч
   if (config.thousandSeparator) {
     const parts = formattedNumber.split(".");
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     formattedNumber = parts.join(".");
   }
 
-  // Build final string with prefix/suffix
+  // Построить итоговую строку с префиксом/суффиксом
   let result = formattedNumber;
 
   if (config.prefixUnitSymbol) {
@@ -100,50 +120,79 @@ export function formatValue(
 }
 
 /**
- * Format currency value
+ * Форматирует значение валюты (устарело - используйте formatValue с formatId из layout)
+ * @deprecated Используйте formatValue(formatId, value) вместо этого
  */
 export function formatCurrency(
   value: number,
   currency: string = "RUB",
   shorten: boolean = true
 ): string {
-  return formatValue(value, {
+  // Попытаться использовать формат из кэша, если доступен
+  const formatId = currency === "RUB" ? "currency_rub" : "currency_usd";
+  if (formatsCache[formatId]) {
+    return formatValue(formatId, value);
+  }
+  
+  // Запасной вариант - форматирование по умолчанию
+  const config: LayoutFormat = {
     kind: "currency",
     prefixUnitSymbol: currency === "RUB" ? "₽" : "$",
     thousandSeparator: true,
     shorten,
     minimumFractionDigits: shorten ? 0 : 2,
     maximumFractionDigits: shorten ? 1 : 2,
-  });
+  };
+  formatsCache[formatId] = config;
+  return formatValue(formatId, value);
 }
 
 /**
- * Format number with optional shortening
+ * Форматирует число с опциональным сокращением (устарело - используйте formatValue с formatId из layout)
+ * @deprecated Используйте formatValue(formatId, value) вместо этого
  */
 export function formatNumber(value: number, shorten: boolean = true, decimals?: number): string {
-  return formatValue(value, {
+  const formatId = `number_${shorten ? "short" : "long"}_${decimals ?? 0}`;
+  if (formatsCache[formatId]) {
+    return formatValue(formatId, value);
+  }
+  
+  // Запасной вариант - форматирование по умолчанию
+  const config: LayoutFormat = {
     kind: "number",
     thousandSeparator: true,
     shorten,
     minimumFractionDigits: decimals ?? 0,
     maximumFractionDigits: decimals ?? (shorten ? 1 : 0),
-  });
+  };
+  formatsCache[formatId] = config;
+  return formatValue(formatId, value);
 }
 
 /**
- * Format percentage value
+ * Форматирует процентное значение (устарело - используйте formatValue с formatId из layout)
+ * @deprecated Используйте formatValue(formatId, value) вместо этого
  */
 export function formatPercent(value: number, decimals: number = 1): string {
-  return formatValue(value, {
+  const formatId = "percent";
+  if (formatsCache[formatId]) {
+    return formatValue(formatId, value);
+  }
+  
+  // Запасной вариант - форматирование по умолчанию
+  const config: LayoutFormat = {
     kind: "percent",
     suffixUnitSymbol: "%",
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  });
+  };
+  formatsCache[formatId] = config;
+  return formatValue(formatId, value);
 }
 
 /**
- * Format change value with sign
+ * Форматирует значение изменения со знаком (устарело - используйте formatValue с formatId из layout)
+ * @deprecated Используйте formatValue(formatId, value) вместо этого
  */
 export function formatChange(value: number, decimals: number = 1): string {
   const sign = value > 0 ? "+" : "";
@@ -151,7 +200,7 @@ export function formatChange(value: number, decimals: number = 1): string {
 }
 
 /**
- * Format date value
+ * Форматирует значение даты
  */
 export function formatDate(
   date: Date | string | number,

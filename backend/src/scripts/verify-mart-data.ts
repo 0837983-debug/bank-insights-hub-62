@@ -32,25 +32,7 @@ async function verifyMartData() {
       console.log("   ⚠️  Данных нет! Загрузите данные через миграцию 011_insert_test_data_mart.sql");
     }
 
-    // 2. Check Financial Results
-    console.log("\n2. Financial Results (mart.financial_results):");
-    const frResult = await client.query(`
-      SELECT 
-        report_class,
-        COUNT(DISTINCT row_code) as unique_rows,
-        COUNT(*) as total_records,
-        MIN(period_date) as min_date,
-        MAX(period_date) as max_date
-      FROM mart.financial_results
-      GROUP BY report_class
-    `);
-    console.log(`   Найдено классов: ${frResult.rows.length}`);
-    frResult.rows.forEach((row) => {
-      console.log(`   - ${row.report_class}: ${row.unique_rows} уникальных строк, ${row.total_records} записей`);
-      console.log(`     Период: ${row.min_date} - ${row.max_date}`);
-    });
-
-    // 3. Check Balance
+    // 2. Check Balance (Financial Results table has been removed)
     console.log("\n3. Balance (mart.balance):");
     const balanceResult = await client.query(`
       SELECT 
@@ -119,13 +101,7 @@ async function verifyMartData() {
       console.log(`\n   Последний период KPI: ${latestKpi.rows[0].latest_date} (${latestKpi.rows[0].count} записей)`);
     }
 
-    const latestFr = await client.query(`
-      SELECT MAX(period_date) as latest_date, COUNT(*) as count
-      FROM mart.financial_results
-    `);
-    if (latestFr.rows[0].latest_date) {
-      console.log(`   Последний период Financial Results: ${latestFr.rows[0].latest_date} (${latestFr.rows[0].count} записей)`);
-    }
+    // Financial Results table has been removed
 
     const latestBalance = await client.query(`
       SELECT MAX(period_date) as latest_date, COUNT(*) as count

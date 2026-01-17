@@ -4,13 +4,9 @@
 
 export interface KPIMetric {
   id: string;
-  title: string;
   value: number;
-  description: string;
-  change: number;
-  ytdChange?: number;
-  category: string;
-  icon?: string;
+  change: number; // изменение относительно предыдущего периода в процентах
+  ytdChange?: number; // изменение YTD в процентах
 }
 
 export interface TableRowData {

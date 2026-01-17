@@ -1,9 +1,7 @@
 import { Router } from "express";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { getTableData } from "../services/tableDataService.js";
-import { getIncome, getExpenses } from "../services/mart/financialResults/financialResultsService.js";
-import { getAssets, getLiabilities } from "../services/mart/balance/balanceService.js";
+import { getAssets, getLiabilities } from "../services/mart/balanceService.js";
 
 const router = Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -38,38 +36,6 @@ router.get("/:tableId", async (req, res) => {
 
     // Handle new MART table IDs
     switch (tableId) {
-      case "financial_results_income":
-        try {
-          const incomeData = await getIncome(
-            groupBy as string | undefined,
-            targetPeriod
-          );
-          return res.json({
-            tableId,
-            rows: incomeData,
-            ...(groupBy && { groupBy: [groupBy] }),
-          });
-        } catch (error) {
-          console.error("Error fetching financial results income:", error);
-          return res.status(500).json({ error: "Failed to fetch income data" });
-        }
-
-      case "financial_results_expenses":
-        try {
-          const expensesData = await getExpenses(
-            groupBy as string | undefined,
-            targetPeriod
-          );
-          return res.json({
-            tableId,
-            rows: expensesData,
-            ...(groupBy && { groupBy: [groupBy] }),
-          });
-        } catch (error) {
-          console.error("Error fetching financial results expenses:", error);
-          return res.status(500).json({ error: "Failed to fetch expenses data" });
-        }
-
       case "balance_assets":
         try {
           const assetsData = await getAssets(targetPeriod);
@@ -97,9 +63,6 @@ router.get("/:tableId", async (req, res) => {
 
     // Map legacy table IDs to new MART table IDs
     const tableIdMapping: Record<string, string> = {
-      "income": "financial_results_income",
-      "income_structure": "financial_results_income",
-      "expenses": "financial_results_expenses",
       "assets": "balance_assets",
       "liabilities": "balance_liabilities",
     };
@@ -110,36 +73,6 @@ router.get("/:tableId", async (req, res) => {
       
       // Use the mapped table ID logic
       switch (mappedTableId) {
-        case "financial_results_income":
-          try {
-            const incomeData = await getIncome(
-              groupBy as string | undefined,
-              targetPeriod
-            );
-            return res.json({
-              tableId: mappedTableId,
-              rows: incomeData,
-              ...(groupBy && { groupBy: [groupBy] }),
-            });
-          } catch (error) {
-            console.error("Error fetching financial results income:", error);
-            return res.status(500).json({ error: "Failed to fetch income data" });
-          }
-        case "financial_results_expenses":
-          try {
-            const expensesData = await getExpenses(
-              groupBy as string | undefined,
-              targetPeriod
-            );
-            return res.json({
-              tableId: mappedTableId,
-              rows: expensesData,
-              ...(groupBy && { groupBy: [groupBy] }),
-            });
-          } catch (error) {
-            console.error("Error fetching financial results expenses:", error);
-            return res.status(500).json({ error: "Failed to fetch expenses data" });
-          }
         case "balance_assets":
           try {
             const assetsData = await getAssets(targetPeriod);
@@ -165,24 +98,10 @@ router.get("/:tableId", async (req, res) => {
       }
     }
 
-    // Try old dashboard.table_data as last resort (for non-MART tables)
-    try {
-      const data = await getTableData(tableId);
-      if (data.length === 0) {
-        return res.status(404).json({ 
-          error: `Table data not found for tableId: ${tableId}. Use MART table IDs: financial_results_income, financial_results_expenses, balance_assets, balance_liabilities` 
-        });
-      }
-      return res.json({
-        tableId,
-        rows: data,
-      });
-    } catch (dbError) {
-      console.error("Error fetching from database:", dbError);
-      return res.status(404).json({ 
-        error: `Table data not found for tableId: ${tableId}. Ensure data is loaded in MART tables or dashboard.table_data` 
-      });
-    }
+    // Table not found - return 404
+    return res.status(404).json({ 
+      error: `Table data not found for tableId: ${tableId}. Use MART table IDs: balance_assets, balance_liabilities` 
+    });
   } catch (error: any) {
     console.error("Error fetching table data:", error);
     if (error.code === "ENOENT") {

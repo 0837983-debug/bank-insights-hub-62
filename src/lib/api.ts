@@ -54,11 +54,13 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
 
 export interface LayoutFormat {
   kind: string;
+  pattern?: string;
   prefixUnitSymbol?: string;
   suffixUnitSymbol?: string;
   minimumFractionDigits?: number;
   maximumFractionDigits?: number;
   thousandSeparator?: boolean;
+  multiplier?: number;
   shorten?: boolean;
 }
 
@@ -73,12 +75,13 @@ export interface LayoutFilter {
 }
 
 export interface LayoutComponent {
-  id: string;
+  id: string; // уникальный идентификатор экземпляра (SERIAL из layout_component_mapping)
+  componentId: string; // идентификатор компонента для связи с данными из KPIs API
   type: "card" | "table" | "chart";
   title: string;
   tooltip?: string;
   icon?: string;
-  dataSourceKey: string;
+  dataSourceKey: string; // для обратной совместимости, равно componentId
   format?: Record<string, string>;
   compactDisplay?: boolean;
   columns?: Array<{

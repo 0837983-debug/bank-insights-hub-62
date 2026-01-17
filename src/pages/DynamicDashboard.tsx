@@ -1,57 +1,18 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLayout, useAllKPIs, useTableData } from "@/hooks/useAPI";
 import { KPICard } from "@/components/KPICard";
 import { Header } from "@/components/Header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import {
-  Landmark,
-  TrendingUp,
-  Percent,
-  Activity,
-  Wallet,
-  Users,
-  UserCheck,
-  UserMinus,
-  RefreshCw,
-  BarChart3,
-  type LucideIcon,
-} from "lucide-react";
 import { CollapsibleSection } from "@/components/report/CollapsibleSection";
-import { formatValue, type FormatConfig } from "@/lib/formatters";
+import { initializeFormats } from "@/lib/formatters";
 import {
   FinancialTable,
   type TableRowData,
   type GroupingOption,
 } from "@/components/FinancialTable";
 import type { LayoutComponent, TableData } from "@/lib/api";
-
-// Icon mapping for dynamic icon rendering from layout
-const iconMap: Record<string, LucideIcon> = {
-  Landmark,
-  TrendingUp,
-  Percent,
-  Activity,
-  Wallet,
-  Users,
-  UserCheck,
-  UserMinus,
-  RefreshCw,
-  BarChart3,
-};
-
-/**
- * Renders an icon component from a string icon name
- * @param iconName - Name of the icon from layout (e.g., "TrendingUp")
- * @returns React component for the icon or null if not found
- */
-function renderIcon(iconName?: string): React.ReactNode {
-  if (!iconName) return null;
-  const IconComponent = iconMap[iconName];
-  if (!IconComponent) return null;
-  return <IconComponent className="w-5 h-5" />;
-}
 
 // Helper function to transform API table data to FinancialTable format
 // Handles different table structures by detecting name/value fields dynamically
@@ -101,7 +62,6 @@ function transformTableData(apiData: TableData): TableRowData[] {
 // Component for rendering a single table from layout
 interface DynamicTableProps {
   component: LayoutComponent;
-  formats: Record<string, FormatConfig>;
 }
 
 function DynamicTable({ component }: DynamicTableProps) {
@@ -134,7 +94,7 @@ function DynamicTable({ component }: DynamicTableProps) {
     : [];
 
   // Load table data with grouping parameter
-  const { data, isLoading, error } = useTableData(component.dataSourceKey, {
+  const { data, isLoading, error } = useTableData(component.componentId, {
     groupBy: activeGrouping || undefined,
   });
 
@@ -180,7 +140,7 @@ function DynamicTable({ component }: DynamicTableProps) {
         rows={tableRows}
         showPercentage={true}
         showChange={true}
-        tableId={component.dataSourceKey}
+        tableId={component.componentId}
         groupingOptions={groupingOptions.length > 0 ? groupingOptions : undefined}
         activeGrouping={activeGrouping}
         onGroupingChange={handleGroupingChange}
@@ -193,6 +153,13 @@ function DynamicTable({ component }: DynamicTableProps) {
 export default function DynamicDashboard() {
   const { data: layout, isLoading: layoutLoading, error: layoutError } = useLayout();
   const { data: kpis, isLoading: kpisLoading, error: kpisError } = useAllKPIs();
+
+  // Initialize formats cache when layout is loaded
+  useEffect(() => {
+    if (layout && layout.formats) {
+      initializeFormats(layout.formats);
+    }
+  }, [layout]);
 
   if (layoutError || kpisError) {
     return (
@@ -244,9 +211,6 @@ export default function DynamicDashboard() {
     );
   }
 
-  // Create KPI lookup map
-  const kpiMap = new Map(kpis.map((kpi) => [kpi.id, kpi]));
-
   // Filter out sections with no components
   const sectionsWithContent = layout.sections.filter(
     (section) => section.components && section.components.length > 0
@@ -277,52 +241,14 @@ export default function DynamicDashboard() {
           const cardComponents = section.components.filter(
             (component) => component.type === "card"
           );
-          const cardKPIs = cardComponents
-            .map((component) => {
-              const kpi = kpiMap.get(component.dataSourceKey);
-              return kpi ? { component, kpi } : null;
-            })
-            .filter(Boolean);
 
           return (
             <CollapsibleSection key={section.id} title={section.title}>
-              {cardKPIs.length > 0 ? (
-                <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${cardKPIs.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
-                  {cardKPIs.map(({ component, kpi }) => {
-                    // Get format config from layout for this component
-                    const formatId = component.format?.value;
-                    const formatConfig = formatId
-                      ? (layout.formats[formatId] as FormatConfig)
-                      : undefined;
-
-                    // Debug: log format info if formatConfig is missing (only in dev)
-                    if (import.meta.env.DEV && !formatConfig && formatId) {
-                      console.warn(`Format config not found for formatId: ${formatId}`, {
-                        componentId: component.id,
-                        availableFormats: Object.keys(layout.formats),
-                      });
-                    }
-
-                    // Format the value with the config, or pass formats dictionary as fallback
-                    const formattedValue = formatValue(
-                      kpi.value,
-                      formatConfig || formatId,
-                      layout.formats as Record<string, FormatConfig>
-                    );
-
-                    return (
-                      <KPICard
-                        key={component.id}
-                        title={component.title}
-                        value={formattedValue}
-                        description={component.tooltip || ""}
-                        icon={renderIcon(component.icon)}
-                        change={kpi.change}
-                        ytdChange={kpi.ytdChange}
-                        showChange={true}
-                      />
-                    );
-                  })}
+              {cardComponents.length > 0 ? (
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${cardComponents.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+                  {cardComponents.map((component) => (
+                    <KPICard key={component.id} componentId={component.id} />
+                  ))}
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground py-4">
@@ -337,7 +263,6 @@ export default function DynamicDashboard() {
                   <DynamicTable
                     key={tableComponent.id}
                     component={tableComponent}
-                    formats={layout.formats as Record<string, FormatConfig>}
                   />
                 ))}
             </CollapsibleSection>

@@ -26,7 +26,6 @@ interface LayoutData {
       title?: string;
       tooltip?: string;
       icon?: string;
-      dataSourceKey?: string;
       format?: Record<string, string>;
       compactDisplay?: boolean;
       columns?: Array<{
@@ -107,12 +106,12 @@ async function migrateLayoutData() {
       // Create mapping for section (top level, parent = NULL)
       await client.query(
         `INSERT INTO config.layout_component_mapping (
-          layout_id, component_id, instance_id, parent_instance_id, display_order, is_visible, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (layout_id, instance_id) DO UPDATE SET
+          layout_id, component_id, parent_component_id, display_order, is_visible, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (layout_id, component_id, parent_component_id) DO UPDATE SET
           display_order = EXCLUDED.display_order,
           updated_at = CURRENT_TIMESTAMP`,
-        [layoutId, sectionComponentId, sectionComponentId, null, displayOrder, true, "system"]
+        [layoutId, sectionComponentId, null, displayOrder, true, "system"]
       );
 
       // 3. Migrate components within section
@@ -123,15 +122,14 @@ async function migrateLayoutData() {
         // Create component
         await client.query(
           `INSERT INTO config.components (
-            id, component_type, title, label, tooltip, icon, data_source_key, 
+            id, component_type, title, label, tooltip, icon, 
             settings, description, category, is_active, created_by
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           ON CONFLICT (id) DO UPDATE SET
             title = EXCLUDED.title,
             label = EXCLUDED.label,
             tooltip = EXCLUDED.tooltip,
             icon = EXCLUDED.icon,
-            data_source_key = EXCLUDED.data_source_key,
             settings = EXCLUDED.settings,
             updated_at = CURRENT_TIMESTAMP`,
           [
@@ -141,7 +139,6 @@ async function migrateLayoutData() {
             comp.title,
             comp.tooltip || null,
             comp.icon || null,
-            comp.dataSourceKey || null,
             comp.groupableFields ? JSON.stringify({ groupableFields: comp.groupableFields }) : null,
             comp.type === "table" ? `Таблица: ${comp.title}` : comp.type === "card" ? `Карточка: ${comp.title}` : null,
             comp.type,
@@ -153,12 +150,12 @@ async function migrateLayoutData() {
         // Create mapping for component (child of section)
         await client.query(
           `INSERT INTO config.layout_component_mapping (
-            layout_id, component_id, instance_id, parent_instance_id, display_order, is_visible, created_by
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (layout_id, instance_id) DO UPDATE SET
+            layout_id, component_id, parent_component_id, display_order, is_visible, created_by
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (layout_id, component_id, parent_component_id) DO UPDATE SET
             display_order = EXCLUDED.display_order,
             updated_at = CURRENT_TIMESTAMP`,
-          [layoutId, comp.id, comp.id, sectionComponentId, componentOrder, true, "system"]
+          [layoutId, comp.id, sectionComponentId, componentOrder, true, "system"]
         );
 
         // 4. For tables, migrate columns as component_fields
@@ -271,14 +268,13 @@ async function migrateLayoutData() {
         // Create mapping for filter group
         await client.query(
           `INSERT INTO config.layout_component_mapping (
-            layout_id, component_id, instance_id, parent_instance_id, display_order, is_visible, created_by
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (layout_id, instance_id) DO UPDATE SET
+            layout_id, component_id, parent_component_id, display_order, is_visible, created_by
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (layout_id, component_id, parent_component_id) DO UPDATE SET
             display_order = EXCLUDED.display_order,
             updated_at = CURRENT_TIMESTAMP`,
           [
             layoutId,
-            filterGroupComponentId,
             filterGroupComponentId,
             null,
             1000 + filterGroupOrder, // Place filters after sections
@@ -295,9 +291,9 @@ async function migrateLayoutData() {
           // Create filter component
           await client.query(
             `INSERT INTO config.components (
-              id, component_type, title, label, data_source_key, action_params, 
+              id, component_type, title, label, action_params, 
               description, category, is_active, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (id) DO UPDATE SET
               title = EXCLUDED.title,
               label = EXCLUDED.label,
@@ -308,7 +304,6 @@ async function migrateLayoutData() {
               "filter",
               filterItem.label,
               filterItem.label,
-              filterItem.id,
               filterItem.params ? JSON.stringify(filterItem.params) : null,
               `Фильтр: ${filterItem.label}`,
               "filter",
@@ -320,14 +315,13 @@ async function migrateLayoutData() {
           // Create mapping for filter item
           await client.query(
             `INSERT INTO config.layout_component_mapping (
-              layout_id, component_id, instance_id, parent_instance_id, display_order, is_visible, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (layout_id, instance_id) DO UPDATE SET
+              layout_id, component_id, parent_component_id, display_order, is_visible, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (layout_id, component_id, parent_component_id) DO UPDATE SET
               display_order = EXCLUDED.display_order,
               updated_at = CURRENT_TIMESTAMP`,
             [
               layoutId,
-              filterItem.id,
               filterItem.id,
               filterGroupComponentId,
               filterItemOrder,

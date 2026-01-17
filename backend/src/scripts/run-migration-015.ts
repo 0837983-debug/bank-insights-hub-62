@@ -29,38 +29,38 @@ async function runMigration015() {
     
     // Check if mapping exists
     const mappingCheck = await client.query(`
-      SELECT lcm.instance_id, lcm.parent_instance_id, lcm.display_order, lcm.deleted_at
+      SELECT lcm.id, lcm.component_id, lcm.parent_component_id, lcm.display_order, lcm.deleted_at
       FROM config.layout_component_mapping lcm
       WHERE lcm.component_id = 'assets_table' AND lcm.layout_id = 'main_dashboard'
     `);
     console.log(`\n📋 Assets table mapping:`, mappingCheck.rows.length > 0 ? mappingCheck.rows[0] : 'NOT FOUND');
     
-    // Find section_balance instance_id
+    // Find section_balance component_id
     const sectionCheck = await client.query(`
-      SELECT lcm.instance_id, c.title
+      SELECT lcm.component_id, c.title
       FROM config.layout_component_mapping lcm
       INNER JOIN config.components c ON lcm.component_id = c.id
-      WHERE lcm.parent_instance_id IS NULL
+      WHERE lcm.parent_component_id IS NULL
         AND c.component_type = 'container'
         AND c.title = 'Баланс'
         AND lcm.deleted_at IS NULL
     `);
-    console.log(`\n📋 Balance section instance:`, sectionCheck.rows.length > 0 ? sectionCheck.rows[0] : 'NOT FOUND');
+    console.log(`\n📋 Balance section component:`, sectionCheck.rows.length > 0 ? sectionCheck.rows[0] : 'NOT FOUND');
     
     // Verify the result
     const verifyResult = await client.query(`
       SELECT 
-        lcm.instance_id,
+        lcm.id,
+        lcm.component_id,
         c.component_type,
         c.title,
-        c.data_source_key,
         lcm.display_order
       FROM config.layout_component_mapping lcm
       INNER JOIN config.components c ON lcm.component_id = c.id
-      WHERE lcm.parent_instance_id IN (
-        SELECT instance_id 
+      WHERE lcm.parent_component_id IN (
+        SELECT component_id 
         FROM config.layout_component_mapping
-        WHERE parent_instance_id IS NULL
+        WHERE parent_component_id IS NULL
           AND component_id IN (
             SELECT id FROM config.components 
             WHERE component_type = 'container' AND title = 'Баланс'
@@ -72,7 +72,7 @@ async function runMigration015() {
     
     console.log(`\n✅ Found ${verifyResult.rows.length} components in Balance section:`);
     verifyResult.rows.forEach((row: any) => {
-      console.log(`   - ${row.instance_id}: ${row.component_type} "${row.title}" (dataSourceKey: ${row.data_source_key})`);
+      console.log(`   - ${row.component_id}: ${row.component_type} "${row.title}"`);
     });
     
   } catch (error) {

@@ -1,4 +1,4 @@
-import { buildLayoutFromDB } from "../services/layoutService.js";
+import { buildLayoutFromDB } from "../services/config/layoutService.js";
 
 async function testService() {
   try {

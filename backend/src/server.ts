@@ -209,17 +209,6 @@ app.get("/api-docs", (_req, res) => {
       <div class="example">curl http://localhost:3001/api/layout?layout_id=default</div>
     </div>
 
-    <h2>Commands Endpoint</h2>
-    <div class="endpoint">
-      <span class="method post">POST</span>
-      <span class="path">/api/commands/run</span>
-      <div class="description">Execute a command on the server (for development tools)</div>
-      <div class="params">
-        <div class="param"><strong>commandKey</strong> (body, JSON) - Command key to execute</div>
-      </div>
-      <div class="example">curl -X POST http://localhost:3001/api/commands/run -H "Content-Type: application/json" -d '{"commandKey":"test"}'</div>
-    </div>
-
     <h2>Response Format</h2>
     <div class="endpoint">
       <div class="description">

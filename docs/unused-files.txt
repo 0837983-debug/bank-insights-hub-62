@@ -72,6 +72,37 @@ CSS ФАЙЛЫ:
 -----------
 src/App.css
 
+ДОКУМЕНТАЦИЯ (Documentation):
+------------------------------
+docs/WORKFLOW.md
+docs/QUICK_START.md
+docs/PROTOTYPE_README.md
+
+МИГРАЦИИ БАЗЫ ДАННЫХ (Database Migrations):
+--------------------------------------------
+backend/src/migrations/001_create_kpi_tables.sql
+backend/src/migrations/001_create_schemas.sql
+backend/src/migrations/002_insert_initial_data.sql
+backend/src/migrations/003_create_config_tables.sql
+backend/src/migrations/004_load_layout_data.sql
+backend/src/migrations/005_create_formats_table.sql
+backend/src/migrations/006_load_formats_data.sql
+backend/src/migrations/007_create_config_schema.sql
+backend/src/migrations/008_create_config_history_table.sql
+backend/src/migrations/009_migrate_layout_data.sql
+backend/src/migrations/010_create_mart_tables.sql
+backend/src/migrations/011_insert_test_data_mart.sql
+backend/src/migrations/012_insert_component_fields_for_cards.sql
+backend/src/migrations/013_add_component_fields_metadata.sql
+backend/src/migrations/014_remove_sections_except_balance.sql
+backend/src/migrations/015_add_assets_table_to_balance.sql
+backend/src/migrations/015_remove_unused_formats.sql
+
+СЕРВИСЫ (Services) - УДАЛЕНЫ:
+-----------------------------
+backend/src/services/incomeGroupingService.ts
+backend/src/services/kpiService.ts
+
 СГЕНЕРИРОВАННЫЕ ДИРЕКТОРИИ:
 ---------------------------
 playwright-report/

@@ -1,2 +1,0 @@
--- This migration file is empty - formats data is loaded in migration 006_load_formats_data.sql
--- Other layout data loading was removed as per requirements

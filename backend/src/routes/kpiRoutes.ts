@@ -2,8 +2,7 @@ import { Router } from "express";
 import {
   getKPIMetrics,
   getKPIMetricsByCategory,
-  getKPIMetricById,
-} from "../services/mart/kpi/kpiService.js";
+} from "../services/mart/kpiService.js";
 
 const router = Router();
 
@@ -41,38 +40,6 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error("Error fetching KPI metrics from MART:", error);
     res.status(500).json({ error: "Failed to fetch KPI metrics" });
-  }
-});
-
-/**
- * GET /api/kpis/:id
- * Get single KPI metric by component ID
- * Query params:
- *   - periodDate: Optional period date (YYYY-MM-DD format)
- */
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { periodDate } = req.query;
-
-    let targetPeriod: Date | undefined;
-    if (periodDate && typeof periodDate === "string") {
-      targetPeriod = new Date(periodDate);
-      if (isNaN(targetPeriod.getTime())) {
-        return res.status(400).json({ error: "Invalid periodDate format. Use YYYY-MM-DD" });
-      }
-    }
-
-    const metric = await getKPIMetricById(id, targetPeriod);
-
-    if (!metric) {
-      return res.status(404).json({ error: "KPI metric not found" });
-    }
-
-    res.json(metric);
-  } catch (error) {
-    console.error("Error fetching KPI metric:", error);
-    res.status(500).json({ error: "Failed to fetch KPI metric" });
   }
 });
 
