@@ -25,8 +25,8 @@ export async function getKPIMetrics(
     }
     
     if (filteredCards.length === 0) {
-      return [];
-    }
+        return [];
+      }
     
     const componentIds = filteredCards.map(card => card.id);
     
@@ -68,7 +68,7 @@ export async function getKPIMetrics(
          WHERE period_date >= $1 AND period_date <= $2`,
         [formatDateForSQL(previousYearStart), formatDateForSQL(previousYearEnd)]
       );
-      
+    
       // Получаем максимальную дату предыдущего месяца из БД
       const previousMonthStart = new Date(periodDate);
       previousMonthStart.setDate(1);
@@ -102,7 +102,7 @@ export async function getKPIMetrics(
     const periodDateStr = formatDateForSQL(periodDates.current);
     const previousPeriodStr = formatDateForSQL(periodDates.previousMonth);
     const previousYearStr = formatDateForSQL(periodDates.previousYear);
-    
+
     // 3. Один запрос с UNION ALL - без JOIN с config.components
     const query = `
       SELECT 
@@ -165,7 +165,7 @@ export async function getKPIMetrics(
     const metrics: KPIMetric[] = result.rows
       .filter(row => componentsMap.has(row.component_id)) // Фильтруем только нужные компоненты
       .map((row) => {
-        const currentValue = parseFloat(row.value) || 0;
+      const currentValue = parseFloat(row.value) || 0;
         const previousValue = parseFloat(row.prev_period) || 0;
         const ytdValue = parseFloat(row.prev_year) || 0;
         
@@ -177,18 +177,18 @@ export async function getKPIMetrics(
         const ppChangeAbsolute = currentValue - previousValue;
         const ytdChangeAbsolute = row.prev_year !== null ? currentValue - ytdValue : undefined;
 
-        return {
+      return {
           id: row.component_id,
           periodDate: periodDateFormatted,
-          value: currentValue,
+        value: currentValue,
           previousValue: previousValue,
           ytdValue: row.prev_year !== null ? ytdValue : undefined,
           ppChange: ppChange,
           ppChangeAbsolute: ppChangeAbsolute,
-          ytdChange: ytdChange,
+        ytdChange: ytdChange,
           ytdChangeAbsolute: ytdChangeAbsolute,
-        };
-      });
+      };
+    });
 
     return metrics;
   } finally {

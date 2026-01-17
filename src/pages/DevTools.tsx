@@ -105,7 +105,7 @@ export default function DevTools() {
       method: "GET",
       path: "/api/table-data/:tableId",
       description: "Получить данные таблицы с фильтрами",
-      pathParams: [{ name: "tableId", example: "income_structure", description: "ID таблицы" }],
+      pathParams: [{ name: "tableId", example: "assets", description: "ID таблицы" }],
       queryParams: [
         {
           name: "dateFrom",
@@ -124,7 +124,7 @@ export default function DevTools() {
         },
       ],
       responseExample: JSON.stringify(
-        { tableId: "income_structure", columns: [], rows: [] },
+        { tableId: "assets", columns: [], rows: [] },
         null,
         2
       ),

@@ -15,17 +15,31 @@ export interface KPIMetric {
 }
 
 export interface TableRowData {
-  id: string;
-  name: string;
-  description?: string;
+  // Поля из mart.balance (основные)
+  class?: string;
+  section?: string;
+  item?: string;
+  sub_item?: string;
   value: number;
+  // Расчетные поля
   percentage?: number;
-  change?: number;
-  changeYtd?: number;
-  isGroup?: boolean;
-  isTotal?: boolean;
-  parentId?: string;
-  sortOrder: number;
+  previousValue?: number; // значение предыдущего периода
+  ytdValue?: number; // значение на конец прошлого года
+  ppChange?: number; // изменение относительно предыдущего периода в долях
+  ppChangeAbsolute?: number; // абсолютное изменение относительно предыдущего периода
+  ytdChange?: number; // изменение YTD в долях
+  ytdChangeAbsolute?: number; // абсолютное изменение YTD
+  // Поля из mart.balance (аналитика)
+  client_type?: string;
+  client_segment?: string;
+  product_code?: string;
+  portfolio_code?: string;
+  currency_code?: string;
+  // Служебные поля
+  id: string;
+  period_date?: string;
+  description?: string;
+  sortOrder?: number;
 }
 
 export interface PeriodParams {

@@ -76,21 +76,28 @@ export interface LayoutFilter {
 
 export interface LayoutComponent {
   id: string; // уникальный идентификатор экземпляра (SERIAL из layout_component_mapping)
-  componentId: string; // идентификатор компонента для связи с данными из KPIs API
+  componentId: string; // идентификатор компонента для связи с данными (KPIs API, table-data API)
   type: "card" | "table" | "chart";
   title: string;
   tooltip?: string;
   icon?: string;
-  dataSourceKey: string; // для обратной совместимости, равно componentId
   format?: Record<string, string>;
   compactDisplay?: boolean;
   columns?: Array<{
     id: string;
     label: string;
     type: string;
+    format?: string; // formatId для основного поля
+    description?: string;
     isDimension?: boolean;
     isMeasure?: boolean;
-    format?: Record<string, string>;
+    sub_columns?: Array<{
+      id: string;
+      label: string;
+      type: string;
+      format?: string; // formatId для sub_column
+      description?: string;
+    }>;
   }>;
   groupableFields?: string[];
 }
@@ -131,20 +138,36 @@ export async function fetchAllKPIs(): Promise<KPIMetric[]> {
 // ============================================================================
 
 export interface TableRow {
-  id: string;
-  name?: string;
+  // Поля из mart.balance (основные)
+  class?: string;
+  section?: string;
+  item?: string;
+  sub_item?: string;
   value?: number;
+  // Расчетные поля
   percentage?: number;
-  change_pptd?: number;
-  change_ytd?: number;
-  isGroup?: boolean;
-  isTotal?: boolean;
-  parentId?: string;
+  previousValue?: number;
+  ytdValue?: number;
+  ppChange?: number; // в долях
+  ppChangeAbsolute?: number;
+  ytdChange?: number; // в долях
+  ytdChangeAbsolute?: number;
+  // Поля из mart.balance (аналитика)
+  client_type?: string;
+  client_segment?: string;
+  product_code?: string;
+  portfolio_code?: string;
+  currency_code?: string;
+  // Служебные поля
+  id: string;
+  period_date?: string;
+  description?: string;
   [key: string]: unknown;
 }
 
 export interface TableData {
-  tableId: string;
+  componentId: string;
+  type: "table";
   rows: TableRow[];
   requestedPeriod?: string;
   groupBy?: string[];

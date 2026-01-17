@@ -36,17 +36,17 @@ async function verifyMartData() {
     console.log("\n3. Balance (mart.balance):");
     const balanceResult = await client.query(`
       SELECT 
-        balance_class,
+        class,
         COUNT(DISTINCT row_code) as unique_rows,
         COUNT(*) as total_records,
         MIN(period_date) as min_date,
         MAX(period_date) as max_date
       FROM mart.balance
-      GROUP BY balance_class
+      GROUP BY class
     `);
     console.log(`   Найдено классов: ${balanceResult.rows.length}`);
     balanceResult.rows.forEach((row) => {
-      console.log(`   - ${row.balance_class}: ${row.unique_rows} уникальных строк, ${row.total_records} записей`);
+      console.log(`   - ${row.class}: ${row.unique_rows} уникальных строк, ${row.total_records} записей`);
       console.log(`     Период: ${row.min_date} - ${row.max_date}`);
     });
 

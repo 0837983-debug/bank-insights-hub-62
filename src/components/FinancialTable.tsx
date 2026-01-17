@@ -22,13 +22,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { SortableHeader } from "@/components/SortableHeader";
+import { useLayout } from "@/hooks/useAPI";
+import { formatValue } from "@/lib/formatters";
 
 // Данные для столбца с числовыми значениями
 export interface DataColumnValue {
   value: number;
   percentage?: number;
-  change?: number;
-  changeYtd?: number;
+  ppChange?: number;
+  ppChangeAbsolute?: number;
+  ytdChange?: number;
+  ytdChangeAbsolute?: number;
 }
 
 // Определение столбца таблицы
@@ -44,24 +48,38 @@ export interface TableColumn {
   format?: "number" | "currency" | "percent";
 }
 
-// Строка таблицы (с поддержкой обеих версий для обратной совместимости)
+// Строка таблицы
 export interface TableRowData {
-  id: string;
-  // Старый формат (для обратной совместимости):
-  name?: string;
+  // Поля из mart.balance (основные)
+  class?: string;
+  section?: string;
+  item?: string;
+  sub_item?: string;
   value?: number;
+  // Расчетные поля
   percentage?: number;
-  change?: number;
-  changeYtd?: number;
-  // Новый формат:
-  textColumns?: Record<string, string>; // {type: "Доходы", subtype: "Услуги"}
-  dataColumns?: Record<string, DataColumnValue>; // {value1: {value: 100, change: 5}, value2: {value: 200}}
-  // Общие поля:
+  previousValue?: number;
+  ytdValue?: number;
+  ppChange?: number; // в долях
+  ppChangeAbsolute?: number;
+  ytdChange?: number; // в долях
+  ytdChangeAbsolute?: number;
+  // Поля из mart.balance (аналитика)
+  client_type?: string;
+  client_segment?: string;
+  product_code?: string;
+  portfolio_code?: string;
+  currency_code?: string;
+  // Служебные поля
+  id: string;
+  period_date?: string;
   description?: string;
+  sortOrder?: number;
+  // Иерархия
+  parentId?: string;
   isGroup?: boolean;
   isTotal?: boolean;
   indent?: number;
-  parentId?: string;
 }
 
 export interface GroupingOption {
@@ -72,33 +90,18 @@ export interface GroupingOption {
 interface FinancialTableProps {
   title: string;
   rows: TableRowData[];
-  columns?: TableColumn[]; // Новое: явное определение столбцов
-  // Старый формат (для обратной совместимости):
+  columns?: TableColumn[];
   showPercentage?: boolean;
   showChange?: boolean;
   currency?: string;
   periodLabel?: string;
   tableId?: string;
+  componentId?: string; // ID компонента для получения форматов из layout
   groupingOptions?: GroupingOption[];
   activeGrouping?: string | null;
   onGroupingChange?: (groupBy: string | null) => void;
   isLoading?: boolean;
 }
-
-const formatValueWithUnit = (num: number) => {
-  const absNum = Math.abs(num);
-  const sign = num < 0 ? "-" : "";
-  if (absNum >= 1e9) {
-    return `${sign}${(absNum / 1e9).toFixed(2)}`;
-  }
-  if (absNum >= 1e6) {
-    return `${sign}${(absNum / 1e6).toFixed(1)}M`;
-  }
-  if (absNum >= 1e3) {
-    return `${sign}${(absNum / 1e3).toFixed(1)}K`;
-  }
-  return `${sign}${absNum.toFixed(0)}`;
-};
 
 export const FinancialTable = ({
   title,
@@ -106,13 +109,38 @@ export const FinancialTable = ({
   showPercentage = true,
   showChange = true,
   periodLabel = "Значение",
+  componentId,
   groupingOptions,
   activeGrouping: externalActiveGrouping,
   onGroupingChange,
   isLoading = false,
 }: FinancialTableProps) => {
+  // Получаем layout для доступа к форматам
+  const { data: layout } = useLayout();
+  
+  // Находим компонент в layout по componentId
+  const component = componentId
+    ? layout?.sections
+        .flatMap((section) => section.components)
+        .find((c) => c.componentId === componentId && c.type === "table")
+    : null;
+  
+  // Получаем форматы из layout
+  const valueColumn = component?.columns?.find((col) => col.id === "value");
+  const valueFormatId = valueColumn?.format || "currency_rub"; // fallback
+  const percentageFormatId = "percent";
+  
+  // Получаем форматы для изменений из sub_columns
+  const ppChangeSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ppChange");
+  const ppChangeAbsoluteSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ppChangeAbsolute");
+  const ytdChangeSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ytdChange");
+  const ytdChangeAbsoluteSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ytdChangeAbsolute");
+  
+  const ppChangeFormatId = ppChangeSubColumn?.format || percentageFormatId;
+  const ppChangeAbsoluteFormatId = ppChangeAbsoluteSubColumn?.format || valueFormatId;
+  const ytdChangeFormatId = ytdChangeSubColumn?.format || percentageFormatId;
+  const ytdChangeAbsoluteFormatId = ytdChangeAbsoluteSubColumn?.format || valueFormatId;
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  // Use external activeGrouping if provided, otherwise use internal state (for backward compatibility)
   const [internalActiveGrouping, setInternalActiveGrouping] = useState<string | null>(null);
   const activeGrouping =
     externalActiveGrouping !== undefined ? externalActiveGrouping : internalActiveGrouping;
@@ -126,76 +154,103 @@ export const FinancialTable = ({
 
   // Get detail rows for selected row (children or mock breakdown)
   const getDetailRows = (row: TableRowData): TableRowData[] => {
-    // If row has children, show them
-    const children = rows.filter((r) => r.parentId === row.id);
-    if (children.length > 0) {
-      return children;
-    }
-
-    // Otherwise generate mock detail breakdown
+    // Если нет children, генерируем mock детализацию
+    const displayName = [row.section, row.item, row.sub_item]
+      .filter(Boolean)
+      .join(' - ') || row.id;
+    
     return [
       {
         id: `${row.id}-d1`,
-        name: "Детализация 1",
-        value: row.value * 0.35,
+        section: `${displayName} - Детализация 1`,
+        value: (row.value ?? 0) * 0.35,
         percentage: 35.0,
-        change: (row.change ?? 0) + 1.2,
+        ppChange: (row.ppChange ?? 0) + 0.012,
       },
       {
         id: `${row.id}-d2`,
-        name: "Детализация 2",
-        value: row.value * 0.28,
+        section: `${displayName} - Детализация 2`,
+        value: (row.value ?? 0) * 0.28,
         percentage: 28.0,
-        change: (row.change ?? 0) - 0.5,
+        ppChange: (row.ppChange ?? 0) - 0.005,
       },
       {
         id: `${row.id}-d3`,
-        name: "Детализация 3",
-        value: row.value * 0.22,
+        section: `${displayName} - Детализация 3`,
+        value: (row.value ?? 0) * 0.22,
         percentage: 22.0,
-        change: (row.change ?? 0) + 0.8,
+        ppChange: (row.ppChange ?? 0) + 0.008,
       },
       {
         id: `${row.id}-d4`,
-        name: "Детализация 4",
-        value: row.value * 0.15,
+        section: `${displayName} - Детализация 4`,
+        value: (row.value ?? 0) * 0.15,
         percentage: 15.0,
-        change: (row.change ?? 0) - 1.1,
+        ppChange: (row.ppChange ?? 0) - 0.011,
       },
     ];
   };
 
   const getValueFn = useCallback((row: TableRowData, column: string) => {
-    switch (column) {
-      case "name":
-        return row.name;
-      case "value":
-        return row.value;
-      case "percentage":
-        return row.percentage ?? 0;
-      case "change":
-        return row.change ?? 0;
-      default:
-        return row.name;
+    if (column === "name") {
+      const hierarchyFields = [row.class, row.section, row.item, row.sub_item];
+      const lastValue = hierarchyFields.filter(Boolean).pop();
+      return lastValue ?? row.id;
     }
+    // Динамическое получение значения из row по имени колонки
+    const value = (row as any)[column];
+    
+    // Для числовых полей возвращаем число, для текстовых - строку
+    if (typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    
+    // Если значение не найдено, возвращаем пустую строку или 0
+    return '';
   }, []);
 
-  // Build hierarchical structure recursively
-  const buildHierarchy = (parentId: string | undefined): TableRowData[] => {
-    const children = rows.filter((r) => r.parentId === parentId);
-    return children.flatMap((child) => [child, ...buildHierarchy(child.id)]);
-  };
-
-  // Separate top-level rows
-  const topLevelRows = rows.filter((r) => !r.parentId);
+  const hasHierarchy = rows.some((r) => r.parentId || r.isGroup);
+  const topLevelRows = hasHierarchy ? rows.filter((r) => !r.parentId) : rows;
   const {
     sortedData: sortedTopLevel,
     sortState,
     handleSort,
   } = useTableSort(topLevelRows, getValueFn);
 
-  // Rebuild full sorted rows with nested children
-  const sortedRows = sortedTopLevel.flatMap((row) => [row, ...buildHierarchy(row.id)]);
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const childrenByParent = new Map<string, TableRowData[]>();
+  rows.forEach((row) => {
+    if (row.parentId) {
+      const list = childrenByParent.get(row.parentId) ?? [];
+      list.push(row);
+      childrenByParent.set(row.parentId, list);
+    }
+  });
+
+  const sortChildren = (items: TableRowData[]) =>
+    [...items].sort((a, b) => {
+      const aOrder = a.sortOrder ?? 0;
+      const bOrder = b.sortOrder ?? 0;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return a.id.localeCompare(b.id);
+    });
+
+  const buildHierarchy = (parents: TableRowData[]): TableRowData[] => {
+    const result: TableRowData[] = [];
+    sortChildren(parents).forEach((parent) => {
+      result.push(parent);
+      const children = childrenByParent.get(parent.id) ?? [];
+      if (children.length > 0) {
+        result.push(...buildHierarchy(children));
+      }
+    });
+    return result;
+  };
+
+  const sortedRows = hasHierarchy ? buildHierarchy(sortedTopLevel) : sortedTopLevel;
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups((prev) => {
@@ -209,11 +264,10 @@ export const FinancialTable = ({
     });
   };
 
-  // Check if any ancestor is collapsed
   const isRowVisible = (row: TableRowData): boolean => {
     if (!row.parentId) return true;
-
-    // Check all ancestors
+    
+    // Проверяем, не свёрнут ли какой-либо родитель
     let currentParentId: string | undefined = row.parentId;
     while (currentParentId) {
       if (collapsedGroups.has(currentParentId)) return false;
@@ -223,19 +277,17 @@ export const FinancialTable = ({
     return true;
   };
 
-  // Calculate indent level based on hierarchy depth
   const getIndentLevel = (row: TableRowData): number => {
     let level = 0;
     let currentParentId = row.parentId;
     while (currentParentId) {
-      level++;
-      const parent = rows.find((r) => r.id === currentParentId);
+      level += 1;
+      const parent = rowById.get(currentParentId);
       currentParentId = parent?.parentId;
     }
     return level;
   };
 
-  // Get max depth level in the hierarchy (rows that have children)
   const getMaxDepth = (): number => {
     let maxDepth = 0;
     rows.forEach((row) => {
@@ -245,38 +297,43 @@ export const FinancialTable = ({
     return maxDepth;
   };
 
-  // Get all rows that have children (collapsible groups) at a specific depth
+  // Получаем все строки с детьми (группы) на указанном уровне
   const getCollapsibleRowsAtLevel = (level: number): string[] => {
     return rows
       .filter((r) => {
         const rowLevel = getIndentLevel(r);
-        const hasChildren = rows.some((child) => child.parentId === r.id);
+        const hasChildren = (childrenByParent.get(r.id)?.length ?? 0) > 0;
         return rowLevel === level && hasChildren && !r.isTotal;
       })
       .map((r) => r.id);
   };
 
-  // Find the deepest level that has expanded groups
+  // Найти самый глубокий уровень с развёрнутыми группами
   const getDeepestExpandedLevel = (): number => {
     const maxDepth = getMaxDepth();
-    for (let level = maxDepth - 1; level >= 0; level--) {
+    // Ищем с самого глубокого уровня (maxDepth) до 0
+    for (let level = maxDepth; level >= 0; level--) {
       const groupsAtLevel = getCollapsibleRowsAtLevel(level);
-      const hasExpandedAtLevel = groupsAtLevel.some((id) => !collapsedGroups.has(id));
-      if (hasExpandedAtLevel) {
-        return level;
+      if (groupsAtLevel.length > 0) {
+        const hasExpandedAtLevel = groupsAtLevel.some((id) => !collapsedGroups.has(id));
+        if (hasExpandedAtLevel) {
+          return level;
+        }
       }
     }
     return -1;
   };
 
-  // Find the shallowest level that has collapsed groups
+  // Найти самый верхний уровень со свёрнутыми группами
   const getShallowestCollapsedLevel = (): number => {
     const maxDepth = getMaxDepth();
-    for (let level = 0; level < maxDepth; level++) {
+    for (let level = 0; level <= maxDepth; level++) {
       const groupsAtLevel = getCollapsibleRowsAtLevel(level);
-      const hasCollapsedAtLevel = groupsAtLevel.some((id) => collapsedGroups.has(id));
-      if (hasCollapsedAtLevel) {
-        return level;
+      if (groupsAtLevel.length > 0) {
+        const hasCollapsedAtLevel = groupsAtLevel.some((id) => collapsedGroups.has(id));
+        if (hasCollapsedAtLevel) {
+          return level;
+        }
       }
     }
     return -1;
@@ -321,7 +378,7 @@ export const FinancialTable = ({
   };
 
   const visibleRows = sortedRows.filter(isRowVisible);
-  const hasGroups = rows.some((r) => r.isGroup && !r.isTotal);
+  const hasGroups = rows.some((r) => (childrenByParent.get(r.id)?.length ?? 0) > 0);
 
   return (
     <Card>
@@ -382,137 +439,175 @@ export const FinancialTable = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[60%]">
-                  <SortableHeader
-                    label="Показатель"
-                    column="name"
-                    currentColumn={sortState.column}
-                    direction={sortState.direction}
-                    onSort={handleSort}
-                    className="text-xs font-medium uppercase tracking-wider"
-                  />
-                </TableHead>
-                {showPercentage && (
-                  <TableHead className="text-right w-[100px]">
-                    <div className="flex justify-end">
-                      <SortableHeader
-                        label="Доля"
-                        column="percentage"
-                        currentColumn={sortState.column}
-                        direction={sortState.direction}
-                        onSort={handleSort}
-                        className="text-xs font-medium uppercase tracking-wider"
-                      />
-                    </div>
-                  </TableHead>
-                )}
-                <TableHead className="text-right">
-                  <div className="flex justify-end">
-                    <SortableHeader
-                      label={periodLabel}
-                      column="value"
-                      currentColumn={sortState.column}
-                      direction={sortState.direction}
-                      onSort={handleSort}
-                      className="text-xs font-medium uppercase tracking-wider"
-                    />
-                  </div>
-                </TableHead>
+                {(() => {
+                  if (!component?.columns || component.columns.length === 0) {
+                    return (
+                      <TableHead colSpan={100} className="text-center py-8 text-muted-foreground">
+                        Колонки не определены в layout для этой таблицы
+                      </TableHead>
+                    );
+                  }
+                  
+                  // Разделяем колонки на текстовые (иерархия) и числовые (метрики)
+                  const textColumns = component.columns.filter(col => col.type === 'string' || col.type === 'text');
+                  const numericColumns = component.columns.filter(col => col.type !== 'string' && col.type !== 'text');
+                  
+                  return (
+                    <>
+                      {/* Одна колонка "Показатель" для всей иерархии */}
+                      {textColumns.length > 0 && (
+                        <TableHead className="w-[50%]">
+                          <SortableHeader
+                            label="Показатель"
+                            column="name"
+                            currentColumn={sortState.column}
+                            direction={sortState.direction}
+                            onSort={handleSort}
+                            className="text-xs font-medium uppercase tracking-wider"
+                          />
+                        </TableHead>
+                      )}
+                      {/* Числовые колонки */}
+                      {numericColumns.map((col) => (
+                        <TableHead key={col.id} className="text-right">
+                          <div className="flex justify-end">
+                            <SortableHeader
+                              label={col.label || col.id}
+                              column={col.id}
+                              currentColumn={sortState.column}
+                              direction={sortState.direction}
+                              onSort={handleSort}
+                              className="text-xs font-medium uppercase tracking-wider"
+                            />
+                          </div>
+                        </TableHead>
+                      ))}
+                    </>
+                  );
+                })()}
               </TableRow>
             </TableHeader>
             <TableBody>
               {visibleRows.map((row) => {
-                const hasChildren = rows.some((r) => r.parentId === row.id);
+                // Разделяем колонки
+                const textColumns = component?.columns?.filter(col => col.type === 'string' || col.type === 'text') || [];
+                const numericColumns = component?.columns?.filter(col => col.type !== 'string' && col.type !== 'text') || [];
+                
+                const hierarchyValues = textColumns
+                  .map((col) => (row as any)[col.id])
+                  .filter(Boolean);
+                const displayName =
+                  hierarchyValues[hierarchyValues.length - 1] || row.id;
+                const indentLevel = getIndentLevel(row);
+                const hasChildren = (childrenByParent.get(row.id)?.length ?? 0) > 0;
                 const isCollapsed = collapsedGroups.has(row.id);
-                const isPositiveChange = row.change !== undefined && row.change > 0;
-                const isNegativeChange = row.change !== undefined && row.change < 0;
 
                 return (
                   <TableRow
                     key={row.id}
-                    className={cn(
-                      "border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors",
-                      row.isTotal && "bg-muted/30 font-bold"
-                    )}
+                    className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
                     onDoubleClick={() => handleRowDoubleClick(row)}
                   >
-                    <TableCell
-                      className="py-4"
-                      style={{ paddingLeft: `${getIndentLevel(row) * 1.5 + 1}rem` }}
-                    >
-                      <div className="flex items-center gap-2">
-                        {hasChildren && (
-                          <button
-                            onClick={() => toggleGroup(row.id)}
-                            className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
-                          >
-                            {isCollapsed ? (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            )}
-                          </button>
-                        )}
-                        {!hasChildren && row.parentId && <span className="w-5 flex-shrink-0" />}
-                        <span
-                          className={cn(
-                            row.isGroup && !row.parentId && "font-semibold",
-                            row.isTotal && "font-bold"
+                    {/* Колонка "Показатель" с иерархией */}
+                    {textColumns.length > 0 && (
+                      <TableCell
+                        className="py-4"
+                        style={{ paddingLeft: `${indentLevel * 1.5 + 1}rem` }}
+                      >
+                        <div className="flex items-center gap-2">
+                          {hasChildren && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleGroup(row.id);
+                              }}
+                              className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                            >
+                              {isCollapsed ? (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </button>
                           )}
-                        >
-                          {row.name}
-                        </span>
-                        {row.description && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">{row.description}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-                    </TableCell>
-                    {showPercentage && (
-                      <TableCell className="text-right py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {row.percentage !== undefined ? `${row.percentage.toFixed(1)}%` : "—"}
-                        </span>
+                          {!hasChildren && indentLevel > 0 && (
+                            <span className="w-5 flex-shrink-0" />
+                          )}
+                          <span
+                            className={cn(
+                              row.isGroup && "font-semibold",
+                              row.isTotal && "font-bold"
+                            )}
+                          >
+                            {displayName}
+                          </span>
+                          {row.description && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-sm">{row.description}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
                     )}
-                    <TableCell className="text-right py-4">
-                      <div className="flex flex-col items-end gap-0.5">
-                        <span className="font-semibold text-foreground">
-                          {formatValueWithUnit(row.value)}
-                        </span>
-                        {showChange && row.change !== undefined && (
-                          <div
-                            className={cn(
-                              "flex items-center gap-1 text-sm",
-                              isPositiveChange && "text-green-600",
-                              isNegativeChange && "text-red-600",
-                              !isPositiveChange && !isNegativeChange && "text-muted-foreground"
-                            )}
-                          >
-                            {isPositiveChange && <TrendingUp className="w-3 h-3" />}
-                            {isNegativeChange && <TrendingDown className="w-3 h-3" />}
-                            <span>
-                              {row.change > 0 ? "+" : ""}
-                              {row.change.toFixed(1)}%
-                              {row.changeYtd !== undefined && (
-                                <span className="ml-1">
-                                  ({row.changeYtd > 0 ? "↑" : row.changeYtd < 0 ? "↓" : ""}
-                                  {Math.abs(row.changeYtd).toFixed(1)}%)
-                                </span>
-                              )}
+                    
+                    {/* Числовые колонки */}
+                    {numericColumns.map((col) => {
+                      const value = (row as any)[col.id];
+                      const formatId = col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
+                      const numValue = typeof value === "number" ? value : undefined;
+                      
+                      // Для колонки value берём ppChange/ytdChange напрямую из row
+                      const ppChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ppChange");
+                      const ytdChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ytdChange");
+                      const ppChangeValue = col.id === "value" 
+                        ? (row as any).ppChange 
+                        : (ppChangeSubCol ? (row as any)[ppChangeSubCol.id] : undefined);
+                      const ytdChangeValue = col.id === "value"
+                        ? (row as any).ytdChange
+                        : (ytdChangeSubCol ? (row as any)[ytdChangeSubCol.id] : undefined);
+                      const ppChangeFormat = ppChangeSubCol?.format || percentageFormatId;
+                      const ytdChangeFormat = ytdChangeSubCol?.format || percentageFormatId;
+                      
+                      return (
+                        <TableCell key={col.id} className="text-right py-4">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="font-semibold text-foreground">
+                              {numValue !== undefined ? formatValue(formatId, numValue) : "—"}
                             </span>
+                            {showChange && ppChangeValue !== undefined && (
+                              <div
+                                className={cn(
+                                  "flex items-center gap-1 text-sm",
+                                  ppChangeValue > 0 && "text-green-600",
+                                  ppChangeValue < 0 && "text-red-600",
+                                  ppChangeValue === 0 && "text-muted-foreground"
+                                )}
+                              >
+                                {ppChangeValue > 0 && <TrendingUp className="w-3 h-3" />}
+                                {ppChangeValue < 0 && <TrendingDown className="w-3 h-3" />}
+                                <span>
+                                  {ppChangeValue > 0 ? "+" : ""}
+                                  {formatValue(ppChangeFormat, Math.abs(ppChangeValue))}
+                                  {ytdChangeValue !== undefined && (
+                                    <span className="ml-1">
+                                      ({ytdChangeValue > 0 ? "↑" : ytdChangeValue < 0 ? "↓" : ""}
+                                      {formatValue(ytdChangeFormat, Math.abs(ytdChangeValue))})
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </TableCell>
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 );
               })}
@@ -525,7 +620,9 @@ export const FinancialTable = ({
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">Детализация: {selectedRow?.name}</DialogTitle>
+            <DialogTitle className="text-lg">
+              Детализация: {selectedRow ? [selectedRow.section, selectedRow.item, selectedRow.sub_item].filter(Boolean).join(' - ') || selectedRow.id : ''}
+            </DialogTitle>
           </DialogHeader>
 
           {selectedRow && (
@@ -535,29 +632,29 @@ export const FinancialTable = ({
                   <div>
                     <span className="text-muted-foreground">Значение:</span>
                     <span className="ml-2 font-semibold">
-                      {formatValueWithUnit(selectedRow.value)}
+                      {selectedRow.value !== undefined ? formatValue(valueFormatId, selectedRow.value) : "—"}
                     </span>
                   </div>
                   {selectedRow.percentage !== undefined && (
                     <div>
                       <span className="text-muted-foreground">Доля:</span>
                       <span className="ml-2 font-semibold">
-                        {selectedRow.percentage.toFixed(1)}%
+                        {formatValue(percentageFormatId, selectedRow.percentage)}
                       </span>
                     </div>
                   )}
-                  {selectedRow.change !== undefined && (
+                  {selectedRow.ppChange !== undefined && (
                     <div>
                       <span className="text-muted-foreground">Изменение:</span>
                       <span
                         className={cn(
                           "ml-2 font-semibold",
-                          selectedRow.change > 0 && "text-green-600",
-                          selectedRow.change < 0 && "text-red-600"
+                          selectedRow.ppChange > 0 && "text-green-600",
+                          selectedRow.ppChange < 0 && "text-red-600"
                         )}
                       >
-                        {selectedRow.change > 0 ? "+" : ""}
-                        {selectedRow.change.toFixed(1)}%
+                        {selectedRow.ppChange > 0 ? "+" : ""}
+                        {formatValue(ppChangeFormatId, Math.abs(selectedRow.ppChange))}
                       </span>
                     </div>
                   )}
@@ -575,28 +672,31 @@ export const FinancialTable = ({
                 </TableHeader>
                 <TableBody>
                   {getDetailRows(selectedRow).map((detailRow) => {
-                    const isPositive = detailRow.change !== undefined && detailRow.change > 0;
-                    const isNegative = detailRow.change !== undefined && detailRow.change < 0;
+                    const isPositive = detailRow.ppChange !== undefined && detailRow.ppChange > 0;
+                    const isNegative = detailRow.ppChange !== undefined && detailRow.ppChange < 0;
+                    const detailDisplayName = [detailRow.section, detailRow.item, detailRow.sub_item]
+                      .filter(Boolean)
+                      .join(' - ') || detailRow.id;
 
                     return (
                       <TableRow key={detailRow.id} className="border-b border-border/50">
                         <TableCell className="py-3">
-                          <span className={cn(detailRow.isGroup && "font-semibold")}>
-                            {detailRow.name}
+                          <span className="font-medium">
+                            {detailDisplayName}
                           </span>
                         </TableCell>
                         <TableCell className="text-right py-3">
                           <span className="text-sm text-muted-foreground">
                             {detailRow.percentage !== undefined
-                              ? `${detailRow.percentage.toFixed(1)}%`
+                              ? formatValue(percentageFormatId, detailRow.percentage)
                               : "—"}
                           </span>
                         </TableCell>
                         <TableCell className="text-right py-3 font-semibold">
-                          {formatValueWithUnit(detailRow.value)}
+                          {detailRow.value !== undefined ? formatValue(valueFormatId, detailRow.value) : "—"}
                         </TableCell>
                         <TableCell className="text-right py-3">
-                          {detailRow.change !== undefined && (
+                          {detailRow.ppChange !== undefined && (
                             <div
                               className={cn(
                                 "flex items-center justify-end gap-1 text-sm",
@@ -607,8 +707,8 @@ export const FinancialTable = ({
                               {isPositive && <TrendingUp className="w-3 h-3" />}
                               {isNegative && <TrendingDown className="w-3 h-3" />}
                               <span>
-                                {detailRow.change > 0 ? "+" : ""}
-                                {detailRow.change.toFixed(1)}%
+                                {detailRow.ppChange > 0 ? "+" : ""}
+                                {formatValue(ppChangeFormatId, Math.abs(detailRow.ppChange))}
                               </span>
                             </div>
                           )}

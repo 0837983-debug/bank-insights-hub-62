@@ -34,74 +34,45 @@ router.get("/:tableId", async (req, res) => {
       }
     }
 
-    // Handle new MART table IDs
-    switch (tableId) {
-      case "balance_assets":
-        try {
-          const assetsData = await getAssets(targetPeriod);
-          return res.json({
-            tableId,
-            rows: assetsData,
-          });
-        } catch (error) {
-          console.error("Error fetching balance assets:", error);
-          return res.status(500).json({ error: "Failed to fetch assets data" });
-        }
-
-      case "balance_liabilities":
-        try {
-          const liabilitiesData = await getLiabilities(targetPeriod);
-          return res.json({
-            tableId,
-            rows: liabilitiesData,
-          });
-        } catch (error) {
-          console.error("Error fetching balance liabilities:", error);
-          return res.status(500).json({ error: "Failed to fetch liabilities data" });
-        }
-    }
-
-    // Map legacy table IDs to new MART table IDs
-    const tableIdMapping: Record<string, string> = {
-      "assets": "balance_assets",
-      "liabilities": "balance_liabilities",
+    // Маппинг tableId/componentId -> внутренний идентификатор таблицы
+    // Поддерживаем как tableId (balance_assets), так и componentId (assets_table)
+    const tableMapping: Record<string, { componentId: string; tableType: "assets" | "liabilities" }> = {
+      // По tableId
+      "balance_assets": { componentId: "assets_table", tableType: "assets" },
+      "balance_liabilities": { componentId: "liabilities_table", tableType: "liabilities" },
+      // По legacy tableId
+      "assets": { componentId: "assets_table", tableType: "assets" },
+      "liabilities": { componentId: "liabilities_table", tableType: "liabilities" },
+      // По componentId (для фронтенда)
+      "assets_table": { componentId: "assets_table", tableType: "assets" },
+      "liabilities_table": { componentId: "liabilities_table", tableType: "liabilities" },
     };
 
-    const mappedTableId = tableIdMapping[tableId];
-    if (mappedTableId) {
-      console.log(`Mapping legacy tableId "${tableId}" to "${mappedTableId}"`);
-      
-      // Use the mapped table ID logic
-      switch (mappedTableId) {
-        case "balance_assets":
-          try {
-            const assetsData = await getAssets(targetPeriod);
-            return res.json({
-              tableId: mappedTableId,
-              rows: assetsData,
-            });
-          } catch (error) {
-            console.error("Error fetching balance assets:", error);
-            return res.status(500).json({ error: "Failed to fetch assets data" });
-          }
-        case "balance_liabilities":
-          try {
-            const liabilitiesData = await getLiabilities(targetPeriod);
-            return res.json({
-              tableId: mappedTableId,
-              rows: liabilitiesData,
-            });
-          } catch (error) {
-            console.error("Error fetching balance liabilities:", error);
-            return res.status(500).json({ error: "Failed to fetch liabilities data" });
-          }
-      }
+    const mapping = tableMapping[tableId];
+    
+    if (!mapping) {
+      return res.status(404).json({ 
+        error: `Table data not found for tableId: ${tableId}. Supported IDs: balance_assets, balance_liabilities, assets_table, liabilities_table, assets, liabilities` 
+      });
     }
 
-    // Table not found - return 404
-    return res.status(404).json({ 
-      error: `Table data not found for tableId: ${tableId}. Use MART table IDs: balance_assets, balance_liabilities` 
-    });
+    // Получаем данные в зависимости от типа таблицы
+    try {
+      const tableData = mapping.tableType === "assets" 
+        ? await getAssets(targetPeriod)
+        : await getLiabilities(targetPeriod);
+
+      return res.json({
+        componentId: mapping.componentId,
+        type: "table",
+        rows: tableData,
+      });
+    } catch (error) {
+      console.error(`Error fetching ${mapping.tableType}:`, error);
+      return res.status(500).json({ 
+        error: `Failed to fetch ${mapping.tableType} data` 
+      });
+    }
   } catch (error: any) {
     console.error("Error fetching table data:", error);
     if (error.code === "ENOENT") {

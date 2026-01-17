@@ -25,15 +25,12 @@ if (typeof window !== "undefined" && "caches" in window) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnMount: true, // Всегда обновлять при монтировании
+      refetchOnMount: false, // Использовать кеш, если данные есть
       refetchOnWindowFocus: false,
-      staleTime: 0, // Данные всегда считаются устаревшими
+      staleTime: 5 * 60 * 1000, // 5 минут — данные считаются свежими
     },
   },
 });
-
-// Очищаем кэш React Query при инициализации
-queryClient.clear();
 
 const App = () => {
   return (

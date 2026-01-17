@@ -273,7 +273,6 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             title: mapping.component.title ?? mapping.componentId,
             ...(mapping.component.tooltip ? { tooltip: mapping.component.tooltip } : {}),
             ...(mapping.component.icon ? { icon: mapping.component.icon } : {}),
-            dataSourceKey: mapping.componentId,
             ...(columns.length > 0 ? { columns } : {}),
           };
           components.push(card);
@@ -301,42 +300,75 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
           const mainFields = fields.filter((f: { parentFieldId: string | null }) => !f.parentFieldId);
           const childFields = fields.filter((f: { parentFieldId: string | null }) => f.parentFieldId);
 
-          // Строим колонки из основных полей, включая дочерние поля в формате
+          // Строим columns из основных полей, включая sub_columns для дочерних полей
           const columns = mainFields
             .filter((f: { isVisible: boolean | null }) => f.isVisible !== false)
-            .map((f: { fieldId: string; label: string | null; fieldType: string; formatId: string | null; parentFieldId: string | null }) => {
-              const col: any = {
+            .map((f: any) => {
+              const column: any = {
                 id: f.fieldId,
                 label: f.label ?? f.fieldId,
                 type: f.fieldType,
               };
 
-              // Строим объект формата с основным полем и дочерними полями
-              const format: any = {};
+              // Добавляем isDimension и isMeasure для определения типа колонки
+              if (f.isDimension !== undefined) {
+                column.isDimension = f.isDimension;
+              }
+              if (f.isMeasure !== undefined) {
+                column.isMeasure = f.isMeasure;
+              }
+
+              // Добавляем формат, если есть
               if (f.formatId) {
-                format.value = f.formatId;
+                column.format = f.formatId;
+              }
+
+              // Добавляем описание, если есть
+              if (f.description) {
+                column.description = f.description;
               }
 
               // Находим дочерние поля для этого основного поля
-              const children = childFields.filter((cf: { parentFieldId: string | null; fieldId: string; formatId: string | null }) => cf.parentFieldId === f.fieldId);
-              for (const childField of children) {
-                if (childField.formatId) {
-                  if (childField.fieldId === "change_pptd" || childField.fieldId === "PPTD") {
-                    format.PPTD = childField.formatId;
-                  } else if (childField.fieldId === "change_ytd" || childField.fieldId === "YTD") {
-                    format.YTD = childField.formatId;
+              const subColumns = childFields
+                .filter((cf: any) => cf.parentFieldId === f.fieldId)
+                .map((childField: any) => {
+                  const subCol: any = {
+                    id: childField.fieldId,
+                    label: childField.label ?? childField.fieldId,
+                    type: childField.fieldType,
+                  };
+
+                  if (childField.formatId) {
+                    subCol.format = childField.formatId;
                   }
-                }
+
+                  if (childField.description) {
+                    subCol.description = childField.description;
+                  }
+
+                  return subCol;
+                });
+
+              // Добавляем sub_columns, если они есть
+              if (subColumns.length > 0) {
+                column.sub_columns = subColumns;
               }
 
-              // Добавляем формат, если у него есть ключи
-              if (Object.keys(format).length > 0) {
-                col.format = format;
-              }
-
-              return col;
+              return column;
             });
-          const dataSourceKey = mapping.componentId;
+          
+          // Получаем groupableFields - поля где is_groupable = true
+          const groupableFieldsResult = await pool.query(
+            `SELECT field_id
+             FROM config.component_fields
+             WHERE component_id = $1
+               AND is_groupable = TRUE
+               AND is_active = TRUE
+               AND deleted_at IS NULL
+             ORDER BY display_order ASC`,
+            [mapping.componentId]
+          );
+          const groupableFields = groupableFieldsResult.rows.map((row: any) => row.field_id);
           
           // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
           const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
@@ -347,30 +379,19 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             type: "table",
             title: mapping.component.title ?? mapping.componentId,
             columns,
-            dataSourceKey,
+            ...(groupableFields.length > 0 ? { groupableFields } : {}),
           };
 
           // Если это таблица assets в секции Balance, включаем данные
-          if (dataSourceKey === "assets" || dataSourceKey === "balance_assets") {
+          if (mapping.componentId === "assets" || mapping.componentId === "balance_assets") {
             console.log(`[layoutService] Loading assets data for table ${compositeId} (componentId: ${mapping.componentId})`);
             try {
               const assetsData = await getAssets();
               console.log(`[layoutService] Loaded ${assetsData.length} rows for assets table`);
-              // Преобразуем TableRowData в формат TableRow, ожидаемый фронтендом
+              // Передаем данные как есть - TableRowData соответствует TableRow
               table.data = {
-                tableId: dataSourceKey,
-                rows: assetsData.map((row) => ({
-                  id: row.id,
-                  name: row.name,
-                  value: row.value,
-                  percentage: row.percentage,
-                  change_pptd: row.change,
-                  change_ytd: row.changeYtd,
-                  isGroup: row.isGroup,
-                  isTotal: row.isTotal,
-                  parentId: row.parentId,
-                  description: row.description,
-                })),
+                tableId: mapping.componentId,
+                rows: assetsData,
               };
               console.log(`[layoutService] Added data to assets table, first row:`, table.data.rows[0]);
             } catch (error) {
@@ -378,7 +399,7 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
               // Продолжаем без данных, если загрузка не удалась
             }
           } else {
-            console.log(`[layoutService] Table ${compositeId} is not assets table (componentId: ${dataSourceKey})`);
+            console.log(`[layoutService] Table ${compositeId} is not assets table (componentId: ${mapping.componentId})`);
           }
 
           components.push(table);
@@ -391,7 +412,6 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             componentId: mapping.componentId,
             type: "chart",
             title: mapping.component.title ?? mapping.componentId,
-            dataSourceKey: mapping.componentId,
           };
           components.push(chart);
         } else if (type === "filter") {
