@@ -126,15 +126,12 @@ export const KPICard = ({ componentId }: KPICardProps) => {
   const ytdChangeColor = isYtdPositive ? "text-success" : "text-destructive";
 
   // Форматируем изменения
+  // formatValue сам применит multiplier из конфигурации формата, поэтому передаем значение как есть
   const formattedPpChange = ppChange !== undefined 
-    ? (showAbsolute 
-        ? formatValue(ppChangeFormatId, ppChange)
-        : formatValue(ppChangeFormatId, Math.abs(ppChange) * 100)) // проценты в долях, умножаем на 100
+    ? formatValue(ppChangeFormatId, Math.abs(ppChange))
     : undefined;
   const formattedYtdChange = ytdChange !== undefined
-    ? (showAbsolute
-        ? formatValue(ytdChangeFormatId, ytdChange)
-        : formatValue(ytdChangeFormatId, Math.abs(ytdChange) * 100)) // проценты в долях, умножаем на 100
+    ? formatValue(ytdChangeFormatId, Math.abs(ytdChange))
     : undefined;
 
   return (
