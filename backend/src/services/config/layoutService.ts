@@ -187,7 +187,9 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
       console.log(`[layoutService] Processing section "${sectionTitle}" with ${childComponents.length} child components`);
       for (const mapping of childComponents) {
         const type = mapping.component.componentType;
-        console.log(`[layoutService] Component: ${mapping.id}, componentId: ${mapping.componentId}, type: ${type}`);
+        // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
+        const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
+        console.log(`[layoutService] Component: compositeId=${compositeId}, componentId: ${mapping.componentId}, type: ${type}`);
         if (type === "card") {
           // Получаем поля для компонента card с иерархией parent_field_id
           // Используем сырой SQL для прямого доступа к базе данных
@@ -261,8 +263,11 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
               return column;
             });
 
+          // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
+          const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
+
           const card: any = {
-            id: mapping.id.toString(),
+            id: compositeId,
             componentId: mapping.componentId,
             type: "card",
             title: mapping.component.title ?? mapping.componentId,
@@ -333,8 +338,11 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             });
           const dataSourceKey = mapping.componentId;
           
+          // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
+          const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
+          
           const table: any = {
-            id: mapping.id.toString(),
+            id: compositeId,
             componentId: mapping.componentId,
             type: "table",
             title: mapping.component.title ?? mapping.componentId,
@@ -344,7 +352,7 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
 
           // Если это таблица assets в секции Balance, включаем данные
           if (dataSourceKey === "assets" || dataSourceKey === "balance_assets") {
-            console.log(`[layoutService] Loading assets data for table ${mapping.id} (componentId: ${mapping.componentId})`);
+            console.log(`[layoutService] Loading assets data for table ${compositeId} (componentId: ${mapping.componentId})`);
             try {
               const assetsData = await getAssets();
               console.log(`[layoutService] Loaded ${assetsData.length} rows for assets table`);
@@ -366,17 +374,20 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
               };
               console.log(`[layoutService] Added data to assets table, first row:`, table.data.rows[0]);
             } catch (error) {
-              console.error(`[layoutService] Error loading assets data for table ${mapping.id}:`, error);
+              console.error(`[layoutService] Error loading assets data for table ${compositeId}:`, error);
               // Продолжаем без данных, если загрузка не удалась
             }
           } else {
-            console.log(`[layoutService] Table ${mapping.id} is not assets table (componentId: ${dataSourceKey})`);
+            console.log(`[layoutService] Table ${compositeId} is not assets table (componentId: ${dataSourceKey})`);
           }
 
           components.push(table);
         } else if (type === "chart") {
+          // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
+          const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
+          
           const chart: any = {
-            id: mapping.id.toString(),
+            id: compositeId,
             componentId: mapping.componentId,
             type: "chart",
             title: mapping.component.title ?? mapping.componentId,

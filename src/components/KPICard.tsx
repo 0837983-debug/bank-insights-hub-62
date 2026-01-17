@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import {
   ArrowUpIcon,
@@ -51,6 +52,9 @@ interface KPICardProps {
 }
 
 export const KPICard = ({ componentId }: KPICardProps) => {
+  // Состояние для переключения между процентными и абсолютными изменениями
+  const [showAbsolute, setShowAbsolute] = useState(false);
+
   // Получаем layout и kpis из кэша React Query (не делает новые запросы!)
   const { data: layout } = useLayout();
   const { data: kpis } = useAllKPIs();
@@ -75,21 +79,69 @@ export const KPICard = ({ componentId }: KPICardProps) => {
     return null;
   }
 
-  // Получаем formatId из метаданных компонента
-  const formatId = component.format?.value;
+  // Получаем формат для основного значения (value) из columns
+  const valueColumn = component.columns?.[0] as any;
+  // format может быть строкой в columns или объектом в старом формате component.format
+  const valueFormatId = typeof valueColumn?.format === "string" 
+    ? valueColumn.format 
+    : (valueColumn?.format?.value || component.format?.value);
 
   // Форматируем значение используя формат из layout.formats
-  const formattedValue = formatId
-    ? formatValue(formatId, kpi.value)
+  const formattedValue = valueFormatId
+    ? formatValue(valueFormatId, kpi.value)
     : kpi.value.toString();
 
-  const isPositive = kpi.change !== undefined && kpi.change > 0;
-  const isYtdPositive = kpi.ytdChange !== undefined && kpi.ytdChange > 0;
+  // Получаем форматы для изменений из sub_columns
+  const ppChangeSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ppChange");
+  const ppChangeAbsoluteSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ppChangeAbsolute");
+  const ytdChangeSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChange");
+  const ytdChangeAbsoluteSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChangeAbsolute");
+
+  // Используем процентные изменения по умолчанию, абсолютные при клике
+  // Поддерживаем старый формат (change) и новый (ppChange)
+  const ppChange = showAbsolute 
+    ? ((kpi as any).ppChangeAbsolute ?? undefined)
+    : ((kpi as any).ppChange ?? (kpi as any).change ?? undefined);
+  const ytdChange = showAbsolute 
+    ? ((kpi as any).ytdChangeAbsolute ?? undefined)
+    : ((kpi as any).ytdChange ?? undefined);
+  
+  // Извлекаем formatId из sub_columns (format может быть строкой)
+  const getFormatId = (subColumn: any): string | undefined => {
+    if (!subColumn) return undefined;
+    return typeof subColumn.format === "string" ? subColumn.format : subColumn.format?.value;
+  };
+  
+  const ppChangeFormatId = showAbsolute 
+    ? (getFormatId(ppChangeAbsoluteSubColumn) || valueFormatId)
+    : (getFormatId(ppChangeSubColumn) || "percent");
+  const ytdChangeFormatId = showAbsolute
+    ? (getFormatId(ytdChangeAbsoluteSubColumn) || valueFormatId)
+    : (getFormatId(ytdChangeSubColumn) || "percent");
+
+  // Определяем знак изменений (для ppChange и ytdChange значения в долях)
+  const isPositive = ppChange !== undefined && ppChange > 0;
+  const isYtdPositive = ytdChange !== undefined && ytdChange > 0;
   const changeColor = isPositive ? "text-success" : "text-destructive";
   const ytdChangeColor = isYtdPositive ? "text-success" : "text-destructive";
 
+  // Форматируем изменения
+  const formattedPpChange = ppChange !== undefined 
+    ? (showAbsolute 
+        ? formatValue(ppChangeFormatId, ppChange)
+        : formatValue(ppChangeFormatId, Math.abs(ppChange) * 100)) // проценты в долях, умножаем на 100
+    : undefined;
+  const formattedYtdChange = ytdChange !== undefined
+    ? (showAbsolute
+        ? formatValue(ytdChangeFormatId, ytdChange)
+        : formatValue(ytdChangeFormatId, Math.abs(ytdChange) * 100)) // проценты в долях, умножаем на 100
+    : undefined;
+
   return (
-    <Card className="p-3 hover:shadow-lg transition-shadow min-w-0">
+    <Card 
+      className="p-3 hover:shadow-lg transition-shadow min-w-0 cursor-pointer"
+      onClick={() => setShowAbsolute(!showAbsolute)}
+    >
       <div className="flex items-start justify-between gap-1.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 mb-0.5">
@@ -108,7 +160,7 @@ export const KPICard = ({ componentId }: KPICardProps) => {
             </TooltipProvider>
           </div>
           <h3 className="text-xl font-bold text-foreground">{formattedValue}</h3>
-          {kpi.change !== undefined && (
+          {ppChange !== undefined && (
             <div className="flex items-center gap-1.5 mt-1.5">
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
@@ -120,26 +172,34 @@ export const KPICard = ({ componentId }: KPICardProps) => {
                         <ArrowDownIcon className={cn("w-3 h-3", changeColor)} />
                       )}
                       <span className={cn("text-xs font-semibold", changeColor)}>
-                        {Math.abs(kpi.change)}%
+                        {formattedPpChange}
                       </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="text-sm">PPTD — изменение к предыдущему периоду</p>
+                    <p className="text-sm">
+                      {showAbsolute 
+                        ? "PPTD — абсолютное изменение к предыдущему периоду" 
+                        : "PPTD — изменение к предыдущему периоду"}
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {kpi.ytdChange !== undefined && (
+              {formattedYtdChange !== undefined && (
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className={cn("text-xs cursor-help", ytdChangeColor)}>
                         ({isYtdPositive ? "↑" : "↓"}
-                        {Math.abs(kpi.ytdChange)}%)
+                        {formattedYtdChange})
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="text-sm">YTD — изменение с начала года</p>
+                      <p className="text-sm">
+                        {showAbsolute 
+                          ? "YTD — абсолютное изменение с начала года" 
+                          : "YTD — изменение с начала года"}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
