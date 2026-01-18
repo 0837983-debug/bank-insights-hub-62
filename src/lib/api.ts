@@ -216,3 +216,207 @@ export interface HealthStatus {
 export async function fetchHealth(): Promise<HealthStatus> {
   return apiFetch<HealthStatus>("/health");
 }
+
+// ============================================================================
+// Upload API
+// ============================================================================
+
+export interface UploadResponse {
+  uploadId: number;
+  status: "pending" | "processing" | "completed" | "failed" | "rolled_back";
+  validationErrors?: ValidationError[];
+  rowsProcessed?: number;
+  rowsSuccessful?: number;
+  rowsFailed?: number;
+  duplicatePeriodsWarning?: string;
+}
+
+export interface ValidationError {
+  fieldName: string;
+  errorType: string;
+  errorMessage: string;
+  exampleRow?: number;
+}
+
+export interface AggregatedValidationError {
+  fieldName?: string;
+  errorType: string;
+  errorMessage: string;
+  exampleMessages?: string[];
+  totalCount: number;
+}
+
+export interface UploadStatus {
+  id: number;
+  filename: string;
+  originalFilename: string;
+  fileType: string;
+  targetTable: string;
+  status: "pending" | "processing" | "completed" | "failed" | "rolled_back";
+  rowsProcessed: number | null;
+  rowsSuccessful: number | null;
+  rowsFailed: number | null;
+  validationErrors: AggregatedValidationError[] | null;
+  createdAt: string;
+  updatedAt: string;
+  rolledBackAt: string | null;
+  rolledBackBy: string | null;
+}
+
+export interface UploadSheets {
+  uploadId: number;
+  availableSheets: string[];
+  currentSheet: string | null;
+}
+
+export interface UploadHistoryResponse {
+  uploads: Omit<UploadStatus, "validationErrors">[];
+  total: number;
+}
+
+/**
+ * Загружает файл на сервер
+ * @param file - Файл для загрузки
+ * @param targetTable - Целевая таблица (например, "balance")
+ * @param sheetName - Имя листа для XLSX (опционально)
+ * @returns Информация о загрузке
+ */
+export async function uploadFile(
+  file: File,
+  targetTable: string,
+  sheetName?: string
+): Promise<UploadResponse> {
+  // Проверка размера файла
+  if (file.size === 0) {
+    throw new APIError("Файл пустой. Размер файла: 0 байт");
+  }
+
+  // Логирование перед отправкой
+  console.log("Uploading file:", {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    targetTable,
+    sheetName,
+  });
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("targetTable", targetTable);
+  if (sheetName) {
+    formData.append("sheetName", sheetName);
+  }
+
+  const url = `${API_BASE_URL}/upload`;
+  
+  try {
+    // ВАЖНО: НЕ устанавливаем Content-Type вручную для FormData
+    // Браузер должен установить автоматически с boundary
+    const response = await fetch(url, {
+      method: "POST",
+      body: formData,
+      cache: "no-store",
+      // НЕ добавляем headers здесь - браузер установит Content-Type автоматически
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new APIError(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+    throw new APIError(error instanceof Error ? error.message : "Unknown error occurred");
+  }
+}
+
+/**
+ * Получает статус загрузки по ID
+ * @param uploadId - ID загрузки
+ * @returns Статус загрузки
+ */
+export async function getUploadStatus(uploadId: number): Promise<UploadStatus> {
+  return apiFetch<UploadStatus>(`/upload/${uploadId}`);
+}
+
+/**
+ * Получает список листов для XLSX файла
+ * @param uploadId - ID загрузки
+ * @returns Список доступных листов
+ */
+export async function getUploadSheets(uploadId: number): Promise<UploadSheets> {
+  return apiFetch<UploadSheets>(`/upload/${uploadId}/sheets`);
+}
+
+/**
+ * Откатывает загрузку
+ * @param uploadId - ID загрузки
+ * @param rolledBackBy - Кто откатил (опционально)
+ * @returns Результат отката
+ */
+export async function rollbackUpload(
+  uploadId: number,
+  rolledBackBy?: string
+): Promise<{ uploadId: number; status: string; message: string }> {
+  const body = rolledBackBy ? { rolledBackBy } : {};
+  
+  const url = `${API_BASE_URL}/upload/${uploadId}/rollback`;
+  
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new APIError(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error instanceof APIError) {
+      throw error;
+    }
+    throw new APIError(error instanceof Error ? error.message : "Unknown error occurred");
+  }
+}
+
+/**
+ * Получает историю загрузок
+ * @param params - Параметры фильтрации
+ * @returns История загрузок
+ */
+export async function getUploadHistory(params?: {
+  targetTable?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<UploadHistoryResponse> {
+  const queryParams = new URLSearchParams();
+  
+  if (params?.targetTable) queryParams.append("targetTable", params.targetTable);
+  if (params?.status) queryParams.append("status", params.status);
+  if (params?.limit) queryParams.append("limit", String(params.limit));
+  if (params?.offset) queryParams.append("offset", String(params.offset));
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/upload?${queryString}` : "/upload";
+
+  return apiFetch<UploadHistoryResponse>(endpoint);
+}

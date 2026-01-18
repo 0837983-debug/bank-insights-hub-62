@@ -14,20 +14,25 @@ related:
 
 ## KPI Metric
 
-Модель данных для KPI метрик.
+Модель данных для KPI метрик. Все расчетные поля вычисляются на backend.
 
 ```typescript
 interface KPIMetric {
   id: string;              // Уникальный идентификатор метрики
-  title: string;           // Название метрики
-  value: number;           // Числовое значение
-  description?: string;    // Описание метрики
-  change: number;          // Изменение в процентах
-  ytdChange?: number;      // Изменение с начала года (Year To Date)
-  category: string;        // Категория метрики
+  title: string;           // Название метрики (из config.components)
+  value: number;           // Числовое значение (из mart.kpi_metrics)
+  previousValue: number;   // Значение предыдущего периода (рассчитано на backend)
+  ytdValue?: number;       // Значение на конец прошлого года (рассчитано на backend)
+  ppChange: number;        // Изменение относительно предыдущего периода в долях (0.05 = 5%) (рассчитано на backend)
+  ppChangeAbsolute?: number; // Абсолютное изменение относительно предыдущего периода (рассчитано на backend)
+  ytdChange?: number;      // Изменение YTD в долях (0.12 = 12%) (рассчитано на backend)
+  ytdChangeAbsolute?: number; // Абсолютное изменение YTD (рассчитано на backend)
+  description?: string;    // Описание метрики (из config.components)
+  category: string;        // Категория метрики (из config.components)
   categoryId: string;      // ID категории
-  iconName?: string;       // Название иконки (Lucide)
+  iconName?: string;       // Название иконки (Lucide, из config.components)
   sortOrder: number;       // Порядок сортировки
+  periodDate: string;      // Дата периода (YYYY-MM-DD)
 }
 ```
 
@@ -49,21 +54,41 @@ interface KPIMetric {
 
 ## Table Row Data
 
-Модель данных для строк таблиц.
+Модель данных для строк таблиц. Все расчетные поля вычисляются на backend.
 
 ```typescript
 interface TableRowData {
+  // Иерархические поля (для построения дерева на фронте)
+  class?: string;          // Класс (баланс: assets/liabilities, P&L: income/expense)
+  section?: string;        // Раздел
+  item?: string;           // Статья
+  sub_item?: string;       // Подстатья
+  
+  // Значения (рассчитаны на backend)
+  value: number;           // Числовое значение
+  previousValue?: number;  // Значение предыдущего периода (рассчитано на backend)
+  ytdValue?: number;       // Значение на конец прошлого года (рассчитано на backend)
+  percentage?: number;     // Процент от общего в долях (0.8 = 80%) (рассчитано на backend)
+  ppChange?: number;       // Изменение относительно предыдущего периода в долях (0.05 = 5%) (рассчитано на backend)
+  ppChangeAbsolute?: number; // Абсолютное изменение относительно предыдущего периода (рассчитано на backend)
+  ytdChange?: number;      // Изменение YTD в долях (0.12 = 12%) (рассчитано на backend)
+  ytdChangeAbsolute?: number; // Абсолютное изменение YTD (рассчитано на backend)
+  
+  // Аналитические разрезы
+  client_type?: string;
+  client_segment?: string;
+  product_code?: string;
+  portfolio_code?: string;
+  currency_code?: string;
+  
+  // Служебные поля
   id: string;              // Уникальный идентификатор строки
-  name: string;            // Название строки
-  description?: string;    // Описание
-  value: number;          // Числовое значение
-  percentage?: number;    // Процент от общего
-  change?: number;        // Изменение в процентах (period over period)
-  changeYtd?: number;     // Изменение с начала года
-  isGroup?: boolean;      // Является ли группой
-  isTotal?: boolean;      // Является ли итоговой строкой
-  parentId?: string;      // ID родительской строки (для иерархии)
-  sortOrder: number;      // Порядок сортировки
+  period_date?: string;    // Дата периода
+  description?: string;    // Описание (из rowNameMapper)
+  parentId?: string;       // ID родительской строки (для иерархии, добавляется на фронте)
+  isGroup?: boolean;       // Является ли группой (добавляется на фронте при построении иерархии)
+  isTotal?: boolean;       // Является ли итоговой строкой
+  sortOrder?: number;      // Порядок сортировки
 }
 ```
 

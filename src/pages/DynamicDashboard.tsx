@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { CollapsibleSection } from "@/components/report/CollapsibleSection";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { initializeFormats } from "@/lib/formatters";
 import {
   FinancialTable,

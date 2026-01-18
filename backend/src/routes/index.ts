@@ -2,6 +2,7 @@ import { Router } from "express";
 import { buildLayoutFromDB } from "../services/config/layoutService.js";
 import kpiRoutes from "./kpiRoutes.js";
 import tableDataRoutes from "./tableDataRoutes.js";
+import uploadRoutes from "./uploadRoutes.js";
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.get("/layout", async (req, res) => {
 // API routes
 router.use("/kpis", kpiRoutes);
 router.use("/table-data", tableDataRoutes);
+router.use("/upload", uploadRoutes);
 
 export default router;

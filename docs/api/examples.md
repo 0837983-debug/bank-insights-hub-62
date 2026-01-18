@@ -144,13 +144,22 @@ function IncomeTable() {
 }
 ```
 
-### Использование useLayout
+### Использование useLayout с инициализацией форматов
 
 ```typescript
 import { useLayout } from '@/hooks/useAPI';
+import { initializeFormats, formatValue } from '@/lib/formatters';
+import { useEffect } from 'react';
 
 function DynamicDashboard() {
   const { data: layout, isLoading } = useLayout();
+
+  // Инициализация форматов при загрузке layout
+  useEffect(() => {
+    if (layout?.formats) {
+      initializeFormats(layout.formats);
+    }
+  }, [layout]);
 
   if (isLoading) return <div>Loading layout...</div>;
   if (!layout) return null;
@@ -162,7 +171,8 @@ function DynamicDashboard() {
           <h2>{section.title}</h2>
           {section.components.map(component => (
             <div key={component.id}>
-              {/* Рендер компонента */}
+              {/* Форматирование значений через formatId из layout */}
+              {/* formatValue('currency_rub', value) */}
             </div>
           ))}
         </section>
@@ -170,6 +180,31 @@ function DynamicDashboard() {
     </div>
   );
 }
+```
+
+### Форматирование значений
+
+```typescript
+import { formatValue, initializeFormats } from '@/lib/formatters';
+import { useLayout } from '@/hooks/useAPI';
+
+function FormattedValue({ formatId, value }: { formatId: string; value: number }) {
+  const { data: layout } = useLayout();
+
+  // Инициализация форматов при загрузке
+  useEffect(() => {
+    if (layout?.formats) {
+      initializeFormats(layout.formats);
+    }
+  }, [layout]);
+
+  // Использование форматирования
+  return <span>{formatValue(formatId, value)}</span>;
+}
+
+// Примеры использования:
+// formatValue('currency_rub', 1000000)  // "₽1.0M"
+// formatValue('percent', 5.2)           // "5.2%"
 ```
 
 ## Обработка ошибок

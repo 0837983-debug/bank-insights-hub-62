@@ -119,10 +119,12 @@ backend/
 - `getKPIMetricById()` - по ID
 
 **Особенности:**
-- Работа с `mart.kpi_metrics`
-- Расчет изменений (PPTD, YTD)
-- Фильтрация по категориям
-- Поддержка периодов
+- Работа с `mart.kpi_metrics` таблицей
+- Расчет изменений (ppChange, ytdChange) на backend
+- Расчет процентов (percentage) от общего
+- Фильтрация по категориям из `config.components`
+- Поддержка периодов (current, previous month, previous year)
+- Все расчетные поля вычисляются на backend, frontend получает готовые значения
 
 **Base Services:**
 - `periodService` - работа с периодами

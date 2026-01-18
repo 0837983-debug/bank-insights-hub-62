@@ -88,9 +88,191 @@ GET /api/table-data/financial_results_income?periodDate=2024-01-15&groupBy=clien
 GET /api/chart-data/income-chart
 ```
 
+## Upload Endpoints
+
+### `POST /api/upload`
+
+Загрузить файл (CSV или XLSX) для импорта данных в БД.
+
+**Параметры запроса (multipart/form-data):**
+- `file` (обязательно) - Файл для загрузки (.csv, .xlsx)
+- `targetTable` (обязательно) - Целевая таблица (например: 'balance')
+- `sheetName` (опционально) - Имя листа для XLSX файла
+
+**Поддерживаемые форматы:**
+- CSV (разделитель `;`)
+- XLSX
+
+**Поддерживаемые таблицы:**
+- `balance` - Баланс
+
+**Пример:**
+```bash
+POST /api/upload
+Content-Type: multipart/form-data
+
+file: [файл.csv]
+targetTable: balance
+sheetName: [опционально для XLSX]
+```
+
+**Ответ (успех):**
+```json
+{
+  "uploadId": 1,
+  "status": "completed",
+  "rowsProcessed": 100,
+  "rowsSuccessful": 100,
+  "rowsFailed": 0
+}
+```
+
+**Ответ (ошибка валидации):**
+```json
+{
+  "uploadId": 1,
+  "status": "failed",
+  "validationErrors": {
+    "examples": [...],
+    "totalCount": 5
+  }
+}
+```
+
+**Коды ошибок:**
+- `400` - Ошибка валидации (неверный формат файла, отсутствуют обязательные поля)
+- `500` - Ошибка обработки файла
+
+### `GET /api/upload/:uploadId`
+
+Получить статус загрузки по ID.
+
+**Пример:**
+```bash
+GET /api/upload/1
+```
+
+**Ответ:**
+```json
+{
+  "id": 1,
+  "filename": "balance_20250117_143022.csv",
+  "originalFilename": "balance.csv",
+  "fileType": "csv",
+  "targetTable": "balance",
+  "status": "completed",
+  "rowsProcessed": 100,
+  "rowsSuccessful": 100,
+  "rowsFailed": 0,
+  "validationErrors": null,
+  "createdAt": "2025-01-17T14:30:22.000Z",
+  "updatedAt": "2025-01-17T14:30:25.000Z"
+}
+```
+
+**Статусы:**
+- `pending` - Ожидает обработки
+- `processing` - В процессе обработки
+- `completed` - Успешно завершена
+- `failed` - Ошибка обработки
+- `rolled_back` - Откачена
+
+### `GET /api/upload/:uploadId/sheets`
+
+Получить список листов для XLSX файла.
+
+**Пример:**
+```bash
+GET /api/upload/1/sheets
+```
+
+**Ответ:**
+```json
+{
+  "uploadId": 1,
+  "availableSheets": ["Январь", "Февраль", "Март"],
+  "currentSheet": "Январь"
+}
+```
+
+**Коды ошибок:**
+- `400` - Файл не является XLSX
+- `404` - Загрузка не найдена
+
+### `POST /api/upload/:uploadId/rollback`
+
+Откатить загрузку (удалить загруженные данные из STG, ODS, MART).
+
+**Параметры запроса (JSON):**
+- `rolledBackBy` (опционально) - Пользователь, выполнивший откат
+
+**Пример:**
+```bash
+POST /api/upload/1/rollback
+Content-Type: application/json
+
+{
+  "rolledBackBy": "admin"
+}
+```
+
+**Ответ:**
+```json
+{
+  "uploadId": 1,
+  "status": "rolled_back",
+  "message": "Загрузка успешно откачена"
+}
+```
+
+**Коды ошибок:**
+- `400` - Загрузка уже была откачена
+- `404` - Загрузка не найдена
+- `500` - Ошибка отката
+
+### `GET /api/uploads`
+
+Получить историю загрузок.
+
+**Query параметры:**
+- `targetTable` (опционально) - Фильтр по таблице
+- `status` (опционально) - Фильтр по статусу (pending, processing, completed, failed, rolled_back)
+- `limit` (опционально, по умолчанию 50) - Максимальное количество записей
+- `offset` (опционально, по умолчанию 0) - Смещение для пагинации
+
+**Пример:**
+```bash
+GET /api/uploads
+GET /api/uploads?targetTable=balance&status=completed
+GET /api/uploads?limit=100&offset=0
+```
+
+**Ответ:**
+```json
+{
+  "uploads": [
+    {
+      "id": 1,
+      "filename": "balance_20250117_143022.csv",
+      "originalFilename": "balance.csv",
+      "fileType": "csv",
+      "targetTable": "balance",
+      "status": "completed",
+      "rowsProcessed": 100,
+      "rowsSuccessful": 100,
+      "rowsFailed": 0,
+      "createdAt": "2025-01-17T14:30:22.000Z",
+      "updatedAt": "2025-01-17T14:30:25.000Z"
+    }
+  ],
+  "total": 1
+}
+```
+
 ---
 
 Подробнее в разделах:
 - [KPI API](/api/kpi-api)
 - [Table Data API](/api/table-data-api)
 - [Layout API](/api/layout-api)
+- [Upload API](/api/upload-api) - детальное описание API загрузки файлов

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DevTools from "./pages/DevTools";
 import DynamicDashboard from "./pages/DynamicDashboard";
+import FileUpload from "./pages/FileUpload";
 import NotFound from "./pages/NotFound";
 
 // Очищаем кэш браузера при загрузке модуля
@@ -42,6 +43,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<DynamicDashboard />} />
             <Route path="/dev-tools" element={<DevTools />} />
+            <Route path="/upload" element={<FileUpload />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

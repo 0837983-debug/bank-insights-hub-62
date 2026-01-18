@@ -74,6 +74,30 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
 
+## Функции
+
+### Загрузка файлов (XLSX/CSV)
+
+Система поддерживает загрузку данных из CSV и XLSX файлов для импорта в базу данных.
+
+**Поддерживаемые форматы:**
+- CSV (разделитель `;`)
+- XLSX (Excel 2007+)
+
+**Поддерживаемые таблицы:**
+- `balance` - Баланс (активы, пассивы, капитал)
+
+**Процесс загрузки:**
+1. Парсинг файла
+2. Валидация структуры и данных
+3. Загрузка в STG (Staging)
+4. Трансформация STG → ODS (Operational Data Store)
+5. Трансформация ODS → MART (Data Mart)
+
+**Документация:**
+- [Руководство по загрузке файлов](/docs/guides/file-upload.md)
+- [Upload API](/docs/api/upload-api.md)
+
 ## Восстановление файлов
 
 Если при работе с проектом вы столкнулись с отсутствием какого-либо файла:

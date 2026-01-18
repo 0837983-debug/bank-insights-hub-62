@@ -1,0 +1,6 @@
+month;class;section;item;amount
+2025-03-01;assets;loans;corporate_loans;4800000000
+2025-03-01;assets;loans;retail_loans;5300000000
+2025-03-01;assets;investments;government_bonds;3700000000
+2025-03-01;liabilities;deposits;term_deposits_corpo;7100000000
+2025-03-01;liabilities;deposits;term_deposits_individual;4600000000

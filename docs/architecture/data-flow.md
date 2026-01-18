@@ -54,8 +54,8 @@ Host: localhost:3001
 **Service (`services/mart/kpiService.ts`):**
 - Определяет период (latest или указанный)
 - SQL запрос к `mart.kpi_metrics`
-- Расчет изменений (PPTD, YTD)
-- Трансформация данных
+- **Расчет всех метрик на backend:** ppChange, ytdChange, percentage
+- Трансформация данных с готовыми расчетными полями
 
 **SQL запрос:**
 ```sql
@@ -141,51 +141,52 @@ GET /api/table-data/financial_results_income?groupBy=cfo
 - Проверяет маппинг legacy IDs
 - Вызывает соответствующий сервис
 
-**Service (`services/mart/financialResults/financialResultsService.ts`):**
-- SQL запрос с группировкой
-- Агрегация данных
-- Формирование иерархии
+**Service (`services/mart/balanceService.ts` или аналогичный):**
+- SQL запрос к mart таблицам
+- Расчет метрик: ppChange, ytdChange, percentage на backend
+- Возврат плоских строк с иерархией через поля (class, section, item, sub_item)
 
-**SQL запрос:**
+**SQL запрос и обработка:**
 ```sql
 SELECT 
-  row_code,
-  SUM(value) as value,
-  cfo
-FROM mart.financial_results
+  class, section, item, sub_item,
+  value, prev_period, prev_year
+FROM mart.balance
 WHERE period_date = $1
-GROUP BY row_code, cfo
 ```
 
-### 4. Трансформация
+**Backend расчеты:**
+- `ppChange = (current - previous) / previous`
+- `ytdChange = (current - ytdValue) / ytdValue`
+- `percentage = value / total`
 
-**Service:**
-- Группировка по полю
-- Расчет процентов
-- Формирование иерархии (группы, подгруппы)
-
-**Ответ:**
+**Ответ (плоские строки):**
 ```json
 {
-  "tableId": "financial_results_income",
+  "componentId": "assets_table",
   "rows": [
     {
-      "id": "income_total",
-      "name": "Доходы всего",
-      "value": 1000000000,
-      "isTotal": true
+      "class": "assets",
+      "section": "loans",
+      "item": "loans_retail",
+      "value": 1000000,
+      "ppChange": 0.05,
+      "ytdChange": 0.12,
+      "percentage": 0.8
     }
-  ],
-  "groupBy": ["cfo"]
+  ]
 }
 ```
 
-### 5. Frontend обработка
+### 4. Frontend обработка
 
-**Component:**
-- Трансформация данных для таблицы
-- Применение форматирования
-- Рендеринг `FinancialTable`
+**Component (`transformTableData`):**
+- Построение иерархической структуры из плоских данных
+- Агрегация групп: суммирование значений, пересчет метрик для групп
+- Сортировка по иерархии
+- Форматирование через `formatValue()` для отображения
+
+**Важно:** Все расчеты выполняются на backend. Frontend только строит UI структуру и форматирует для отображения. Пересчет метрик для групп - единственное исключение, необходимое для корректной агрегации групп.
 
 ## Детальный поток: Layout
 
@@ -299,6 +300,122 @@ PostgreSQL использует:
 - Меньше overhead
 - Эффективное использование ресурсов
 
+## Детальный поток: Загрузка файлов
+
+### 1. Инициация загрузки
+
+**Frontend:**
+```typescript
+const formData = new FormData();
+formData.append('file', file);
+formData.append('targetTable', 'balance');
+const response = await fetch('/api/upload', {
+  method: 'POST',
+  body: formData
+});
+```
+
+### 2. HTTP запрос
+
+**Request:**
+```
+POST /api/upload HTTP/1.1
+Content-Type: multipart/form-data
+
+file: [файл.csv]
+targetTable: balance
+```
+
+### 3. Backend обработка
+
+**Route (`routes/uploadRoutes.ts`):**
+- Принимает файл через multer
+- Валидирует параметры (targetTable, sheetName)
+- Вызывает сервисы обработки
+
+### 4. Процесс загрузки: STG → ODS → MART
+
+**Этап 1: Сохранение файла**
+- **Service (`storageService.ts`):**
+  - Сохранение файла в `row/processed/{targetTable}/{filename}_{timestamp}`
+  - Создание директорий при необходимости
+  - Возврат пути к файлу
+
+**Этап 2: Парсинг файла**
+- **Service (`fileParserService.ts`):**
+  - Парсинг CSV (разделитель `;`) или XLSX
+  - Извлечение заголовков
+  - Преобразование в унифицированный формат
+
+**Этап 3: Валидация**
+- **Service (`validationService.ts`):**
+  - Валидация структуры файла (обязательные заголовки)
+  - Валидация типов данных (дата, число)
+  - Валидация обязательных полей
+  - Проверка уникальности записей
+  - Агрегация ошибок (1-2 примера + общее количество)
+
+**Этап 4: Загрузка в STG**
+- **Service (`ingestionService.ts`):**
+  - Загрузка данных в `stg.{targetTable}_upload`
+  - Маппинг полей (month → period_date, amount → value)
+  - Связь с `ing.uploads` через `upload_id`
+
+**Этап 5: Трансформация STG → ODS**
+- **Service (`ingestionService.ts`):**
+  - Soft delete старых данных за период в `ods.{targetTable}`
+  - Вставка новых данных из STG
+  - Обновление `updated_at`, `deleted_at`
+
+**Этап 6: Трансформация ODS → MART**
+- **Service (`ingestionService.ts`):**
+  - Soft delete старых данных за период в `mart.{targetTable}`
+  - Вставка новых данных из ODS
+  - Расчет метрик (ppChange, ytdChange, percentage)
+  - Обновление статуса загрузки на `completed`
+
+### 5. Формирование ответа
+
+**Route возвращает:**
+```json
+{
+  "uploadId": 1,
+  "status": "completed",
+  "rowsProcessed": 100,
+  "rowsSuccessful": 100,
+  "rowsFailed": 0
+}
+```
+
+**Frontend:**
+- Отображение статуса загрузки
+- Показ прогресса (если доступно)
+- Отображение ошибок валидации (если есть)
+
+### Схема потока данных при загрузке
+
+```
+Файл (CSV/XLSX)
+    ↓
+Сохранение в row/processed/
+    ↓
+Парсинг файла
+    ↓
+Валидация структуры и данных
+    ↓
+STG (stg.balance_upload)
+    ↓
+Трансформация
+    ↓
+ODS (ods.balance) - soft delete старых данных
+    ↓
+Трансформация
+    ↓
+MART (mart.balance) - расчет метрик
+    ↓
+Готовые данные для API
+```
+
 ## Обработка ошибок
 
 ### Backend
@@ -306,15 +423,18 @@ PostgreSQL использует:
 - Валидация входных данных
 - Try-catch блоки
 - Стандартизированные ошибки
+- Агрегация ошибок валидации (1-2 примера + общее количество)
 
 ### Frontend
 
 - React Query автоматически обрабатывает ошибки
 - Отображение fallback UI
 - Retry механизм
+- Отображение ошибок валидации пользователю
 
 ## См. также
 
 - [Общая архитектура](/architecture/overview) - обзор системы
 - [Frontend архитектура](/architecture/frontend) - детали frontend
 - [Backend архитектура](/architecture/backend) - детали backend
+- [Upload API](/api/upload-api) - детальное описание API загрузки

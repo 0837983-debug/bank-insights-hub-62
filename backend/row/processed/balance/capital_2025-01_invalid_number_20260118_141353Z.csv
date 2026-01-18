@@ -1,0 +1,4 @@
+month;class;section;item;amount
+2025-01-01;assets;loans;corporate_loans;not_a_number
+2025-01-01;assets;loans;retail_loans;abc123
+2025-01-01;assets;investments;government_bonds;35.50.00

@@ -266,7 +266,7 @@ export const FinancialTable = ({
 
   const isRowVisible = (row: TableRowData): boolean => {
     if (!row.parentId) return true;
-    
+
     // Проверяем, не свёрнут ли какой-либо родитель
     let currentParentId: string | undefined = row.parentId;
     while (currentParentId) {
@@ -315,9 +315,9 @@ export const FinancialTable = ({
     for (let level = maxDepth; level >= 0; level--) {
       const groupsAtLevel = getCollapsibleRowsAtLevel(level);
       if (groupsAtLevel.length > 0) {
-        const hasExpandedAtLevel = groupsAtLevel.some((id) => !collapsedGroups.has(id));
-        if (hasExpandedAtLevel) {
-          return level;
+      const hasExpandedAtLevel = groupsAtLevel.some((id) => !collapsedGroups.has(id));
+      if (hasExpandedAtLevel) {
+        return level;
         }
       }
     }
@@ -330,9 +330,9 @@ export const FinancialTable = ({
     for (let level = 0; level <= maxDepth; level++) {
       const groupsAtLevel = getCollapsibleRowsAtLevel(level);
       if (groupsAtLevel.length > 0) {
-        const hasCollapsedAtLevel = groupsAtLevel.some((id) => collapsedGroups.has(id));
-        if (hasCollapsedAtLevel) {
-          return level;
+      const hasCollapsedAtLevel = groupsAtLevel.some((id) => collapsedGroups.has(id));
+      if (hasCollapsedAtLevel) {
+        return level;
         }
       }
     }
@@ -457,30 +457,30 @@ export const FinancialTable = ({
                       {/* Одна колонка "Показатель" для всей иерархии */}
                       {textColumns.length > 0 && (
                         <TableHead className="w-[50%]">
-                          <SortableHeader
-                            label="Показатель"
-                            column="name"
-                            currentColumn={sortState.column}
-                            direction={sortState.direction}
-                            onSort={handleSort}
-                            className="text-xs font-medium uppercase tracking-wider"
-                          />
-                        </TableHead>
-                      )}
+                  <SortableHeader
+                    label="Показатель"
+                    column="name"
+                    currentColumn={sortState.column}
+                    direction={sortState.direction}
+                    onSort={handleSort}
+                    className="text-xs font-medium uppercase tracking-wider"
+                  />
+                  </TableHead>
+                )}
                       {/* Числовые колонки */}
                       {numericColumns.map((col) => (
                         <TableHead key={col.id} className="text-right">
-                          <div className="flex justify-end">
-                            <SortableHeader
+                  <div className="flex justify-end">
+                    <SortableHeader
                               label={col.label || col.id}
                               column={col.id}
-                              currentColumn={sortState.column}
-                              direction={sortState.direction}
-                              onSort={handleSort}
-                              className="text-xs font-medium uppercase tracking-wider"
-                            />
-                          </div>
-                        </TableHead>
+                      currentColumn={sortState.column}
+                      direction={sortState.direction}
+                      onSort={handleSort}
+                      className="text-xs font-medium uppercase tracking-wider"
+                    />
+                  </div>
+                </TableHead>
                       ))}
                     </>
                   );
@@ -510,50 +510,50 @@ export const FinancialTable = ({
                   >
                     {/* Колонка "Показатель" с иерархией */}
                     {textColumns.length > 0 && (
-                      <TableCell
-                        className="py-4"
+                    <TableCell
+                      className="py-4"
                         style={{ paddingLeft: `${indentLevel * 1.5 + 1}rem` }}
-                      >
-                        <div className="flex items-center gap-2">
-                          {hasChildren && (
-                            <button
+                    >
+                      <div className="flex items-center gap-2">
+                        {hasChildren && (
+                          <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleGroup(row.id);
                               }}
-                              className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
-                            >
-                              {isCollapsed ? (
-                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                              )}
-                            </button>
-                          )}
+                            className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                          >
+                            {isCollapsed ? (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </button>
+                        )}
                           {!hasChildren && indentLevel > 0 && (
                             <span className="w-5 flex-shrink-0" />
                           )}
-                          <span
-                            className={cn(
+                        <span
+                          className={cn(
                               row.isGroup && "font-semibold",
-                              row.isTotal && "font-bold"
-                            )}
-                          >
-                            {displayName}
-                          </span>
-                          {row.description && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <p className="text-sm">{row.description}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            row.isTotal && "font-bold"
                           )}
-                        </div>
+                        >
+                            {displayName}
+                        </span>
+                        {row.description && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">{row.description}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                       </TableCell>
                     )}
                     
@@ -577,35 +577,35 @@ export const FinancialTable = ({
                       
                       return (
                         <TableCell key={col.id} className="text-right py-4">
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="font-semibold text-foreground">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="font-semibold text-foreground">
                               {numValue !== undefined ? formatValue(formatId, numValue) : "—"}
-                            </span>
+                        </span>
                             {showChange && ppChangeValue !== undefined && (
-                              <div
-                                className={cn(
-                                  "flex items-center gap-1 text-sm",
+                          <div
+                            className={cn(
+                              "flex items-center gap-1 text-sm",
                                   ppChangeValue > 0 && "text-green-600",
                                   ppChangeValue < 0 && "text-red-600",
                                   ppChangeValue === 0 && "text-muted-foreground"
-                                )}
-                              >
+                            )}
+                          >
                                 {ppChangeValue > 0 && <TrendingUp className="w-3 h-3" />}
                                 {ppChangeValue < 0 && <TrendingDown className="w-3 h-3" />}
-                                <span>
+                            <span>
                                   {ppChangeValue > 0 ? "+" : ""}
                                   {formatValue(ppChangeFormat, Math.abs(ppChangeValue))}
                                   {ytdChangeValue !== undefined && (
-                                    <span className="ml-1">
+                                <span className="ml-1">
                                       ({ytdChangeValue > 0 ? "↑" : ytdChangeValue < 0 ? "↓" : ""}
                                       {formatValue(ytdChangeFormat, Math.abs(ytdChangeValue))})
-                                    </span>
-                                  )}
                                 </span>
-                              </div>
-                            )}
+                              )}
+                            </span>
                           </div>
-                        </TableCell>
+                        )}
+                      </div>
+                    </TableCell>
                       );
                     })}
                   </TableRow>

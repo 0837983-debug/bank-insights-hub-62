@@ -60,6 +60,10 @@ async function runMigrations() {
       join(__dirname, "../migrations/013_add_component_fields_metadata.sql"),
       "utf-8"
     );
+    const migrationUploadTables = await readFile(
+      join(__dirname, "../migrations/018_create_upload_tables.sql"),
+      "utf-8"
+    );
 
     // Execute migrations in order
     console.log("Running migration 001: Create schemas...");
@@ -109,6 +113,10 @@ async function runMigrations() {
     console.log("Running migration 013: Add component_fields metadata...");
     await client.query(migrationComponentFieldsMetadata);
     console.log("✅ Migration 013 (component_fields metadata) completed");
+
+    console.log("Running migration 018: Create upload tables...");
+    await client.query(migrationUploadTables);
+    console.log("✅ Migration 018 (upload tables) completed");
 
     console.log("✅ All migrations completed successfully!");
     console.log("💡 To migrate layout data from layout.json, run: npm run migrate-data");

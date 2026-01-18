@@ -48,7 +48,9 @@ npm run migrate
 
 Это создаст:
 - Схему `dashboard` для хранения данных дашборда
+- Схемы `stg`, `ods`, `ing`, `dict` для загрузки файлов
 - Таблицы для KPI метрик, категорий, данных таблиц и графиков
+- Таблицы для загрузки файлов (`stg.balance_upload`, `ods.balance`, `ing.uploads`, `dict.upload_mappings`)
 - Начальные данные для KPI метрик
 
 ## Загрузка данных таблиц
@@ -101,6 +103,18 @@ npm start
 
 - `GET /api/layout` - Получить структуру layout из БД
 
+### Upload Endpoints
+
+- `POST /api/upload` - Загрузить файл (CSV/XLSX) для импорта данных
+  - Параметры (multipart/form-data): `file` (обязательно), `targetTable` (обязательно, например: `balance`), `sheetName` (опционально, для XLSX)
+  - Поддерживаемые форматы: CSV (разделитель `;`), XLSX
+  - Поддерживаемые таблицы: `balance`
+- `GET /api/upload/:uploadId` - Получить статус загрузки по ID
+- `GET /api/upload/:uploadId/sheets` - Получить список листов для XLSX файла
+- `POST /api/upload/:uploadId/rollback` - Откатить загрузку (удалить загруженные данные)
+- `GET /api/uploads` - Получить историю загрузок
+  - Query параметры: `targetTable` (опционально), `status` (опционально), `limit` (опционально), `offset` (опционально)
+
 ### Health Check
 
 - `GET /api/health` - Проверка работоспособности сервера
@@ -134,4 +148,25 @@ curl http://localhost:3001/api/table-data/income
 
 ```bash
 curl "http://localhost:3001/api/table-data/income?groupBy=product_line"
+```
+
+### Загрузить файл (CSV/XLSX)
+
+```bash
+curl -X POST http://localhost:3001/api/upload \
+  -F "file=@balance.csv" \
+  -F "targetTable=balance"
+```
+
+### Получить статус загрузки
+
+```bash
+curl http://localhost:3001/api/upload/1
+```
+
+### Получить историю загрузок
+
+```bash
+curl http://localhost:3001/api/uploads
+curl "http://localhost:3001/api/uploads?targetTable=balance&status=completed"
 ```
