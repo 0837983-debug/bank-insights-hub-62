@@ -65,8 +65,101 @@ Layout система позволяет динамически строить �
 
 Layout состоит из:
 - **Formats** - определения форматов для форматирования значений
-- **Header** (опционально) - компонент header с датами периодов
+- **Header** (опционально) - компонент header с датами периодов, возвращается как отдельное top-level поле `layout.header` (не в секциях)
 - **Sections** - секции дашборда с компонентами
+
+**Важно:** Header является отдельным top-level элементом в layout, рендерится над секциями и не является частью секций или контейнеров.
+
+### Пример ответа Layout
+
+```json
+{
+  "formats": {
+    "currency_rub": {
+      "kind": "currency",
+      "prefixUnitSymbol": "₽",
+      "shorten": true,
+      "minimumFractionDigits": 1,
+      "maximumFractionDigits": 1
+    },
+    "percent": {
+      "kind": "percent",
+      "suffixUnitSymbol": "%",
+      "minimumFractionDigits": 1,
+      "maximumFractionDigits": 2
+    }
+  },
+  "header": {
+    "id": "main::header",
+    "componentId": "header",
+    "type": "header",
+    "title": "Header",
+    "dataSourceKey": "header_dates"
+  },
+  "sections": [
+    {
+      "id": "balance",
+      "title": "Баланс",
+      "components": [
+        {
+          "id": "main::balance::capital_card",
+          "componentId": "capital_card",
+          "type": "card",
+          "title": "Капитал",
+          "icon": "Landmark",
+          "format": {
+            "value": "currency_rub",
+            "PPTD": "percent",
+            "YTD": "percent"
+          }
+        },
+        {
+          "id": "main::balance::assets_table",
+          "componentId": "assets_table",
+          "type": "table",
+          "title": "Активы",
+          "dataSourceKey": "assets_table",
+          "columns": [
+            {
+              "id": "class",
+              "label": "Класс",
+              "type": "text"
+            },
+            {
+              "id": "value",
+              "label": "Значение",
+              "type": "number",
+              "format": {
+                "value": "currency_rub"
+              }
+            }
+          ],
+          "buttons": [
+            {
+              "id": "main::balance::assets_table::button_assets_table_cfo",
+              "componentId": "button_assets_table_cfo",
+              "type": "button",
+              "title": "ЦФО",
+              "dataSourceKey": "assets_table",
+              "settings": {
+                "fieldId": "cfo",
+                "groupBy": "cfo"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Особенности структуры:**
+- `header` - отдельное top-level поле (не в `sections`)
+- `header.id` - составной ID: `{layoutId}::{componentId}`
+- `header.dataSourceKey` - ссылка на `query_id` в `config.component_queries`
+- `sections` - массив секций с компонентами
+- Header рендерится над всеми секциями на frontend
 
 ### Типы компонентов
 
@@ -119,15 +212,18 @@ Layout состоит из:
 
 ### Примеры
 
-**Header компонент:**
+**Header компонент (top-level элемент):**
 ```json
 {
-  "id": "header",
+  "id": "main::header",
+  "componentId": "header",
   "type": "header",
   "title": "Header",
   "dataSourceKey": "header_dates"
 }
 ```
+
+**Важно:** Header возвращается как отдельное поле `layout.header`, а не внутри секций. Это позволяет рендерить header над всеми секциями дашборда.
 
 **Table компонент:**
 ```json
@@ -182,8 +278,9 @@ Layout состоит из:
 
 ### Реализация в layoutService
 
-`layoutService` возвращает `dataSourceKey` для всех типов компонентов, где он заполнен в БД:
+`layoutService` возвращает `dataSourceKey` для всех типов компонентов, где он заполнен в БД. Header обрабатывается отдельно как top-level элемент.
 
+**Компоненты в секциях:**
 ```typescript
 // Для card компонента
 const card: any = {
@@ -213,26 +310,13 @@ const chart: any = {
   ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
 };
 
-// Для header компонента
-const header: any = {
-  id: compositeId,
-  componentId: mapping.componentId,
-  type: "header",
-  title: mapping.component.title ?? mapping.componentId,
-  ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
-};
+// Header НЕ обрабатывается в секциях - он пропускается
+if (type === "header") {
+  // Header не должен быть в секциях - он обрабатывается отдельно как top-level компонент
+  continue;
+}
 
 // Для table компонента - добавляем кнопки
-const table: any = {
-  id: compositeId,
-  componentId: mapping.componentId,
-  type: "table",
-  title: mapping.component.title ?? mapping.componentId,
-  columns,
-  ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
-};
-
-// Получаем дочерние компоненты таблицы (кнопки)
 const tableButtonsResult = await pool.query(
   `SELECT ... FROM config.layout_component_mapping lcm
    INNER JOIN config.components c ON lcm.component_id = c.id
@@ -260,6 +344,48 @@ if (buttons.length > 0) {
 }
 ```
 
+**Header как top-level элемент:**
+```typescript
+// Header обрабатывается отдельно после секций
+const headerResult = await pool.query(
+  `SELECT 
+    lcm.id, lcm.layout_id as "layoutId", lcm.component_id as "componentId",
+    c.id as "component.id", c.component_type as "component.componentType",
+    c.title as "component.title",
+    c.data_source_key as "component.dataSourceKey"
+  FROM config.layout_component_mapping lcm
+  INNER JOIN config.components c ON lcm.component_id = c.id
+  WHERE lcm.layout_id = $1
+    AND lcm.parent_component_id IS NULL
+    AND lcm.deleted_at IS NULL
+    AND c.component_type = 'header'
+  ORDER BY lcm.display_order ASC, lcm.id ASC
+  LIMIT 1`,
+  [layoutId]
+);
+
+let header: any = null;
+if (headerResult.rows.length > 0) {
+  const row = headerResult.rows[0];
+  const componentId = row.componentId;
+  const compositeId = `${layoutId}::${componentId}`;
+
+  header = {
+    id: compositeId,
+    componentId: componentId,
+    type: "header",
+    title: row["component.title"] ?? componentId,
+    ...(row["component.dataSourceKey"] ? { dataSourceKey: row["component.dataSourceKey"] } : {}),
+  };
+}
+
+// Возвращаем layout с header отдельным полем
+const result: any = { formats, sections };
+if (header) {
+  result.header = header;
+}
+```
+
 ### Условия возврата
 
 - `dataSourceKey` возвращается только если он заполнен в `config.components.data_source_key`
@@ -277,8 +403,16 @@ Frontend → GET /api/layout → layoutService → Database
                             config.components (с data_source_key)
                             config.layout_component_mapping
                                     ↓
-                            JSON с dataSourceKey для компонентов
+                            JSON структура:
+                            - formats: {...}
+                            - header: {...} (top-level, опционально)
+                            - sections: [...]
 ```
+
+**Особенности:**
+- Header обрабатывается отдельно от секций
+- Header возвращается как отдельное поле `layout.header` (не в `sections`)
+- Header рендерится над всеми секциями на frontend
 
 ### 2. Получение данных компонента
 

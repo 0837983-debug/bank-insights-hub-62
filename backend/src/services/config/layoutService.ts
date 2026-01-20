@@ -452,19 +452,9 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
           };
           components.push(chart);
         } else if (type === "header") {
-          // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
-          const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
-          
-          const header: any = {
-            id: compositeId,
-            componentId: mapping.componentId,
-            type: "header",
-            title: mapping.component.title ?? mapping.componentId,
-            ...(mapping.component.tooltip ? { tooltip: mapping.component.tooltip } : {}),
-            ...(mapping.component.icon ? { icon: mapping.component.icon } : {}),
-            ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
-          };
-          components.push(header);
+          // Header не должен быть в секциях - он обрабатывается отдельно как top-level компонент
+          // Пропускаем header здесь
+          continue;
         } else if (type === "button") {
           // Кнопки обрабатываются как дочерние компоненты таблиц выше
           // Если кнопка попала сюда, значит она не привязана к таблице - пропускаем
@@ -482,8 +472,8 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
       });
     }
 
-    // 4) Компоненты верхнего уровня, которые не являются контейнерами (например, header)
-    const topLevelComponentsResult = await pool.query(
+    // 4) Header как отдельный top-level компонент (не в секциях)
+    const headerResult = await pool.query(
       `SELECT 
         lcm.id, lcm.layout_id as "layoutId", lcm.component_id as "componentId",
         lcm.display_order as "displayOrder", lcm.is_visible as "isVisible",
@@ -500,51 +490,36 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
       WHERE lcm.layout_id = $1
         AND lcm.parent_component_id IS NULL
         AND lcm.deleted_at IS NULL
-        AND c.component_type != 'container'
-      ORDER BY lcm.display_order ASC, lcm.id ASC`,
+        AND c.component_type = 'header'
+      ORDER BY lcm.display_order ASC, lcm.id ASC
+      LIMIT 1`,
       [layoutId]
     );
 
-    const topLevelComponents: any[] = [];
-    for (const row of topLevelComponentsResult.rows) {
-      const type = row["component.componentType"];
+    let header: any = null;
+    if (headerResult.rows.length > 0) {
+      const row = headerResult.rows[0];
       const componentId = row.componentId;
       const compositeId = `${layoutId}::${componentId}`;
 
-      if (type === "header") {
-        const header: any = {
-          id: compositeId,
-          componentId: componentId,
-          type: "header",
-          title: row["component.title"] ?? componentId,
-          ...(row["component.tooltip"] ? { tooltip: row["component.tooltip"] } : {}),
-          ...(row["component.icon"] ? { icon: row["component.icon"] } : {}),
-          ...(row["component.dataSourceKey"] ? { dataSourceKey: row["component.dataSourceKey"] } : {}),
-        };
-        topLevelComponents.push(header);
-      } else {
-        // Для других типов компонентов верхнего уровня (если появятся)
-        const component: any = {
-          id: compositeId,
-          componentId: componentId,
-          type: type,
-          title: row["component.title"] ?? componentId,
-          ...(row["component.dataSourceKey"] ? { dataSourceKey: row["component.dataSourceKey"] } : {}),
-        };
-        topLevelComponents.push(component);
-      }
+      header = {
+        id: compositeId,
+        componentId: componentId,
+        type: "header",
+        title: row["component.title"] ?? componentId,
+        ...(row["component.tooltip"] ? { tooltip: row["component.tooltip"] } : {}),
+        ...(row["component.icon"] ? { icon: row["component.icon"] } : {}),
+        ...(row["component.dataSourceKey"] ? { dataSourceKey: row["component.dataSourceKey"] } : {}),
+      };
     }
 
-    // Добавляем компоненты верхнего уровня в начало sections (если они есть)
-    if (topLevelComponents.length > 0) {
-      sections.unshift({
-        id: "top_level",
-        title: "Top Level",
-        components: topLevelComponents,
-      });
+    // Возвращаем layout с header отдельным полем
+    const result: any = { formats, sections };
+    if (header) {
+      result.header = header;
     }
 
-    return { formats, sections };
+    return result;
   } catch (error) {
     console.error('[layoutService] Error building layout:', error);
     throw error;

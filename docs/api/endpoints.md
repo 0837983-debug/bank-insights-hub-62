@@ -271,20 +271,25 @@ GET /api/uploads?limit=100&offset=0
 
 ## Get Data Endpoints
 
-### `GET /api/data/:query_id`
+### `GET /api/data`
 
 Единый endpoint для получения данных через SQL Builder.
 
-**Параметры пути:**
+**Query параметры (обязательные):**
 - `query_id` (string) - Идентификатор запроса из `config.component_queries.query_id`
+- `component_Id` (string) - Идентификатор компонента (обратите внимание на заглавную I)
 
-**Query параметры:**
-- `component_id` (string, обязательно) - Идентификатор компонента
-- Остальные параметры передаются как query params (например, `p1`, `p2`, `p3`, `class`)
+**Query параметры (опциональные):**
+- `parametrs` (string) - JSON строка с параметрами для подстановки в SQL (обратите внимание на опечатку в названии)
 
 **Пример:**
 ```bash
-GET /api/data/assets_table?component_id=assets_table&p1=2025-08-01&p2=2025-07-01&p3=2024-08-01&class=assets
+GET /api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2025-08-01","p2":"2025-07-01","p3":"2024-08-01","class":"assets"}
+```
+
+**Пример без параметров:**
+```bash
+GET /api/data?query_id=header_dates&component_Id=header
 ```
 
 **Ответ:**
@@ -297,8 +302,14 @@ GET /api/data/assets_table?component_id=assets_table&p1=2025-08-01&p2=2025-07-01
 ```
 
 **Ограничения:**
-- Требуется `wrapJson=true` в конфиге запроса
+- Требуется `wrapJson=true` в конфиге запроса (кроме `header_dates`)
 - Если `wrapJson=false`, возвращается ошибка 400
+- При отсутствии `query_id` или `component_Id` возвращается ошибка 400
+- При невалидном JSON в `parametrs` возвращается ошибка 400
+
+**Специальные случаи:**
+- `query_id=header_dates` - обходит SQL Builder, использует `periodService.getHeaderDates()` напрямую
+- `query_id=layout` - возвращает структуру `sections` вместо `rows`
 
 ---
 

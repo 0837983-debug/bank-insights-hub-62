@@ -1,13 +1,17 @@
 /**
  * Routes for unified data endpoint
  * GET /api/data - единая точка получения данных через SQL Builder
+ * 
+ * Query params:
+ * - query_id (обязательно)
+ * - component_Id (обязательно)
+ * - parametrs (опционально, JSON-строка)
  */
 
 import { Router, Request, Response } from "express";
 import { buildQueryFromId } from "../services/queryBuilder/builder.js";
-import { loadQueryConfig } from "../services/queryBuilder/queryLoader.js";
 import { pool } from "../config/database.js";
-import { getRowDescription, getSortOrder } from "../services/mart/base/rowNameMapper.js";
+import { getSortOrder } from "../services/mart/base/rowNameMapper.js";
 import { getHeaderDates } from "../services/mart/base/periodService.js";
 
 const router = Router();
@@ -49,53 +53,53 @@ function transformTableData(rows: any[]): any[] {
 }
 
 /**
- * GET /api/data/:query_id
- * Получение данных по query_id с параметрами из query string
- * 
+ * GET /api/data
+ * Получение данных по query_id, component_Id и parametrs из query string
+ *
  * Query params:
- * - component_id: идентификатор компонента (обязательно для табличных запросов)
- * - остальные параметры передаются как query params (p1, p2, p3, class и т.д.)
- * 
+ * - query_id (обязательно)
+ * - component_Id (обязательно)
+ * - parametrs (опционально, JSON-строка)
+ *
  * Example:
- * GET /api/data/assets_table?component_id=assets_table&p1=2025-08-01&p2=2025-07-01&p3=2024-08-01&class=assets
+ * GET /api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2025-08-01"}
  */
-router.get("/:query_id", async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
-    const { query_id } = req.params;
-    const { component_id, ...queryParams } = req.query;
+    const { query_id, component_Id, parametrs } = req.query;
 
-    // Парсинг всех query params в объект params
-    const params: Record<string, string | number | boolean | Date> = {};
-    for (const [key, value] of Object.entries(queryParams)) {
-      if (typeof value === 'string') {
-        // Пробуем определить тип значения
-        if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          // Дата в формате YYYY-MM-DD
-          params[key] = new Date(value);
-        } else if (value === 'true' || value === 'false') {
-          params[key] = value === 'true';
-        } else if (!isNaN(Number(value)) && value.trim() !== '') {
-          params[key] = Number(value);
-        } else {
-          params[key] = value;
-        }
-      } else if (typeof value === 'number' || typeof value === 'boolean') {
-        params[key] = value;
+    // Валидация обязательных параметров
+    if (!query_id || typeof query_id !== "string") {
+      return res.status(400).json({ error: "query_id is required and must be a string" });
+    }
+
+    if (!component_Id || typeof component_Id !== "string") {
+      return res.status(400).json({ error: "component_Id is required and must be a string" });
+    }
+
+    // Валидация parametrs (опционально, но если есть - должен быть валидным JSON)
+    let paramsJson = "{}";
+    if (parametrs !== undefined) {
+      if (typeof parametrs !== "string") {
+        return res.status(400).json({ error: "parametrs must be a JSON string" });
+      }
+      try {
+        JSON.parse(parametrs);
+        paramsJson = parametrs;
+      } catch (error) {
+        return res.status(400).json({ error: "invalid JSON in parametrs" });
       }
     }
 
-    // Преобразование params в JSON строку для builder
-    const paramsJson = JSON.stringify(params);
-
     // Логирование запроса
-    console.log(`[getData] GET Request: query_id=${query_id}, component_id=${component_id}, paramsJson=${paramsJson}`);
+    console.log(`[getData] GET Request: query_id=${query_id}, component_Id=${component_Id}, paramsJson=${paramsJson}`);
 
     // Специальная обработка для header_dates - используем periodService
     if (query_id === "header_dates") {
       const dates = getHeaderDates();
       return res.json({
-        componentId: component_id as string || "header",
+        componentId: component_Id,
         type: "table",
         rows: [{
           periodDate: dates.periodDate,
@@ -103,6 +107,66 @@ router.get("/:query_id", async (req: Request, res: Response) => {
           pyDate: dates.pyDate,
         }],
       });
+    }
+
+    // Специальная обработка для layout - извлекаем sections из результата
+    if (query_id === "layout") {
+      // Построение SQL через builder
+      let sql: string;
+      try {
+        sql = await buildQueryFromId(query_id, paramsJson);
+        console.log(`[getData] Generated SQL for layout: ${sql.substring(0, 200)}...`);
+      } catch (error: any) {
+        console.error(`[getData] Builder error:`, error);
+        if (error.message.includes("invalid JSON")) {
+          return res.status(400).json({ error: error.message });
+        }
+        if (error.message === "invalid config") {
+          return res.status(400).json({ error: error.message });
+        }
+        if (error.message.includes("wrap_json=false")) {
+          return res.status(400).json({ error: error.message });
+        }
+        if (error.message.includes("invalid params")) {
+          return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Failed to build query", details: error.message });
+      }
+
+      // Выполнение SQL
+      try {
+        const result = await client.query(sql);
+        
+        // При wrapJson=true результат должен быть массивом с одним элементом и jsonb_agg
+        if (result.rows.length === 1 && result.rows[0].jsonb_agg) {
+          const data = result.rows[0].jsonb_agg;
+          
+          // Для layout view теперь возвращает отдельные строки для каждого section_id
+          // jsonb_agg собирает их в массив объектов с полем section
+          if (Array.isArray(data) && data.length > 0) {
+            // Извлекаем section из каждого элемента массива
+            const sections = data
+              .map((row: any) => row.section)
+              .filter((section: any) => section !== null && section !== undefined);
+            
+            return res.json({
+              sections: sections,
+            });
+          }
+        }
+
+        // Если структура неожиданная, возвращаем ошибку
+        return res.status(500).json({ 
+          error: "Unexpected result format",
+          details: "Expected sections array in result"
+        });
+      } catch (error: any) {
+        console.error(`[getData] SQL execution error:`, error);
+        return res.status(500).json({ 
+          error: "SQL execution error",
+          details: error.message 
+        });
+      }
     }
 
     // Построение SQL через builder (загрузка конфига и проверка wrapJson внутри builder)
@@ -141,7 +205,7 @@ router.get("/:query_id", async (req: Request, res: Response) => {
         
         // Возвращаем в формате { componentId, type, rows }
         return res.json({
-          componentId: component_id as string || query_id,
+          componentId: component_Id,
           type: "table",
           rows: transformedData,
         });

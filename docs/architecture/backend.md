@@ -123,20 +123,43 @@ backend/
 Построение layout структуры дашборда из БД.
 
 **Функции:**
-- `buildLayoutFromDB()` - построение полного layout
+- `buildLayoutFromDB(requestedLayoutId?)` - построение полного layout
+  - Параметры: `requestedLayoutId` (string, опционально) - ID конкретного layout
+  - Если не указан, используется layout с `is_default = TRUE`
+  - Возвращает: `{ formats, header?, sections }` - структура layout
 
-**Процесс:**
-1. Загрузка форматов из `config.formats`
-2. Загрузка секций из `config.layouts`
-3. Загрузка компонентов из `config.components`
-4. Связывание через `config.layout_component_mapping`
-5. Формирование JSON структуры с `data_source_key`
+**Процесс работы:**
+1. Определение целевого layout (по `requestedLayoutId` или default)
+2. Загрузка форматов из `config.formats` (только используемые в компонентах)
+3. Загрузка секций (контейнеров) из `config.layout_component_mapping` с `parent_component_id IS NULL` и `component_type = 'container'`
+4. Загрузка дочерних компонентов для каждой секции
+5. Обработка компонентов по типам:
+   - **Card** - загрузка полей с иерархией `parent_field_id` для форматов
+   - **Table** - загрузка колонок из `config.component_fields` и кнопок (тип `button`)
+   - **Chart** - базовая информация
+   - **Header** - обрабатывается отдельно как top-level элемент
+   - **Button** - обрабатываются как дочерние компоненты таблиц
+6. Загрузка header отдельно (не в секциях) с `component_type = 'header'`
+7. Формирование JSON структуры с `data_source_key` для всех компонентов
 
 **Особенности:**
 - Работа с `config` схемой PostgreSQL
 - Динамическое построение структуры дашборда
-- Фильтрация неактивных компонентов и форматов
-- Возврат `data_source_key` для компонентов
+- Фильтрация неактивных компонентов и форматов (`is_active = TRUE`, `deleted_at IS NULL`)
+- Возврат `data_source_key` для компонентов (только если заполнен в БД)
+- Header возвращается как отдельное top-level поле `layout.header` (не в секциях)
+- Формирование составных ID: `{layoutId}::{sectionId}::{componentId}`
+- Поддержка иерархии полей для карточек через `parent_field_id`
+- Автоматическое связывание кнопок с таблицами через `parent_component_id`
+
+**Структура возвращаемых данных:**
+```typescript
+{
+  formats: Record<string, Format>;  // Форматы для форматирования значений
+  header?: HeaderComponent;         // Header как top-level элемент (опционально)
+  sections: Section[];              // Секции с компонентами
+}
+```
 
 **См. также:** [Layout Architecture](/architecture/layout) - архитектура layout системы
 
@@ -145,80 +168,243 @@ backend/
 Работа с KPI метриками из Data Mart.
 
 **Функции:**
-- `getKPIMetrics()` - все метрики
-- `getKPIMetricsByCategory()` - по категории
-- `getKPIMetricById()` - по ID
+- `getKPIMetrics(category?, periodDate?)` - все метрики с опциональной фильтрацией
+  - `category` (string, опционально) - фильтр по категории из `config.components.category`
+  - `periodDate` (Date, опционально) - конкретная дата периода (по умолчанию используется максимальная дата из БД)
+  - Возвращает: `KPIMetric[]` - массив метрик с расчетными полями
+- `getKPIMetricsByCategory(category, periodDate?)` - метрики по категории
+  - Обертка над `getKPIMetrics()` с обязательным параметром категории
+
+**Процесс работы:**
+1. Получение списка активных карточек из `config.components` (тип `card`)
+2. Фильтрация по категории, если указана
+3. Получение трех дат периодов (current, previousMonth, previousYear) из `mart.kpi_metrics`
+4. Один SQL запрос с CASE WHEN агрегацией для всех периодов
+5. Расчет изменений (ppChange, ytdChange) в долях (0-1)
+6. Расчет абсолютных изменений (ppChangeAbsolute, ytdChangeAbsolute)
 
 **Особенности:**
 - Работа с `mart.kpi_metrics` таблицей
-- Расчет изменений (ppChange, ytdChange) на backend
-- Расчет процентов (percentage) от общего
+- Расчет изменений (ppChange, ytdChange) на backend в долях (не процентах)
+- Все расчетные поля вычисляются на backend, frontend получает готовые значения
 - Фильтрация по категориям из `config.components`
 - Поддержка периодов (current, previous month, previous year)
-- Все расчетные поля вычисляются на backend, frontend получает готовые значения
+- Использует `getPeriodDates()` для определения периодов относительно максимальной даты в БД
+- При передаче `periodDate` вычисляет остальные периоды относительно этой даты
+
+**Возвращаемые поля:**
+- `id` - ID компонента (component_id)
+- `periodDate` - дата периода (YYYY-MM-DD)
+- `value` - текущее значение
+- `previousValue` - значение предыдущего периода
+- `ytdValue` - значение предыдущего года (опционально)
+- `ppChange` - изменение относительно предыдущего периода (в долях, 0-1)
+- `ppChangeAbsolute` - абсолютное изменение относительно предыдущего периода
+- `ytdChange` - изменение YTD (в долях, 0-1, опционально)
+- `ytdChangeAbsolute` - абсолютное изменение YTD (опционально)
 
 ### Balance Service (`services/mart/balanceService.ts`)
 
 Работа с данными баланса из Data Mart.
 
 **Функции:**
-- `getAssets()` - активы баланса
-- `getLiabilities()` - обязательства баланса
+- `getAssets(periodDate?)` - активы баланса
+  - `periodDate` (Date, опционально) - конкретная дата периода
+  - Возвращает: `TableRowData[]` - массив строк таблицы с расчетными полями
+- `getLiabilities(periodDate?)` - обязательства баланса
+  - `periodDate` (Date, опционально) - конкретная дата периода
+  - Возвращает: `TableRowData[]` - массив строк таблицы с расчетными полями
+- `getBalanceKPI(periodDate?)` - KPI метрики баланса
+  - Обертка над `getKPIMetricsByCategory("balance", periodDate)`
+
+**Процесс работы:**
+1. Определение трех дат периодов из `mart.balance` (для `getAssets`) или `mart.kpi_metrics` (для `getLiabilities`)
+2. Построение динамического SQL запроса с UNION ALL для всех периодов
+3. Использование DISTINCT ON для дедупликации по `class, section, item, sub_item`
+4. Агрегация данных через SUM для каждого периода
+5. Расчет изменений (ppChange, ytdChange) в долях (0-1)
+6. Расчет процентов (percentage) от общего в долях (0-1)
+7. Добавление служебных полей (id, description, sortOrder) через `rowNameMapper`
 
 **Особенности:**
 - Работа с `mart.balance` таблицей
-- Агрегация данных по периодам
-- Поддержка группировки и фильтрации
+- Фильтрация по `class` ('assets' или 'liabilities')
+- Агрегация данных по периодам через UNION ALL
+- Расчет изменений и процентов на backend
+- Поддержка опциональных периодов (previousMonth и previousYear могут быть null)
+- Использование `rowNameMapper` для человекочитаемых названий строк
+- Формирование `id` из комбинации `class-section-item-sub_item`
+
+**Возвращаемые поля:**
+- Основные: `class`, `section`, `item`, `sub_item`, `value`
+- Расчетные: `percentage` (в долях), `previousValue`, `ytdValue`, `ppChange` (в долях), `ppChangeAbsolute`, `ytdChange` (в долях), `ytdChangeAbsolute`
+- Служебные: `id`, `period_date`, `description`, `sortOrder`
 
 ### Base Services (`services/mart/base/`)
 
 Вспомогательные сервисы для работы с данными:
 
-**periodService:**
-- `getHeaderDates()` - расчет дат периодов (current, previous month, previous year)
-- Работа с периодами относительно `NOW()`
+**periodService (`services/mart/base/periodService.ts`):**
+- `getPeriodDates()` - получение трех дат периодов из `mart.kpi_metrics`
+  - Возвращает: `PeriodDates` с полями `current`, `previousMonth`, `previousYear` (Date | null)
+  - Логика: находит максимальную дату в БД, затем максимальные даты предыдущего месяца и года
+- `getHeaderDates()` - расчет дат периодов для header относительно `NOW()`
+  - Возвращает: `{ periodDate, ppDate, pyDate }` (строки в формате YYYY-MM-DD)
+  - Логика: последний день предыдущего месяца от NOW(), затем предыдущий месяц и год от этой даты
+- `getLatestPeriodForTable(tableName)` - максимальная дата периода для таблицы MART
+  - Поддерживает: `kpi_metrics`, `balance`
+- `formatDateForSQL(date)` - форматирование даты в YYYY-MM-DD для SQL запросов
+- `getCurrentPeriod()` - текущая дата
+- `getPreviousPeriod(date)` - предыдущий месяц от указанной даты
 
-**calculationService:**
-- Расчет изменений (ppChange, ytdChange)
-- Расчет процентов (percentage)
-- Абсолютные изменения
+**calculationService (`services/mart/base/calculationService.ts`):**
+- `calculateChange(current, previous)` - расчет процентного изменения
+  - Возвращает: процент изменения, округленный до 2 знаков (например, 5.25 для 5.25%)
+  - Формула: `((current - previous) / previous) * 100`
+  - Обработка деления на ноль: возвращает 0
+- `calculatePercentage(value, total)` - расчет процента от общего
+  - Возвращает: процент, округленный до 4 знаков (например, 51.2345%)
+  - Формула: `(value / total) * 100`
+- `calculateYTDChange(current, ytdValue)` - расчет YTD изменения
+  - Обертка над `calculateChange()`
+- `aggregateValues(values)` - суммирование массива значений
+- `roundToDecimals(value, decimals)` - округление до указанного количества знаков
 
-**componentService:**
-- `getComponentById()` - метаданные компонента
-- `getComponentsByType()` - компоненты по типу
-- `getComponentFields()` - поля таблицы
+**componentService (`services/mart/base/componentService.ts`):**
+- `getComponentById(componentId)` - метаданные компонента из `config.components`
+  - Возвращает: `Component | null` с полями: `id`, `componentType`, `title`, `label`, `tooltip`, `icon`, `dataSourceKey`, `category`, `description`
+- `getComponentsByType(type)` - компоненты по типу из `config.components`
+  - Параметры: `type` - `"card" | "table" | "chart"`
+  - Возвращает: `Component[]` - массив компонентов
+  - Используется в `kpiService` для получения списка карточек
+- `getComponentFields(componentId)` - поля таблицы из `config.component_fields`
+  - Возвращает: `ComponentField[]` с полями: `fieldId`, `label`, `fieldType`, `formatId`, `isVisible`, `displayOrder`
+  - Используется для построения структуры колонок таблиц
 
-**rowNameMapper:**
-- Маппинг `row_code` в человекочитаемые названия
-- Используется для отображения строк таблиц
+**rowNameMapper (`services/mart/base/rowNameMapper.ts`):**
+- `getRowName(rowCode)` - человекочитаемое название для `row_code`
+  - Использует хардкодный маппинг (в будущем будет заменен на `config.table_rows`)
+- `getRowDescription(rowCode)` - описание для `row_code`
+- `getSortOrder(rowCode)` - порядок сортировки на основе паттерна `row_code`
+  - Логика: извлекает числовой префикс (i1 -> 1000, i2-1 -> 2001)
+- `isRowGroup(rowCode)` - проверка, является ли код группой (без дефисов)
+- `getParentId(rowCode)` - извлечение родительского ID (i2-1 -> i2)
+- **Примечание:** Временное решение, в будущем будет заменено на данные из `config.table_rows`
 
 ### Upload Services (`services/upload/`)
 
 Сервисы для загрузки и обработки файлов.
 
-**fileParserService:**
-- Парсинг CSV и XLSX файлов
-- Валидация структуры файла
-- Извлечение данных
+**fileParserService (`services/upload/fileParserService.ts`):**
+- `parseCSV(fileBuffer)` - парсинг CSV файлов
+  - Автоопределение разделителя (`;` или `,`)
+  - Поддержка BOM для UTF-8
+  - Автоматическое преобразование чисел и дат
+  - Возвращает: `ParseResult` с полями `headers`, `rows`, `sheetName?`
+- `parseXLSX(fileBuffer, sheetName?)` - парсинг XLSX файлов
+  - Поддержка выбора листа
+  - Возвращает список доступных листов в `availableSheets`
+  - Автоматическое преобразование типов данных
+  - Возвращает: `ParseResult` с полями `headers`, `rows`, `sheetName`, `availableSheets`
+- `parseFile(fileBuffer, fileType, sheetName?)` - универсальный парсер файлов
+  - Автоматически определяет тип файла и вызывает соответствующий парсер
+  - Поддерживает: `csv`, `xlsx`
+- `validateFileStructure(parseResult)` - валидация структуры файла
+  - Проверка наличия заголовков
+  - Проверка наличия данных
+  - Возвращает: `boolean` - валидна ли структура
+- **Особенности:**
+  - Автоматическое определение типов (числа, даты, строки)
+  - Обработка пустых строк и значений
+  - Поддержка различных форматов дат
+  - Распознавание паттерна даты `YYYY-MM-DD`
 
-**validationService:**
-- Валидация данных перед загрузкой
-- Проверка типов и форматов
-- Проверка обязательных полей
+**validationService (`services/upload/validationService.ts`):**
+- `validateData(rows, targetTable)` - валидация данных перед загрузкой
+  - Параметры: `rows` - массив распарсенных строк, `targetTable` - целевая таблица
+  - Возвращает: `ValidationResult` с полями `valid`, `errors[]`, `errorCount`
+- `checkDuplicatePeriodsInODS(rows, targetTable, mapping)` - проверка дубликатов периодов
+  - Проверяет, есть ли уже данные в `ods.balance` за те же периоды
+  - Возвращает: массив ошибок, если найдены дубликаты
+- `aggregateValidationErrors(errors)` - агрегация ошибок валидации
+  - Группирует ошибки по типам и полям
+  - Возвращает: объект с агрегированными ошибками
+- **Процесс валидации:**
+  1. Загрузка маппинга полей из `dict.upload_mappings`
+  2. Проверка обязательных полей (`is_required`)
+  3. Валидация типов данных (`date`, `varchar`, `numeric`)
+  4. Проверка форматов дат (YYYY-MM-DD)
+  5. Проверка диапазона дат (не более 10 лет назад, не в будущем)
+  6. Проверка числовых значений
+  7. Проверка дубликатов периодов в ODS
+- **Типы ошибок:**
+  - `missing_required_field` - отсутствует обязательное поле
+  - `invalid_date_format` - неверный формат даты
+  - `invalid_date_range` - дата вне допустимого диапазона
+  - `invalid_numeric_value` - неверное числовое значение
+  - `invalid_field_type` - неверный тип поля
+  - `duplicate_period` - дубликат периода в ODS
 
-**storageService:**
-- Сохранение файлов в `row/processed/`
-- Управление путями и именами файлов
+**storageService (`services/upload/storageService.ts`):**
+- `saveUploadedFile(fileBuffer, originalFilename, targetTable, baseDir?)` - сохранение файла
+  - Параметры:
+    - `fileBuffer` - содержимое файла (Buffer)
+    - `originalFilename` - оригинальное имя файла
+    - `targetTable` - целевая таблица (для организации директорий)
+    - `baseDir` - базовая директория (по умолчанию `"row/processed"`)
+  - Возвращает: `{ filePath, filename }` - полный путь и новое имя файла
+- **Особенности:**
+  - Генерация имени файла с timestamp для уникальности
+  - Автоматическое создание директорий
+  - Организация файлов по таблицам: `row/processed/{targetTable}/{filename}`
 
-**ingestionService:**
-- Загрузка данных в STG схему
-- Трансформация данных
-- Загрузка в ODS и MART
+**ingestionService (`services/upload/ingestionService.ts`):**
+- `loadToSTG(uploadId, rows, mapping)` - загрузка данных в STG схему
+  - Параметры:
+    - `uploadId` - ID загрузки из `ing.uploads`
+    - `rows` - массив распарсенных строк
+    - `mapping` - маппинг полей из `dict.upload_mappings`
+  - Возвращает: количество загруженных строк
+  - Загружает в: `stg.balance_upload`
+  - **Особенности:** Пропускает строки с невалидными датами
+- `transformSTGToODS(uploadId)` - трансформация данных из STG в ODS
+  - Параметры: `uploadId` - ID загрузки
+  - Возвращает: количество загруженных строк
+  - **Процесс:**
+    1. Soft delete старых данных за периоды из загрузки в `ods.balance`
+    2. Копирование данных из `stg.balance_upload` в `ods.balance`
+    3. Обновление `upload_id` и `deleted_at` в ODS
+- `transformODSToMART(uploadId)` - трансформация данных из ODS в MART
+  - Параметры: `uploadId` - ID загрузки
+  - Возвращает: количество загруженных строк
+  - **Процесс:**
+    1. Удаление старых данных из `mart.balance` за те же периоды
+    2. Копирование данных из `ods.balance` в `mart.balance`
+    3. Агрегация данных по периодам
+- `updateUploadStatus(uploadId, status, errorMessage?)` - обновление статуса загрузки
+  - Параметры:
+    - `uploadId` - ID загрузки
+    - `status` - новый статус (`pending`, `processing`, `completed`, `failed`)
+    - `errorMessage` - сообщение об ошибке (опционально)
+- `saveValidationErrors(uploadId, errors)` - сохранение ошибок валидации
+  - Параметры:
+    - `uploadId` - ID загрузки
+    - `errors` - массив ошибок валидации
+  - Сохраняет ошибки для последующего просмотра через API
 
-**rollbackService:**
-- Откат загруженных данных
-- Удаление записей из STG, ODS, MART
-- Очистка файлов
+**rollbackService (`services/upload/rollbackService.ts`):**
+- `rollbackUpload(uploadId, rolledBackBy?)` - откат загрузки
+  - Параметры:
+    - `uploadId` - ID загрузки
+    - `rolledBackBy` - пользователь, выполняющий откат (по умолчанию `"system"`)
+  - **Процесс:**
+    1. Проверка статуса загрузки (не должен быть `rolled_back`)
+    2. Удаление данных из `stg.balance_upload`
+    3. Soft delete данных из `ods.balance` (установка `deleted_at`)
+    4. Удаление данных из `mart.balance` за те же периоды
+    5. Обновление статуса загрузки на `rolled_back`
+- `restorePreviousData(uploadId)` - восстановление предыдущих данных (опционально)
+  - Восстанавливает данные, которые были помечены удаленными при загрузке
 
 **См. также:** [File Upload API](/api/upload-api) - документация API загрузки файлов
 

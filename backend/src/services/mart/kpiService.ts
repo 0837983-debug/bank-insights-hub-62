@@ -103,50 +103,18 @@ export async function getKPIMetrics(
     const previousPeriodStr = formatDateForSQL(periodDates.previousMonth);
     const previousYearStr = formatDateForSQL(periodDates.previousYear);
 
-    // 3. Один запрос с UNION ALL - без JOIN с config.components
+    // 3. Один запрос с CASE WHEN агрегацией - без UNION ALL
     const query = `
       SELECT 
-        km.component_id,
-        MAX(km.value) as value,
-        MAX(km.prev_period) as prev_period,
-        MAX(km.prev_year) as prev_year
-      FROM (
-        -- Current period data
-        SELECT 
-          component_id,
-          value,
-          NULL::DECIMAL as prev_period,
-          NULL::DECIMAL as prev_year
-        FROM mart.kpi_metrics
-        WHERE period_date = $1
-          AND component_id = ANY($4::varchar[])
-        
-        UNION ALL
-        
-        -- Previous month data
-        SELECT 
-          component_id,
-          NULL::DECIMAL as value,
-          value as prev_period,
-          NULL::DECIMAL as prev_year
-        FROM mart.kpi_metrics
-        WHERE period_date = $2
-          AND component_id = ANY($4::varchar[])
-        
-        UNION ALL
-        
-        -- Previous year data
-        SELECT 
-          component_id,
-          NULL::DECIMAL as value,
-          NULL::DECIMAL as prev_period,
-          value as prev_year
-        FROM mart.kpi_metrics
-        WHERE period_date = $3
-          AND component_id = ANY($4::varchar[])
-      ) km
-      GROUP BY km.component_id
-      ORDER BY km.component_id
+        component_id,
+        SUM(CASE WHEN period_date = $1 THEN value END) as value,
+        SUM(CASE WHEN period_date = $2 THEN value END) as prev_period,
+        SUM(CASE WHEN period_date = $3 THEN value END) as prev_year
+      FROM mart.kpi_metrics
+      WHERE period_date IN ($1, $2, $3)
+        AND component_id = ANY($4::varchar[])
+      GROUP BY component_id
+      ORDER BY component_id
     `;
 
     const result = await client.query(query, [

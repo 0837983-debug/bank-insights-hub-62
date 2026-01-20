@@ -119,9 +119,13 @@ Data Mart - схема с агрегированными данными. См. [
 ### Schema (Схема)
 
 Логическое разделение данных в PostgreSQL. В проекте используются схемы:
-- `config` - конфигурация
-- `mart` - Data Mart
-- `dashboard` - legacy данные
+- `config` - конфигурация и метаданные
+- `mart` - Data Mart для агрегированных данных
+- `stg` - Staging (временное хранилище)
+- `ods` - Operational Data Store
+- `ing` - Ingestion (метаданные загрузок)
+- `dict` - Dictionary (справочники)
+- `log` - Logging (логирование)
 
 ### Service (Сервис)
 

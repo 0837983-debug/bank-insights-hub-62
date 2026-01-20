@@ -13,18 +13,6 @@ related:
 
 ## Схемы базы данных
 
-### dashboard
-
-Основные данные дашборда (legacy, постепенно мигрируется в mart).
-
-**Таблицы:**
-- `kpi_categories` - категории KPI метрик
-- `kpi_metrics` - KPI метрики
-- `table_data` - табличные данные
-- `chart_data` - данные графиков
-
-**Назначение:** Хранение данных для отображения (постепенно заменяется на mart).
-
 ### config
 
 Метаданные и конфигурация системы.
@@ -35,7 +23,7 @@ related:
 - `layout_component_mapping` - связи layout-компонент
 - `component_fields` - поля компонентов
 - `formats` - форматы отображения
-- `mart_fields` - метаданные полей Data Mart
+- `component_queries` - конфиги SQL запросов для SQL Builder
 
 **Назначение:** Управление структурой UI и метаданными.
 
@@ -52,12 +40,11 @@ Data Mart - агрегированные данные для быстрого д
 
 ### Другие схемы
 
-- `sec` - безопасность (users, roles, permissions)
-- `dict` - справочники
-- `stg` - staging (сырые данные)
-- `ods` - Operational Data Store
-- `ing` - ingestion (управление загрузкой)
-- `log` - логирование
+- `stg` - staging (временное хранилище для загрузки файлов)
+- `ods` - Operational Data Store (основное хранилище загруженных данных)
+- `ing` - ingestion (метаданные загрузок файлов)
+- `dict` - справочники и маппинги
+- `log` - логирование (детальные логи операций)
 
 ## Принципы организации
 
@@ -87,15 +74,10 @@ Data Mart - агрегированные данные для быстрого д
 ### config ↔ mart
 
 Компоненты из config ссылаются на данные в mart:
-- `config.components.data_source_key` → `mart.*.table_component_id`
-- Метаданные полей в `config.mart_fields`
+- `config.components.data_source_key` → `config.component_queries.query_id` → SQL Builder → `mart.*`
+- `config.components.id` → `mart.kpi_metrics.component_id` (для карточек)
+- `config.components.id` → `mart.balance.table_component_id` (для таблиц)
 
-### dashboard → mart
-
-Постепенная миграция данных:
-- Старые данные в dashboard
-- Новые данные в mart
-- Поддержка обоих для обратной совместимости
 
 ## Индексы
 

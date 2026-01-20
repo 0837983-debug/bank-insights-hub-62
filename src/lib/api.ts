@@ -20,6 +20,15 @@ export class APIError extends Error {
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  // Логирование для отладки
+  if (endpoint.includes('/data') && endpoint.includes('layout')) {
+    console.log("[apiFetch] Request:", {
+      endpoint,
+      url,
+      options: options ? JSON.stringify(options, null, 2) : 'none',
+    });
+  }
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -113,11 +122,86 @@ export interface LayoutSection {
 export interface Layout {
   formats: Record<string, LayoutFormat>;
   filters?: LayoutFilter[];
+  header?: LayoutComponent; // Header как top-level элемент
   sections: LayoutSection[];
 }
 
-export async function fetchLayout(): Promise<Layout> {
-  return apiFetch<Layout>("/layout");
+// Константа для layout_id (можно вынести в конфиг)
+const DEFAULT_LAYOUT_ID = "main_dashboard";
+
+/**
+ * Интерфейс для ответа нового endpoint /api/data?query_id=layout
+ */
+interface LayoutDataResponse {
+  sections: Array<{
+    id: string;
+    title: string;
+    formats?: Record<string, LayoutFormat>;
+    components?: LayoutComponent[];
+  }>;
+}
+
+/**
+ * Загружает layout через новый endpoint /api/data
+ * Преобразует новый формат { sections: [...] } в старый формат { formats, header, sections }
+ * 
+ * @param layoutId - ID layout или объект контекста от React Query (будет проигнорирован)
+ */
+export async function fetchLayout(layoutId?: string | unknown): Promise<Layout> {
+  // React Query может передать объект контекста вместо строки, поэтому проверяем тип
+  let targetLayoutId: string = DEFAULT_LAYOUT_ID;
+  if (typeof layoutId === "string" && layoutId.trim() !== "") {
+    targetLayoutId = layoutId;
+  }
+  
+  // Формируем параметры для запроса - всегда передаем layout_id как строку
+  const paramsObject = { layout_id: targetLayoutId };
+  const paramsJson = JSON.stringify(paramsObject);
+  
+  // Логирование для отладки
+  console.log("[fetchLayout] Parsed params:", {
+    receivedLayoutId: layoutId,
+    typeofLayoutId: typeof layoutId,
+    targetLayoutId,
+    paramsObject,
+    paramsJson,
+  });
+  
+  // Формируем endpoint с query параметрами вручную, используя encodeURIComponent
+  // Важно: каждый параметр кодируется отдельно для безопасности
+  const queryParts: string[] = [];
+  queryParts.push(`query_id=${encodeURIComponent("layout")}`);
+  queryParts.push(`component_Id=${encodeURIComponent("layout")}`);
+  queryParts.push(`parametrs=${encodeURIComponent(paramsJson)}`);
+  
+  const endpoint = `/data?${queryParts.join("&")}`;
+  
+  // Вызываем apiFetch напрямую, так как формат ответа для layout отличается от стандартного getData
+  const response = await apiFetch<LayoutDataResponse>(endpoint);
+  
+  // Извлекаем formats из секции id="formats"
+  const formatsSection = response.sections.find((s) => s.id === "formats");
+  const formats = formatsSection?.formats || {};
+  
+  // Извлекаем header из секции id="header" и берем components[0]
+  const headerSection = response.sections.find((s) => s.id === "header");
+  const header = headerSection?.components?.[0];
+  
+  // Фильтруем sections, исключая formats и header
+  const contentSections = response.sections.filter(
+    (s) => s.id !== "formats" && s.id !== "header"
+  );
+  
+  // Формируем итоговый объект Layout в старом формате
+  return {
+    formats,
+    header,
+    sections: contentSections.map((s) => ({
+      id: s.id,
+      title: s.title,
+      components: s.components || [],
+    })),
+  };
 }
 
 // ============================================================================
@@ -439,9 +523,9 @@ export interface GetDataResponse {
 
 /**
  * Получает данные через единый endpoint getData
- * @param queryId - ID запроса (data_source_key)
- * @param params - Параметры запроса
- * @param componentId - ID компонента (опционально, передается как query param)
+ * @param queryId - ID запроса (data_source_key, передается как query_id)
+ * @param params - Параметры запроса (преобразуются в JSON-строку parametrs)
+ * @param componentId - ID компонента (обязательно, передается как component_Id)
  * @returns Данные в формате { componentId, type, rows }
  */
 export async function getData(
@@ -449,8 +533,13 @@ export async function getData(
   params: GetDataParams = {},
   componentId?: string
 ): Promise<GetDataResponse> {
+  // Валидация: componentId обязателен
+  if (!componentId) {
+    throw new APIError("componentId is required for getData");
+  }
+
   // Формируем endpoint без API_BASE_URL, так как apiFetch добавит его сам
-  const endpoint = `/data/${queryId}`;
+  const endpoint = `/data`;
   
   // Преобразуем Date в строку для JSON
   const serializedParams: Record<string, string | number | boolean> = {};
@@ -462,20 +551,22 @@ export async function getData(
     }
   }
 
+  // Преобразуем params в JSON-строку для parametrs
+  const parametrsJson = JSON.stringify(serializedParams);
+
   const queryParams = new URLSearchParams();
   
-  // Добавляем component_id, если передан
-  if (componentId) {
-    queryParams.append("component_id", componentId);
-  }
+  // Добавляем обязательные параметры согласно контракту Backend
+  queryParams.append("query_id", queryId);
+  queryParams.append("component_Id", componentId);
   
-  // Добавляем параметры запроса напрямую (p1, p2, p3, и т.д.)
-  for (const [key, value] of Object.entries(serializedParams)) {
-    queryParams.append(key, String(value));
+  // Добавляем parametrs как JSON-строку (только если есть параметры)
+  if (Object.keys(serializedParams).length > 0) {
+    queryParams.append("parametrs", parametrsJson);
   }
 
   const queryString = queryParams.toString();
-  const finalEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+  const finalEndpoint = `${endpoint}?${queryString}`;
 
   return apiFetch<GetDataResponse>(finalEndpoint);
 }

@@ -218,7 +218,7 @@ function DynamicTable({ component }: DynamicTableProps) {
       p3: dates.pyDate,
     } : {},
     { 
-      enabled: !!dataSourceKey && !!dates, // Включаем только если есть dates
+      enabled: !!dataSourceKey && !!dates && !!component.componentId, // Включаем только если есть все обязательные параметры
       componentId: component.componentId,
     }
   );
@@ -330,15 +330,10 @@ export default function DynamicDashboard() {
   const { data: layout, isLoading: layoutLoading, error: layoutError } = useLayout();
   const { data: kpis, isLoading: kpisLoading, error: kpisError } = useAllKPIs();
 
-  // Находим header компонент в layout
+  // Используем header из layout.header (top-level элемент)
   const headerComponent = useMemo(() => {
     if (!layout) return null;
-    // Ищем header компонент во всех секциях
-    for (const section of layout.sections) {
-      const header = section.components.find((c) => c.type === "header");
-      if (header) return header;
-    }
-    return null;
+    return layout.header || null;
   }, [layout]);
 
   // Получаем data_source_key для header (используем componentId, если data_source_key не задан)
@@ -356,7 +351,7 @@ export default function DynamicDashboard() {
     headerDataSourceKey,
     {},
     { 
-      enabled: !!headerDataSourceKey,
+      enabled: !!headerDataSourceKey && !!headerComponent?.componentId,
       componentId: headerComponent?.componentId,
     }
   );
@@ -426,7 +421,7 @@ export default function DynamicDashboard() {
     }
   }, [layout]);
 
-  // Рендерим Header только если header компонент не найден в layout (обратная совместимость)
+  // Рендерим legacy Header только если header компонент не найден в layout (обратная совместимость)
   const shouldRenderLegacyHeader = !headerComponent;
 
   if (layoutError || kpisError) {
@@ -488,6 +483,16 @@ export default function DynamicDashboard() {
     return (
       <div className="min-h-screen bg-background">
         {shouldRenderLegacyHeader && <Header />}
+        {/* Рендерим header из layout над секциями */}
+        {headerComponent && (
+          <header className="border-b border-border bg-card sticky top-0 z-50">
+            <div className="container mx-auto px-6 py-4">
+              <h1 className="text-xl font-bold text-foreground">
+                {headerComponent.title || headerComponent.componentId}
+              </h1>
+            </div>
+          </header>
+        )}
         <main className="container mx-auto px-6 py-8">
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -504,6 +509,16 @@ export default function DynamicDashboard() {
   return (
     <div className="min-h-screen bg-background">
       {shouldRenderLegacyHeader && <Header />}
+      {/* Рендерим header из layout над секциями */}
+      {headerComponent && (
+        <header className="border-b border-border bg-card sticky top-0 z-50">
+          <div className="container mx-auto px-6 py-4">
+            <h1 className="text-xl font-bold text-foreground">
+              {headerComponent.title || headerComponent.componentId}
+            </h1>
+          </div>
+        </header>
+      )}
       <main className="container mx-auto px-6 py-8 space-y-12">
         {sectionsWithContent.map((section) => {
           const cardComponents = section.components.filter(

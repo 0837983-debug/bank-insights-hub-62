@@ -47,16 +47,24 @@
 - Удалить groupableFields из layout.
 - Позже: разрешить кнопки у любых компонентов.
 
-### Шаг 8 — Перевести select’ы на getData
-**Смысл:** отказаться от старых endpoint’ов и SQL в сервисах.
-- Перенести assets, kpis, layout (отдельно).
-- Удалить старые вызовы.
-
-### Шаг 9 — Header как отдельный top‑level элемент
+### Шаг 8 — Header как отдельный top‑level элемент
 **Смысл:** header рендерится над секциями, не является контейнером.
 - В БД: component_type для header = `header` (не `container`).
 - Layout API: возвращать header отдельно (например `layout.header`).
 - Frontend: рендерить header над секциями на основе layout.
+
+### Шаг 9 — Перенести layout на Data API
+**Смысл:** layout получает данные через единый data API.
+- Перенести layout на getData.
+- Настроить фронт на использование api/data для получения layout.
+
+### Шаг 10 — Добавить layout_id в layout
+**Смысл:** layout содержит свой layout_id для фильтрации/связей.
+- Добавить layout_id в ответ layout.
+
+### Шаг 11 — Перенести KPI на Data API
+**Смысл:** KPI получают данные через единый data API.
+- Перенести KPI на getData.
 
 ## Примечания
 - join пока не поддерживается в конфиге.

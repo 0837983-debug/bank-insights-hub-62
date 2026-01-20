@@ -40,7 +40,8 @@ curl "http://localhost:3001/api/layout?layout_id=main"
     }
   },
   "header": {
-    "id": "header",
+    "id": "main::header",
+    "componentId": "header",
     "type": "header",
     "title": "Header",
     "dataSourceKey": "header_dates"

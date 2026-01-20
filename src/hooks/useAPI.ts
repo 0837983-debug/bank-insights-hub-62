@@ -104,10 +104,12 @@ export function useGetData(
   }
 ) {
   const componentId = options?.componentId;
+  // enabled должен проверять и queryId, и componentId (обязательные параметры)
+  const defaultEnabled = !!queryId && !!componentId;
   return useQuery({
     queryKey: queryKeys.getData(queryId || "", params),
     queryFn: () => getData(queryId!, params, componentId),
-    enabled: !!queryId,
+    enabled: options?.enabled !== undefined ? options.enabled : defaultEnabled,
     staleTime: 1 * 60 * 1000, // 1 minute
     ...options,
   });
