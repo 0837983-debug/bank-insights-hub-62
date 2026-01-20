@@ -7,48 +7,94 @@ description: Полный список всех API endpoints
 
 ## Layout
 
-### `GET /api/layout`
+### `GET /api/data` (рекомендуется)
 
-Получить структуру layout дашборда из базы данных.
+Получить структуру layout дашборда через единый endpoint `/api/data`.
 
-**Query параметры:**
-- `layout_id` (опционально) - ID конкретного layout
+**Query параметры (обязательные):**
+- `query_id` (string) - Должен быть `"layout"`
+- `component_Id` (string) - Должен быть `"layout"`
+
+**Query параметры (опциональные):**
+- `parametrs` (string) - JSON строка с параметрами:
+  - `layout_id` (string, опционально) - ID конкретного layout (по умолчанию используется дефолтный layout)
 
 **Пример:**
 ```bash
-GET /api/layout
-GET /api/layout?layout_id=main
+GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_dashboard"}
 ```
+
+**Структура ответа:**
+```json
+{
+  "sections": [
+    {
+      "id": "formats",
+      "formats": {...}
+    },
+    {
+      "id": "header",
+      "components": [...]
+    },
+    {
+      "id": "section_balance",
+      "components": [...]
+    }
+  ]
+}
+```
+
+**Важно:**
+- `formats` находятся в секции `id="formats"`: `sections.find(s => s.id === "formats").formats`
+- `header` находится в секции `id="header"`: `sections.find(s => s.id === "header").components[0]`
+- Контентные секции: `sections.filter(s => s.id !== "formats" && s.id !== "header")`
+
 
 ## KPI Endpoints
 
-### `GET /api/kpis`
+### `GET /api/data` (рекомендуется)
 
-Получить все KPI метрики.
+Получить все KPI метрики через единый endpoint `/api/data`.
 
-**Query параметры:**
-- `category` (опционально) - Фильтр по категории (например: 'finance', 'balance')
-- `periodDate` (опционально) - Дата периода в формате YYYY-MM-DD
+**Query параметры (обязательные):**
+- `query_id` (string) - Должен быть `"kpis"`
+- `component_Id` (string) - Должен быть `"kpis"`
 
-**Пример:**
-```bash
-GET /api/kpis
-GET /api/kpis?category=finance
-GET /api/kpis?periodDate=2024-01-15
-```
-
-### `GET /api/kpis/:id`
-
-Получить конкретную KPI метрику по ID.
-
-**Query параметры:**
-- `periodDate` (опционально) - Дата периода в формате YYYY-MM-DD
+**Query параметры (опциональные):**
+- `parametrs` (string) - JSON строка с параметрами:
+  - `category` (string, опционально) - Фильтр по категории (например: 'finance', 'balance')
+  - `periodDate` (string, опционально) - Дата периода в формате YYYY-MM-DD
 
 **Пример:**
 ```bash
-GET /api/kpis/capital
-GET /api/kpis/capital?periodDate=2024-01-15
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={}
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"category":"finance"}
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-15"}
 ```
+
+**Структура ответа:**
+```json
+[
+  {
+    "id": "capital",
+    "title": "Капитал",
+    "value": "1500000000",
+    "description": "Собственный капитал банка",
+    "change": 5.2,
+    "ytdChange": 12.5,
+    "category": "balance",
+    "categoryId": "balance",
+    "iconName": "Landmark",
+    "sortOrder": 1
+  }
+]
+```
+
+**Примечание:** Для получения конкретной метрики по ID используйте фильтрацию на клиенте из массива всех метрик.
+
+::: danger Устаревший endpoint
+Старый endpoint `GET /api/kpis` был удален и больше не доступен (возвращает 404). Используйте новый endpoint через `/api/data` (см. выше).
+:::
 
 ## Table Data Endpoints
 

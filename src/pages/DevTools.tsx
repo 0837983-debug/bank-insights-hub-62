@@ -77,16 +77,50 @@ export default function DevTools() {
       id: "layout",
       name: "Get Layout",
       method: "GET",
-      path: "/api/layout",
-      description: "Получить структуру всего приложения (секции, компоненты, форматы)",
+      path: "/api/data?query_id=layout&component_Id=layout&parametrs={\"layout_id\":\"main_dashboard\"}",
+      description: "Получить структуру всего приложения (секции, компоненты, форматы) через универсальный endpoint /api/data",
+      queryParams: [
+        {
+          name: "query_id",
+          example: "layout",
+          description: "ID запроса (обязательно)",
+        },
+        {
+          name: "component_Id",
+          example: "layout",
+          description: "ID компонента (обязательно)",
+        },
+        {
+          name: "parametrs",
+          example: '{"layout_id":"main_dashboard"}',
+          description: "JSON-строка с параметрами (обязательно)",
+        },
+      ],
       responseExample: JSON.stringify({ formats: {}, sections: [] }, null, 2),
     },
     {
       id: "all-kpis",
       name: "Get All KPIs",
       method: "GET",
-      path: "/api/kpis",
-      description: "Получить все KPI метрики",
+      path: "/api/data?query_id=kpis&component_Id=kpis&parametrs={\"layout_id\":\"main_dashboard\",\"p1\":\"2025-12-31\",\"p2\":\"2025-11-30\",\"p3\":\"2024-12-31\"}",
+      description: "Получить все KPI метрики через универсальный endpoint /api/data",
+      queryParams: [
+        {
+          name: "query_id",
+          example: "kpis",
+          description: "ID запроса (обязательно)",
+        },
+        {
+          name: "component_Id",
+          example: "kpis",
+          description: "ID компонента (обязательно)",
+        },
+        {
+          name: "parametrs",
+          example: '{"layout_id":"main_dashboard","p1":"2025-12-31","p2":"2025-11-30","p3":"2024-12-31"}',
+          description: "JSON-строка с параметрами (обязательно)",
+        },
+      ],
       responseExample: JSON.stringify(
         [
           {

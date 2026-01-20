@@ -58,10 +58,22 @@ http://localhost:3001/api
 
 ```typescript
 // Получение всех KPI метрик
-const response = await fetch('http://localhost:3001/api/kpis');
+const paramsJson = JSON.stringify({});
+const queryString = new URLSearchParams({
+  query_id: "kpis",
+  component_Id: "kpis",
+  parametrs: paramsJson
+}).toString();
+const response = await fetch(`http://localhost:3001/api/data?${queryString}`);
 const kpis = await response.json();
 
 // Получение layout
-const layout = await fetch('http://localhost:3001/api/layout');
+const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
+const queryString = new URLSearchParams({
+  query_id: "layout",
+  component_Id: "layout",
+  parametrs: paramsJson
+}).toString();
+const layout = await fetch(`http://localhost:3001/api/data?${queryString}`);
 const layoutData = await layout.json();
 ```

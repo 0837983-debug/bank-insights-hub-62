@@ -179,9 +179,9 @@ app.get("/api-docs", (_req, res) => {
     <h2>KPI Endpoints</h2>
     <div class="endpoint">
       <span class="method get">GET</span>
-      <span class="path">/api/kpis</span>
+      <span class="path">/api/data?query_id=kpis</span>
       <div class="description">Get all KPI metrics</div>
-      <div class="example">curl http://localhost:3001/api/kpis</div>
+      <div class="example">curl "http://localhost:3001/api/data?query_id=kpis&component_Id=kpis&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%2C%22p1%22%3A%222025-12-31%22%2C%22p2%22%3A%222025-11-30%22%2C%22p3%22%3A%222024-12-31%22%7D"</div>
     </div>
 
     <h2>Table Data Endpoints</h2>
@@ -201,12 +201,14 @@ app.get("/api-docs", (_req, res) => {
     <h2>Layout Endpoint</h2>
     <div class="endpoint">
       <span class="method get">GET</span>
-      <span class="path">/api/layout</span>
+      <span class="path">/api/data?query_id=layout</span>
       <div class="description">Get dashboard layout structure from database</div>
       <div class="params">
-        <div class="param"><strong>layout_id</strong> (query parameter, optional) - Specific layout ID</div>
+        <div class="param"><strong>query_id</strong> (query parameter, required) - Must be "layout"</div>
+        <div class="param"><strong>component_Id</strong> (query parameter, required) - Component ID</div>
+        <div class="param"><strong>parametrs</strong> (query parameter, optional) - JSON string with layout_id</div>
       </div>
-      <div class="example">curl http://localhost:3001/api/layout?layout_id=default</div>
+      <div class="example">curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%7D"</div>
     </div>
 
     <h2>Response Format</h2>

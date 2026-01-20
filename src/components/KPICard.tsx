@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { useLayout, useAllKPIs } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
+import type { KPIMetric } from "@/lib/api";
 
 // Icon mapping for dynamic icon rendering from layout
 const iconMap: Record<string, LucideIcon> = {
@@ -51,13 +52,16 @@ interface KPICardProps {
   componentId: string;
 }
 
-export const KPICard = ({ componentId }: KPICardProps) => {
+export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   // Состояние для переключения между процентными и абсолютными изменениями
   const [showAbsolute, setShowAbsolute] = useState(false);
 
-  // Получаем layout и kpis из кэша React Query (не делает новые запросы!)
+  // Получаем layout из кэша React Query
   const { data: layout } = useLayout();
-  const { data: kpis } = useAllKPIs();
+  
+  // Используем kpis из props, если переданы, иначе пытаемся получить из кэша
+  const { data: kpisFromCache } = useAllKPIs(undefined, { enabled: false });
+  const kpis = kpisFromProps || kpisFromCache;
 
   // Находим компонент в layout по ID
   const component = layout?.sections

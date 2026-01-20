@@ -179,8 +179,8 @@ async function apiFetch<T>(endpoint: string) {
 
 Используйте DevTools страницу или curl:
 ```bash
-curl http://localhost:3001/api/kpis
-curl http://localhost:3001/api/layout
+curl "http://localhost:3001/api/data?query_id=kpis&component_Id=kpis&parametrs=%7B%7D"
+curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%7D"
 ```
 
 ## Отладка состояния

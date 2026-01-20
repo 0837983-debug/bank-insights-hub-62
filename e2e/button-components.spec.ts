@@ -2,13 +2,50 @@ import { test, expect } from "@playwright/test";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
+// Вспомогательная функция для получения layout через новый endpoint
+async function fetchLayout(request: any) {
+  const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
+  const response = await request.get(
+    `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
+  );
+  expect(response.ok()).toBeTruthy();
+  
+  const data = await response.json();
+  
+  // Преобразуем новый формат в старый формат для совместимости с тестами
+  const formatsSection = data.sections.find((s: any) => s.id === "formats");
+  const headerSection = data.sections.find((s: any) => s.id === "header");
+  const contentSections = data.sections.filter(
+    (s: any) => s.id !== "formats" && s.id !== "header"
+  );
+  
+  // Собираем все компоненты из header и sections
+  const components: any[] = [];
+  if (headerSection?.components?.[0]) {
+    components.push(headerSection.components[0]);
+  }
+  contentSections.forEach((section: any) => {
+    if (section.components) {
+      components.push(...section.components);
+    }
+  });
+  
+  return {
+    formats: formatsSection?.formats || {},
+    header: headerSection?.components?.[0],
+    sections: contentSections.map((s: any) => ({
+      id: s.id,
+      title: s.title,
+      components: s.components || [],
+    })),
+    components: components, // Добавляем для совместимости со старыми тестами
+  };
+}
+
 test.describe("Button Components", () => {
   test.describe("Backend - Layout JSON", () => {
     test("should not return groupableFields in layout JSON", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/layout`);
-
-      expect(response.ok()).toBeTruthy();
-      const layout = await response.json();
+      const layout = await fetchLayout(request);
 
       // Проверяем, что layout содержит компоненты
       expect(layout).toHaveProperty("components");
@@ -37,10 +74,7 @@ test.describe("Button Components", () => {
     });
 
     test("should return buttons as child components of tables", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/layout`);
-
-      expect(response.ok()).toBeTruthy();
-      const layout = await response.json();
+      const layout = await fetchLayout(request);
 
       // Ищем таблицы
       const tableComponents = layout.components?.filter(
@@ -75,10 +109,7 @@ test.describe("Button Components", () => {
     });
 
     test("should return buttons with data_source_key", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/layout`);
-
-      expect(response.ok()).toBeTruthy();
-      const layout = await response.json();
+      const layout = await fetchLayout(request);
 
       // Ищем все кнопки в layout
       const allButtons: any[] = [];

@@ -35,12 +35,12 @@ const { data } = useAllKPIs();
 
 **API Client (`lib/api.ts`):**
 ```typescript
-fetch('http://localhost:3001/api/kpis')
+fetch('http://localhost:3001/api/data?query_id=kpis&component_Id=kpis&parametrs={}')
 ```
 
 **Request:**
 ```
-GET /api/kpis HTTP/1.1
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={} HTTP/1.1
 Host: localhost:3001
 ```
 
@@ -200,13 +200,15 @@ const { data } = useLayout();
 ### 2. HTTP запрос
 
 ```
-GET /api/layout
+GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_dashboard"}
 ```
 
 ### 3. Backend обработка
 
-**Service (`services/config/layoutService.ts`):**
-- Загрузка форматов из `config.formats`
+**SQL Builder (`services/queryBuilder/builder.ts`):**
+- Загрузка конфига из `config.component_queries` по `query_id=layout`
+- Построение SQL запроса через view `config.layout_sections_json_view`
+- Возврат структуры `{ sections: [...] }`
 - Загрузка секций из `config.layouts`
 - Загрузка компонентов из `config.components`
 - Связывание через `config.layout_component_mapping`

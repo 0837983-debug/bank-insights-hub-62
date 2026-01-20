@@ -7,63 +7,103 @@ description: Документация API для получения структ
 
 API для получения структуры layout дашборда из базы данных.
 
+::: danger Endpoint удален
+Старый endpoint `GET /api/layout` был удален и больше не доступен (возвращает 404). Используйте новый endpoint через `/api/data` (см. ниже).
+:::
+
 ## Endpoint
 
-### Получить layout
+### Получить layout через `/api/data`
 
 ```http
-GET /api/layout
+GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_dashboard"}
 ```
 
-**Query параметры:**
-- `layout_id` (string, опционально) - ID конкретного layout
+**Query параметры (обязательные):**
+- `query_id` (string) - Должен быть `"layout"`
+- `component_Id` (string) - Должен быть `"layout"`
+
+**Query параметры (опциональные):**
+- `parametrs` (string) - JSON строка с параметрами:
+  - `layout_id` (string, опционально) - ID конкретного layout (по умолчанию используется дефолтный layout)
 
 **Пример запроса:**
 ```bash
-curl "http://localhost:3001/api/layout"
-curl "http://localhost:3001/api/layout?layout_id=main"
+curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%7D"
+```
+
+**Пример без параметров (используется дефолтный layout):**
+```bash
+curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout&parametrs=%7B%7D"
 ```
 
 ## Структура ответа
 
+Новый endpoint возвращает структуру `{ sections: [...] }`, где `formats` и `header` находятся внутри секций:
+
 ```json
 {
-  "formats": {
-    "currency_rub": {
-      "type": "currency",
-      "currency": "RUB",
-      "locale": "ru-RU"
-    },
-    "percentage": {
-      "type": "percentage",
-      "decimals": 2
-    }
-  },
-  "header": {
-    "id": "main::header",
-    "componentId": "header",
-    "type": "header",
-    "title": "Header",
-    "dataSourceKey": "header_dates"
-  },
   "sections": [
     {
-      "id": "balance",
+      "id": "formats",
+      "title": "Formats",
+      "formats": {
+        "currency_rub": {
+          "id": "currency_rub",
+          "name": "Рубли",
+          "kind": "currency",
+          "prefix_unit_symbol": "₽",
+          "thousand_separator": true,
+          "minimum_fraction_digits": 0,
+          "maximum_fraction_digits": 0
+        },
+        "percent": {
+          "id": "percent",
+          "name": "Проценты",
+          "kind": "percent",
+          "suffix_unit_symbol": "%",
+          "minimum_fraction_digits": 1,
+          "maximum_fraction_digits": 2
+        }
+      }
+    },
+    {
+      "id": "header",
+      "title": "Компонент header для отображения дат периодов.",
+      "components": [
+        {
+          "id": "main_dashboard::header::header",
+          "componentId": "header",
+          "type": "header",
+          "title": "Компонент header для отображения дат периодов.",
+          "dataSourceKey": "header_dates",
+          "icon": null,
+          "label": "Компонент header для отображения дат периодов.",
+          "tooltip": null
+        }
+      ]
+    },
+    {
+      "id": "section_balance",
       "title": "Баланс",
       "components": [
         {
-          "id": "capital_card",
+          "id": "main_dashboard::section_balance::capital_card",
+          "componentId": "capital_card",
           "type": "card",
           "title": "Капитал",
           "tooltip": "Собственный капитал банка",
           "icon": "Landmark",
           "dataSourceKey": "capital",
           "format": {
-            "value": "currency_rub"
+            "value": "currency_rub",
+            "PPTD": "percent",
+            "YTD": "percent"
           }
         },
         {
-          "id": "balance_table",
+          "id": "main_dashboard::section_balance::balance_table",
+          "componentId": "balance_table",
           "type": "table",
           "title": "Баланс",
           "dataSourceKey": "balance_assets",
@@ -71,12 +111,14 @@ curl "http://localhost:3001/api/layout?layout_id=main"
             {
               "id": "name",
               "label": "Наименование",
-              "type": "text"
+              "type": "text",
+              "isDimension": true
             },
             {
               "id": "value",
               "label": "Значение",
               "type": "number",
+              "isMeasure": true,
               "format": {
                 "value": "currency_rub"
               }
@@ -96,10 +138,21 @@ curl "http://localhost:3001/api/layout?layout_id=main"
           ]
         }
       ]
+    },
+    {
+      "id": "section_financial_results",
+      "title": "Финансовые результаты",
+      "components": [...]
     }
   ]
 }
 ```
+
+**Важно:**
+- `formats` находятся в секции с `id="formats"`: `sections.find(s => s.id === "formats").formats`
+- `header` находится в секции с `id="header"`: `sections.find(s => s.id === "header").components[0]`
+- Контентные секции (без `formats` и `header`): `sections.filter(s => s.id !== "formats" && s.id !== "header")`
+
 
 ## Структура данных
 
@@ -227,38 +280,71 @@ interface Column {
 
 ## Примеры использования
 
-### TypeScript
+### TypeScript (новый endpoint)
 
 ```typescript
-async function fetchLayout(layoutId?: string) {
-  const url = layoutId
-    ? `http://localhost:3001/api/layout?layout_id=${layoutId}`
-    : 'http://localhost:3001/api/layout';
+async function fetchLayout(layoutId: string = "main_dashboard") {
+  const paramsJson = JSON.stringify({ layout_id: layoutId });
+  const queryString = new URLSearchParams({
+    query_id: "layout",
+    component_Id: "layout",
+    parametrs: paramsJson
+  }).toString();
   
-  const response = await fetch(url);
-  const layout = await response.json();
-  return layout;
+  const response = await fetch(`http://localhost:3001/api/data?${queryString}`);
+  const data = await response.json();
+  
+  // Извлечение formats и header из секций
+  const formatsSection = data.sections.find((s: any) => s.id === "formats");
+  const headerSection = data.sections.find((s: any) => s.id === "header");
+  const contentSections = data.sections.filter(
+    (s: any) => s.id !== "formats" && s.id !== "header"
+  );
+  
+  return {
+    formats: formatsSection?.formats || {},
+    header: headerSection?.components[0],
+    sections: contentSections
+  };
 }
 ```
 
-### React Hook
+### React Hook (новый endpoint)
 
 ```typescript
 import { useQuery } from '@tanstack/react-query';
 
-function useLayout(layoutId?: string) {
+function useLayout(layoutId: string = "main_dashboard") {
   return useQuery({
     queryKey: ['layout', layoutId],
     queryFn: async () => {
-      const url = layoutId
-        ? `http://localhost:3001/api/layout?layout_id=${layoutId}`
-        : 'http://localhost:3001/api/layout';
-      const response = await fetch(url);
-      return response.json();
+      const paramsJson = JSON.stringify({ layout_id: layoutId });
+      const queryString = new URLSearchParams({
+        query_id: "layout",
+        component_Id: "layout",
+        parametrs: paramsJson
+      }).toString();
+      
+      const response = await fetch(`http://localhost:3001/api/data?${queryString}`);
+      const data = await response.json();
+      
+      // Извлечение formats и header из секций
+      const formatsSection = data.sections.find((s: any) => s.id === "formats");
+      const headerSection = data.sections.find((s: any) => s.id === "header");
+      const contentSections = data.sections.filter(
+        (s: any) => s.id !== "formats" && s.id !== "header"
+      );
+      
+      return {
+        formats: formatsSection?.formats || {},
+        header: headerSection?.components[0],
+        sections: contentSections
+      };
     }
   });
 }
 ```
+
 
 ## Обработка ошибок
 

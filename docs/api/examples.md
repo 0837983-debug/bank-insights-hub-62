@@ -369,7 +369,14 @@ function GroupableTable({ tableId }: { tableId: string }) {
 
 ```typescript
 async function fetchKPIsDirectly() {
-  const response = await fetch('http://localhost:3001/api/kpis');
+  const paramsJson = JSON.stringify({});
+  const queryString = new URLSearchParams({
+    query_id: "kpis",
+    component_Id: "kpis",
+    parametrs: paramsJson
+  }).toString();
+  
+  const response = await fetch(`http://localhost:3001/api/data?${queryString}`);
   
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);

@@ -15,6 +15,7 @@ import {
   type HealthStatus,
   type GetDataParams,
   type GetDataResponse,
+  type FetchKPIsParams,
 } from "@/lib/api";
 
 // Query Keys
@@ -46,12 +47,16 @@ export function useLayout(options?: Omit<UseQueryOptions<Layout>, "queryKey" | "
 // KPI Hooks
 // ============================================================================
 
-export function useAllKPIs(options?: Omit<UseQueryOptions<KPIMetric[]>, "queryKey" | "queryFn">) {
+export function useAllKPIs(
+  params?: FetchKPIsParams,
+  options?: Omit<UseQueryOptions<KPIMetric[]>, "queryKey" | "queryFn">
+) {
   const isDev = import.meta.env.DEV;
   return useQuery({
-    queryKey: queryKeys.allKPIs,
-    queryFn: fetchAllKPIs,
+    queryKey: [...queryKeys.allKPIs, params] as const,
+    queryFn: () => fetchAllKPIs(params),
     staleTime: isDev ? 0 : 1 * 60 * 1000, // Dev: 0ms, Prod: 1 minute
+    enabled: options?.enabled !== undefined ? options.enabled : true,
     ...options,
   });
 }

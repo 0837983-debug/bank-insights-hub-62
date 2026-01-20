@@ -1,7 +1,9 @@
 async function testLayoutAPI() {
   try {
     const port = process.env.PORT || 3001;
-    const url = `http://localhost:${port}/api/layout`;
+    // Используем новый endpoint /api/data вместо /api/layout
+    const params = encodeURIComponent(JSON.stringify({ layout_id: "main_dashboard" }));
+    const url = `http://localhost:${port}/api/data?query_id=layout&component_Id=layout&parametrs=${params}`;
     
     console.log(`Testing API endpoint: ${url}\n`);
     
@@ -9,19 +11,32 @@ async function testLayoutAPI() {
     const data = await response.json();
     
     console.log('API Response:');
-    console.log('Total formats:', Object.keys(data.formats || {}).length);
-    console.log('Format IDs:', Object.keys(data.formats || {}));
     
-    console.log('\nDetailed formats:');
-    if (data.formats) {
-      for (const [id, format] of Object.entries(data.formats)) {
-        console.log(`\n${id}:`, JSON.stringify(format, null, 2));
+    // Новая структура: { sections: [...] }
+    if (data.sections) {
+      console.log('Sections count:', data.sections.length);
+      
+      // Ищем секцию formats
+      const formatsSection = data.sections.find((s: any) => s.id === 'formats');
+      if (formatsSection && formatsSection.formats) {
+        console.log('Total formats:', Object.keys(formatsSection.formats).length);
+        console.log('Format IDs:', Object.keys(formatsSection.formats));
+        
+        console.log('\nDetailed formats:');
+        for (const [id, format] of Object.entries(formatsSection.formats)) {
+          console.log(`\n${id}:`, JSON.stringify(format, null, 2));
+        }
       }
-    }
-    
-    console.log('\n\nSections count:', data.sections?.length || 0);
-    if (data.sections && data.sections.length > 0) {
-      console.log('Section titles:', data.sections.map((s: any) => s.title));
+      
+      console.log('\n\nSections:');
+      data.sections.forEach((s: any) => {
+        console.log(`  - ${s.id}: ${s.title}`);
+        if (s.components) {
+          console.log(`    Components: ${s.components.length}`);
+        }
+      });
+    } else {
+      console.log('Unexpected response structure:', JSON.stringify(data, null, 2));
     }
     
   } catch (error: any) {

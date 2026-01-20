@@ -143,10 +143,10 @@ psql -h host -U user -d bankdb
 curl http://localhost:3001/api/health
 
 # KPI метрики
-curl http://localhost:3001/api/kpis
+curl "http://localhost:3001/api/data?query_id=kpis&component_Id=kpis&parametrs=%7B%7D"
 
 # Layout
-curl http://localhost:3001/api/layout
+curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%7D"
 
 # Table data
 curl http://localhost:3001/api/table-data/balance_assets

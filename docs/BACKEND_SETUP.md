@@ -50,10 +50,7 @@
 
 ### KPI Метрики
 
-- `GET /api/kpis` - Все KPI метрики
-- `GET /api/kpis/categories` - Все категории
-- `GET /api/kpis/category/:categoryId` - Метрики по категории
-- `GET /api/kpis/:id` - Конкретная метрика
+- `GET /api/data?query_id=kpis&component_Id=kpis&parametrs={}` - Все KPI метрики через SQL Builder
 
 ### Данные таблиц
 
@@ -65,14 +62,20 @@
 
 ### Layout
 
-- `GET /api/layout` - Структура layout из БД
+- `GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_dashboard"}` - Структура layout из БД через SQL Builder
 
 ## Примеры использования на фронтенде
 
 ### Получение всех KPI метрик
 
 ```typescript
-const response = await fetch('http://localhost:3001/api/kpis');
+const paramsJson = JSON.stringify({});
+const queryString = new URLSearchParams({
+  query_id: "kpis",
+  component_Id: "kpis",
+  parametrs: paramsJson
+}).toString();
+const response = await fetch(`http://localhost:3001/api/data?${queryString}`);
 const kpis = await response.json();
 ```
 

@@ -72,15 +72,16 @@ backend/
 
 **Основные routes:**
 
-#### `/api/kpis` (kpiRoutes.ts)
+#### KPI через `/api/data` (dataRoutes.ts)
+- `GET /api/data?query_id=kpis` - получение KPI метрик через SQL Builder
 - `GET /` - все KPI метрики
 - `GET /:id` - конкретная метрика
 
 #### `/api/table-data` (tableDataRoutes.ts)
 - `GET /:tableId` - данные таблицы
 
-#### `/api/layout` (index.ts)
-- `GET /` - структура layout
+#### Layout через `/api/data` (dataRoutes.ts)
+- `GET /api/data?query_id=layout` - структура layout через SQL Builder
 
 **Обязанности:**
 - Валидация параметров запроса

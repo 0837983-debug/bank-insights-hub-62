@@ -246,6 +246,57 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 
 **Конфиг:** Использует конфиг `layout` из `config.component_queries` с параметром `layout_id`.
 
+**Структура ответа:**
+- `sections` - массив секций, включая:
+  - Секция `id="formats"` - содержит объект `formats` с определениями форматов
+  - Секция `id="header"` - содержит компонент header в массиве `components[0]`
+  - Контентные секции (например, `section_balance`, `section_financial_results`)
+
+**Пример запроса:**
+```bash
+GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_dashboard"}
+```
+
+**Пример ответа:**
+```json
+{
+  "sections": [
+    {
+      "id": "formats",
+      "title": "Formats",
+      "formats": {
+        "currency_rub": {...},
+        "percent": {...}
+      }
+    },
+    {
+      "id": "header",
+      "title": "Компонент header для отображения дат периодов.",
+      "components": [
+        {
+          "id": "main_dashboard::header::header",
+          "componentId": "header",
+          "type": "header",
+          "dataSourceKey": "header_dates"
+        }
+      ]
+    },
+    {
+      "id": "section_balance",
+      "title": "Баланс",
+      "components": [...]
+    }
+  ]
+}
+```
+
+**Извлечение данных:**
+- `formats`: `sections.find(s => s.id === "formats").formats`
+- `header`: `sections.find(s => s.id === "header").components[0]`
+- Контентные секции: `sections.filter(s => s.id !== "formats" && s.id !== "header")`
+
+**См. также:** [Layout API](/api/layout-api) - детальное описание layout endpoint
+
 ## Контракт SQL Builder
 
 ### Входные данные

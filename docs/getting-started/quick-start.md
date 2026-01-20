@@ -38,7 +38,7 @@ npm run dev
 
 1. **Backend API** должен быть доступен на `http://localhost:3001`
    - Проверьте: `curl http://localhost:3001/api/health` (если endpoint существует)
-   - Или откройте: `http://localhost:3001/api/kpis`
+   - Или откройте: `http://localhost:3001/api/data?query_id=kpis&component_Id=kpis&parametrs={}`
 
 2. **Frontend** должен быть доступен на `http://localhost:8080`
    - Откройте в браузере: `http://localhost:8080`

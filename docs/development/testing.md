@@ -107,8 +107,8 @@ describe('formatValue', () => {
     // Инициализация форматов перед тестами
     initializeFormats({
       currency_rub: {
-        kind: 'currency',
-        prefixUnitSymbol: '₽',
+      kind: 'currency',
+      prefixUnitSymbol: '₽',
         thousandSeparator: true,
         shorten: true
       },
@@ -178,7 +178,14 @@ test('dashboard loads and displays KPIs', async ({ page }) => {
 import { test, expect } from '@playwright/test';
 
 test('KPI API returns data', async ({ request }) => {
-  const response = await request.get('http://localhost:3001/api/kpis');
+  const paramsJson = JSON.stringify({});
+  const queryString = new URLSearchParams({
+    query_id: "kpis",
+    component_Id: "kpis",
+    parametrs: paramsJson
+  }).toString();
+  
+  const response = await request.get(`http://localhost:3001/api/data?${queryString}`);
   
   expect(response.ok()).toBeTruthy();
   
@@ -194,9 +201,15 @@ test('KPI API returns data', async ({ request }) => {
 ```typescript
 test('SQL injection protection', async ({ request }) => {
   const maliciousInput = "'; DROP TABLE users; --";
+  const paramsJson = JSON.stringify({ id: maliciousInput });
+  const queryString = new URLSearchParams({
+    query_id: "kpis",
+    component_Id: "kpis",
+    parametrs: paramsJson
+  }).toString();
   
   const response = await request.get(
-    `http://localhost:3001/api/kpis?id=${maliciousInput}`
+    `http://localhost:3001/api/data?${queryString}`
   );
   
   // Должен вернуть ошибку, а не выполнить SQL

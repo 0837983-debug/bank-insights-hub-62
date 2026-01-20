@@ -13,6 +13,8 @@ import { buildQueryFromId } from "../services/queryBuilder/builder.js";
 import { pool } from "../config/database.js";
 import { getSortOrder } from "../services/mart/base/rowNameMapper.js";
 import { getHeaderDates } from "../services/mart/base/periodService.js";
+import { calculateChange } from "../services/mart/base/calculationService.js";
+import { formatDateForSQL } from "../services/mart/base/periodService.js";
 
 const router = Router();
 
@@ -49,6 +51,43 @@ function transformTableData(rows: any[]): any[] {
     }
     
     return row;
+  });
+}
+
+/**
+ * Трансформация данных KPI: расчет изменений и форматирование
+ */
+function transformKPIData(rows: any[], periodDate: string): any[] {
+  return rows.map(row => {
+    const currentValue = parseFloat(row.value) || 0;
+    const previousValue = parseFloat(row.prev_period) || 0;
+    const ytdValue = row.prev_year !== null && row.prev_year !== undefined 
+      ? parseFloat(row.prev_year) || 0 
+      : undefined;
+    
+    // Расчет изменений в долях (не в процентах)
+    const ppChange = calculateChange(currentValue, previousValue) / 100;
+    const ytdChange = ytdValue !== undefined 
+      ? calculateChange(currentValue, ytdValue) / 100 
+      : undefined;
+    
+    // Расчет изменений в абсолютных значениях
+    const ppChangeAbsolute = currentValue - previousValue;
+    const ytdChangeAbsolute = ytdValue !== undefined 
+      ? currentValue - ytdValue 
+      : undefined;
+    
+    return {
+      id: row.component_id,
+      periodDate: periodDate,
+      value: currentValue,
+      previousValue: previousValue,
+      ytdValue: ytdValue,
+      ppChange: ppChange,
+      ppChangeAbsolute: ppChangeAbsolute,
+      ytdChange: ytdChange,
+      ytdChangeAbsolute: ytdChangeAbsolute,
+    };
   });
 }
 
@@ -107,6 +146,63 @@ router.get("/", async (req: Request, res: Response) => {
           pyDate: dates.pyDate,
         }],
       });
+    }
+
+    // Специальная обработка для kpis - трансформируем данные в формат старого endpoint'а
+    if (query_id === "kpis") {
+      // Построение SQL через builder
+      let sql: string;
+      try {
+        sql = await buildQueryFromId(query_id, paramsJson);
+        console.log(`[getData] Generated SQL for kpis: ${sql.substring(0, 200)}...`);
+      } catch (error: any) {
+        console.error(`[getData] Builder error:`, error);
+        if (error.message.includes("invalid JSON")) {
+          return res.status(400).json({ error: error.message });
+        }
+        if (error.message === "invalid config") {
+          return res.status(400).json({ error: error.message });
+        }
+        if (error.message.includes("wrap_json=false")) {
+          return res.status(400).json({ error: error.message });
+        }
+        if (error.message.includes("invalid params")) {
+          return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Failed to build query", details: error.message });
+      }
+
+      // Выполнение SQL
+      try {
+        const result = await client.query(sql);
+        
+        // При wrapJson=true результат должен быть массивом с одним элементом и jsonb_agg
+        if (result.rows.length === 1 && result.rows[0].jsonb_agg) {
+          const data = result.rows[0].jsonb_agg;
+          
+          // Парсим параметры для получения periodDate
+          const params = JSON.parse(paramsJson);
+          const periodDate = params.p1 || formatDateForSQL(new Date());
+          
+          // Трансформируем данные KPI
+          const transformedData = transformKPIData(data, periodDate);
+          
+          // Возвращаем в формате массива KPIMetric[] (как старый /api/kpis)
+          return res.json(transformedData);
+        }
+
+        // Если структура неожиданная, возвращаем ошибку
+        return res.status(500).json({ 
+          error: "Unexpected result format",
+          details: "Expected jsonb_agg result with wrapJson=true"
+        });
+      } catch (error: any) {
+        console.error(`[getData] SQL execution error:`, error);
+        return res.status(500).json({ 
+          error: "SQL execution error",
+          details: error.message 
+        });
+      }
     }
 
     // Специальная обработка для layout - извлекаем sections из результата

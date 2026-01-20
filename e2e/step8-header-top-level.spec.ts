@@ -4,11 +4,36 @@ const API_URL = "http://localhost:3001";
 const FRONTEND_URL = "http://localhost:8080";
 
 test.describe("Step 8 - Header as top-level element", () => {
-  test("should return header in /api/layout", async ({ request }) => {
-    const response = await request.get(`${API_URL}/api/layout`);
-    expect(response.status()).toBe(200);
+  // Вспомогательная функция для получения layout через новый endpoint
+  async function fetchLayout(request: any) {
+    const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
+    const response = await request.get(
+      `${API_URL}/api/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
+    );
+    expect(response.ok()).toBeTruthy();
+    
+    const data = await response.json();
+    
+    // Преобразуем новый формат в старый формат для совместимости с тестами
+    const formatsSection = data.sections.find((s: any) => s.id === "formats");
+    const headerSection = data.sections.find((s: any) => s.id === "header");
+    const contentSections = data.sections.filter(
+      (s: any) => s.id !== "formats" && s.id !== "header"
+    );
+    
+    return {
+      formats: formatsSection?.formats || {},
+      header: headerSection?.components?.[0],
+      sections: contentSections.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        components: s.components || [],
+      })),
+    };
+  }
 
-    const layout = await response.json();
+  test("should return header in layout (via /api/data)", async ({ request }) => {
+    const layout = await fetchLayout(request);
     
     // Проверяем наличие поля header
     expect(layout).toHaveProperty("header");

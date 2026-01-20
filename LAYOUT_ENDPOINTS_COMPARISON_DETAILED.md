@@ -1,16 +1,23 @@
 # Детальное сравнение `/api/layout` и `/api/data?query_id=layout`
 
-**Дата:** 2026-01-20
+::: danger Архивный документ
+**Статус:** Архивный документ  
+**Дата создания:** 2026-01-20  
+**Актуальность:** Endpoint `/api/layout` был удален и больше не доступен (возвращает 404).  
+**Причина архивации:** Документ описывает сравнение между удаленным endpoint `/api/layout` и новым endpoint `/api/data?query_id=layout`.  
+**Рекомендация:** Используйте только `/api/data?query_id=layout` для получения layout. См. [Layout API](/api/layout-api) для актуальной документации.
+:::
 
 ## Команды для вызова
 
-### Новый endpoint (через /api/data)
+### Актуальный endpoint (через /api/data)
 ```bash
 curl -s "http://localhost:3001/api/data?query_id=layout&component_Id=layout&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%7D" | jq '.'
 ```
 
-### Старый endpoint (/api/layout)
+### Удаленный endpoint (/api/layout) - больше не работает
 ```bash
+# ⚠️ Этот endpoint был удален и возвращает 404
 curl -s "http://localhost:3001/api/layout" | jq '.'
 ```
 

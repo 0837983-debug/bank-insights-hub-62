@@ -20,15 +20,6 @@ export class APIError extends Error {
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  // Логирование для отладки
-  if (endpoint.includes('/data') && endpoint.includes('layout')) {
-    console.log("[apiFetch] Request:", {
-      endpoint,
-      url,
-      options: options ? JSON.stringify(options, null, 2) : 'none',
-    });
-  }
-
   try {
     const response = await fetch(url, {
       ...options,
@@ -158,15 +149,6 @@ export async function fetchLayout(layoutId?: string | unknown): Promise<Layout> 
   const paramsObject = { layout_id: targetLayoutId };
   const paramsJson = JSON.stringify(paramsObject);
   
-  // Логирование для отладки
-  console.log("[fetchLayout] Parsed params:", {
-    receivedLayoutId: layoutId,
-    typeofLayoutId: typeof layoutId,
-    targetLayoutId,
-    paramsObject,
-    paramsJson,
-  });
-  
   // Формируем endpoint с query параметрами вручную, используя encodeURIComponent
   // Важно: каждый параметр кодируется отдельно для безопасности
   const queryParts: string[] = [];
@@ -215,8 +197,80 @@ export interface KPIMetric {
   ytdChange?: number;
 }
 
-export async function fetchAllKPIs(): Promise<KPIMetric[]> {
-  return apiFetch<KPIMetric[]>("/kpis");
+/**
+ * Интерфейс для параметров загрузки KPIs
+ */
+export interface FetchKPIsParams {
+  layoutId?: string;
+  p1?: string; // periodDate
+  p2?: string; // ppDate
+  p3?: string; // pyDate
+}
+
+/**
+ * Загружает все KPI метрики через новый endpoint /api/data
+ * @param params - Параметры запроса (layout_id, даты)
+ */
+export async function fetchAllKPIs(params?: FetchKPIsParams): Promise<KPIMetric[]> {
+  const layoutId = params?.layoutId || DEFAULT_LAYOUT_ID;
+  
+  // Формируем параметры для запроса
+  const paramsObject: Record<string, string> = {
+    layout_id: layoutId,
+  };
+  
+  // Добавляем даты, если они переданы (не undefined и не пустая строка)
+  if (params?.p1 && params.p1.trim() !== "") {
+    paramsObject.p1 = params.p1;
+  }
+  if (params?.p2 && params.p2.trim() !== "") {
+    paramsObject.p2 = params.p2;
+  }
+  if (params?.p3 && params.p3.trim() !== "") {
+    paramsObject.p3 = params.p3;
+  }
+  
+  const paramsJson = JSON.stringify(paramsObject);
+  
+  // Логирование для отладки
+  console.log("[fetchAllKPIs] Request params:", {
+    params,
+    paramsObject,
+    paramsJson,
+  });
+  
+  // Формируем endpoint с query параметрами
+  const queryParts: string[] = [];
+  queryParts.push(`query_id=${encodeURIComponent("kpis")}`);
+  queryParts.push(`component_Id=${encodeURIComponent("kpis")}`);
+  queryParts.push(`parametrs=${encodeURIComponent(paramsJson)}`);
+  
+  const endpoint = `/data?${queryParts.join("&")}`;
+  
+  console.log("[fetchAllKPIs] Endpoint:", endpoint);
+  
+  // Backend для kpis возвращает массив KPIMetric[] напрямую (не GetDataResponse)
+  // Это специальная обработка в dataRoutes.ts для query_id === "kpis"
+  const response = await apiFetch<KPIMetric[] | GetDataResponse>(endpoint);
+  
+  // Проверяем формат ответа
+  if (Array.isArray(response)) {
+    // Если это массив - значит это уже KPIMetric[] (формат для kpis)
+    console.log("[fetchAllKPIs] Received KPIMetric[] directly:", response);
+    return response;
+  }
+  
+  // Если это GetDataResponse - извлекаем rows
+  if (response && typeof response === "object" && "rows" in response) {
+    const dataResponse = response as GetDataResponse;
+    if (dataResponse.rows && Array.isArray(dataResponse.rows)) {
+      console.log("[fetchAllKPIs] Extracted from GetDataResponse:", dataResponse.rows);
+      return dataResponse.rows as KPIMetric[];
+    }
+  }
+  
+  console.warn("[fetchAllKPIs] Unexpected response format:", response);
+  return [];
 }
 
 // ============================================================================

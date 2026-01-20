@@ -12,7 +12,7 @@ import {
   type TableRowData,
   type GroupingOption,
 } from "@/components/FinancialTable";
-import type { LayoutComponent, TableData } from "@/lib/api";
+import type { LayoutComponent, TableData, FetchKPIsParams } from "@/lib/api";
 
 // Helper function to transform API table data to FinancialTable format with hierarchy
 // Все текстовые поля до value - это иерархия (class, section, item, sub_item)
@@ -328,8 +328,10 @@ function DynamicTable({ component }: DynamicTableProps) {
 
 export default function DynamicDashboard() {
   const { data: layout, isLoading: layoutLoading, error: layoutError } = useLayout();
-  const { data: kpis, isLoading: kpisLoading, error: kpisError } = useAllKPIs();
-
+  
+  // Константа для layout_id (можно вынести в конфиг)
+  const DEFAULT_LAYOUT_ID = "main_dashboard";
+  
   // Используем header из layout.header (top-level элемент)
   const headerComponent = useMemo(() => {
     if (!layout) return null;
@@ -395,6 +397,30 @@ export default function DynamicDashboard() {
     
     return extractedDates;
   }, [headerData]);
+
+  // Загружаем KPIs через getData с параметрами дат и layout_id
+  // Убеждаемся, что все даты присутствуют перед вызовом
+  const kpiParams = useMemo(() => {
+    if (!dates || !layout) return undefined;
+    // Проверяем, что все даты заполнены
+    if (!dates.periodDate || !dates.ppDate || !dates.pyDate) {
+      console.warn("[DynamicDashboard] Dates incomplete, skipping KPIs:", dates);
+      return undefined;
+    }
+    return {
+      layoutId: DEFAULT_LAYOUT_ID,
+      p1: dates.periodDate,
+      p2: dates.ppDate,
+      p3: dates.pyDate,
+    };
+  }, [dates, layout]);
+  
+  const { data: kpis, isLoading: kpisLoading, error: kpisError } = useAllKPIs(
+    kpiParams,
+    {
+      enabled: !!kpiParams, // Включаем только если есть все параметры
+    }
+  );
 
   // Initialize formats cache when layout is loaded
   useEffect(() => {
@@ -530,7 +556,7 @@ export default function DynamicDashboard() {
               {cardComponents.length > 0 ? (
                 <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${cardComponents.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
                   {cardComponents.map((component) => (
-                    <KPICard key={component.id} componentId={component.id} />
+                    <KPICard key={component.id} componentId={component.id} kpis={kpis} />
                   ))}
                 </div>
               ) : (
