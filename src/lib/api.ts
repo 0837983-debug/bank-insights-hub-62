@@ -77,12 +77,13 @@ export interface LayoutFilter {
 export interface LayoutComponent {
   id: string; // уникальный идентификатор экземпляра (SERIAL из layout_component_mapping)
   componentId: string; // идентификатор компонента для связи с данными (KPIs API, table-data API)
-  type: "card" | "table" | "chart";
+  type: "card" | "table" | "chart" | "header" | "button";
   title: string;
   tooltip?: string;
   icon?: string;
   format?: Record<string, string>;
   compactDisplay?: boolean;
+  dataSourceKey?: string; // ключ источника данных (query_id для getData)
   columns?: Array<{
     id: string;
     label: string;
@@ -99,7 +100,8 @@ export interface LayoutComponent {
       description?: string;
     }>;
   }>;
-  groupableFields?: string[];
+  groupableFields?: string[]; // Deprecated: используйте buttons вместо этого
+  buttons?: LayoutComponent[]; // Дочерние кнопки-компоненты
 }
 
 export interface LayoutSection {
@@ -419,4 +421,61 @@ export async function getUploadHistory(params?: {
   const endpoint = queryString ? `/upload?${queryString}` : "/upload";
 
   return apiFetch<UploadHistoryResponse>(endpoint);
+}
+
+// ============================================================================
+// GetData API (unified data endpoint)
+// ============================================================================
+
+export interface GetDataParams {
+  [key: string]: string | number | boolean | Date;
+}
+
+export interface GetDataResponse {
+  componentId: string;
+  type: "table" | "card" | "chart";
+  rows: unknown[];
+}
+
+/**
+ * Получает данные через единый endpoint getData
+ * @param queryId - ID запроса (data_source_key)
+ * @param params - Параметры запроса
+ * @param componentId - ID компонента (опционально, передается как query param)
+ * @returns Данные в формате { componentId, type, rows }
+ */
+export async function getData(
+  queryId: string,
+  params: GetDataParams = {},
+  componentId?: string
+): Promise<GetDataResponse> {
+  // Формируем endpoint без API_BASE_URL, так как apiFetch добавит его сам
+  const endpoint = `/data/${queryId}`;
+  
+  // Преобразуем Date в строку для JSON
+  const serializedParams: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value instanceof Date) {
+      serializedParams[key] = value.toISOString().split('T')[0]; // YYYY-MM-DD
+    } else {
+      serializedParams[key] = value;
+    }
+  }
+
+  const queryParams = new URLSearchParams();
+  
+  // Добавляем component_id, если передан
+  if (componentId) {
+    queryParams.append("component_id", componentId);
+  }
+  
+  // Добавляем параметры запроса напрямую (p1, p2, p3, и т.д.)
+  for (const [key, value] of Object.entries(serializedParams)) {
+    queryParams.append(key, String(value));
+  }
+
+  const queryString = queryParams.toString();
+  const finalEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+
+  return apiFetch<GetDataResponse>(finalEndpoint);
 }

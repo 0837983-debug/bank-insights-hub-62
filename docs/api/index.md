@@ -16,6 +16,7 @@ http://localhost:3001/api
 ## Основные разделы
 
 - [Все Endpoints](/api/endpoints) - полный список всех endpoints
+- [Get Data API](/api/get-data) - единый endpoint для получения данных через SQL Builder
 - [KPI API](/api/kpi-api) - работа с KPI метриками
 - [Table Data API](/api/table-data-api) - получение данных таблиц
 - [Layout API](/api/layout-api) - структура layout дашборда

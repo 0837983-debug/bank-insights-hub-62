@@ -269,9 +269,41 @@ GET /api/uploads?limit=100&offset=0
 }
 ```
 
+## Get Data Endpoints
+
+### `GET /api/data/:query_id`
+
+Единый endpoint для получения данных через SQL Builder.
+
+**Параметры пути:**
+- `query_id` (string) - Идентификатор запроса из `config.component_queries.query_id`
+
+**Query параметры:**
+- `component_id` (string, обязательно) - Идентификатор компонента
+- Остальные параметры передаются как query params (например, `p1`, `p2`, `p3`, `class`)
+
+**Пример:**
+```bash
+GET /api/data/assets_table?component_id=assets_table&p1=2025-08-01&p2=2025-07-01&p3=2024-08-01&class=assets
+```
+
+**Ответ:**
+```json
+{
+  "componentId": "assets_table",
+  "type": "table",
+  "rows": [...]
+}
+```
+
+**Ограничения:**
+- Требуется `wrapJson=true` в конфиге запроса
+- Если `wrapJson=false`, возвращается ошибка 400
+
 ---
 
 Подробнее в разделах:
+- [Get Data API](/api/get-data) - детальное описание `/api/data` endpoint
 - [KPI API](/api/kpi-api)
 - [Table Data API](/api/table-data-api)
 - [Layout API](/api/layout-api)

@@ -39,6 +39,12 @@ curl "http://localhost:3001/api/layout?layout_id=main"
       "decimals": 2
     }
   },
+  "header": {
+    "id": "header",
+    "type": "header",
+    "title": "Header",
+    "dataSourceKey": "header_dates"
+  },
   "sections": [
     {
       "id": "balance",
@@ -74,6 +80,18 @@ curl "http://localhost:3001/api/layout?layout_id=main"
                 "value": "currency_rub"
               }
             }
+          ],
+          "buttons": [
+            {
+              "id": "button_balance_table_cfo",
+              "type": "button",
+              "title": "ЦФО",
+              "dataSourceKey": "balance_assets",
+              "settings": {
+                "fieldId": "cfo",
+                "groupBy": "cfo"
+              }
+            }
           ]
         }
       ]
@@ -89,6 +107,7 @@ curl "http://localhost:3001/api/layout?layout_id=main"
 ```typescript
 interface Layout {
   formats: Record<string, Format>;
+  header?: HeaderComponent; // Опционально, если header есть в layout
   sections: Section[];
 }
 ```
@@ -114,9 +133,34 @@ interface Section {
 }
 ```
 
+### Header Component
+
+```typescript
+interface HeaderComponent {
+  id: string;
+  type: 'header';
+  title: string;
+  dataSourceKey: string; // Ссылка на query_id в config.component_queries (например, 'header_dates')
+}
+```
+
+**Назначение:** Компонент header для отображения дат периодов. Получает данные через `/api/data` endpoint с `query_id = dataSourceKey`.
+
+**Пример:**
+- `dataSourceKey: 'header_dates'` → запрос к `/api/data` с `query_id: 'header_dates'`
+- Результат: `{ data: [{ current: '2025-08-01' }] }` - максимальная дата периода из `mart.kpi_metrics`
+
 ### Component
 
 ```typescript
+// Header component
+interface HeaderComponent {
+  id: string;
+  type: 'header';
+  title: string;
+  dataSourceKey: string; // Ссылка на query_id в config.component_queries
+}
+
 // Card component
 interface CardComponent {
   id: string;
@@ -124,7 +168,7 @@ interface CardComponent {
   title: string;
   tooltip?: string;
   icon?: string;
-  dataSourceKey: string;
+  dataSourceKey?: string; // Опционально, если используется getData endpoint
   format: {
     value: string; // Reference to format key
   };
@@ -135,8 +179,24 @@ interface TableComponent {
   id: string;
   type: 'table';
   title: string;
-  dataSourceKey: string;
+  dataSourceKey?: string; // Опционально, если используется getData endpoint
   columns: Column[];
+  buttons?: ButtonComponent[]; // Кнопки для группировки (заменяют groupableFields)
+}
+
+// Button component
+interface ButtonComponent {
+  id: string;
+  type: 'button';
+  title: string;
+  label?: string;
+  tooltip?: string;
+  icon?: string;
+  dataSourceKey?: string; // query_id таблицы для получения данных
+  settings?: {
+    fieldId: string; // ID поля для группировки
+    groupBy: string; // Параметр groupBy для запроса
+  };
 }
 
 interface Column {
@@ -148,6 +208,21 @@ interface Column {
   };
 }
 ```
+
+## dataSourceKey
+
+Поле `dataSourceKey` связывает компонент с запросом в `config.component_queries`.
+
+**Использование:**
+- Если компонент имеет `dataSourceKey`, данные получаются через `/api/data` endpoint
+- `dataSourceKey` соответствует `query_id` в таблице `config.component_queries`
+- Параметры запроса передаются через `params` в `/api/data`
+
+**Примеры:**
+- `header` компонент: `dataSourceKey: 'header_dates'` → `/api/data` с `query_id: 'header_dates'`
+- `assets_table` компонент: `dataSourceKey: 'assets_table'` → `/api/data` с `query_id: 'assets_table'` и `params: { p1: '2025-08-01', class: 'assets' }`
+
+**См. также:** [Get Data API](/api/get-data) - детальное описание `/api/data` endpoint
 
 ## Примеры использования
 

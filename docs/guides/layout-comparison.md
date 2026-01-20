@@ -74,23 +74,55 @@ related:
 
 ---
 
-### 2. ❌ У таблиц отсутствует поле `groupableFields`
+### 2. ✅ У таблиц есть кнопки вместо `groupableFields`
 
-**Мокап:**
+**Мокап (устаревший):**
 ```json
 {
   "id": "income_structure_table",
   "type": "table",
   "title": "Структура доходов",
   "dataSourceKey": "income_structure",
-  "groupableFields": ["product_line", "region"],  // ⚠️ ОТСУТСТВУЕТ
+  "groupableFields": ["product_line", "region"],  // ⚠️ УСТАРЕЛО
   "columns": [...]
 }
 ```
 
-**buildLayoutFromDB:**
-- Поле `groupableFields` не добавляется к таблицам
-- Это поле используется на фронтенде для генерации опций группировки
+**buildLayoutFromDB (актуально):**
+- Поле `groupableFields` удалено (устарело)
+- Вместо него используется массив `buttons` с кнопками-компонентами
+- Каждая кнопка имеет `settings.groupBy` для группировки данных
+```json
+{
+  "id": "income_structure_table",
+  "type": "table",
+  "title": "Структура доходов",
+  "dataSourceKey": "income_structure",
+  "buttons": [
+    {
+      "id": "button_income_structure_product_line",
+      "type": "button",
+      "title": "Продуктовая линейка",
+      "dataSourceKey": "income_structure",
+      "settings": {
+        "fieldId": "product_line",
+        "groupBy": "product_line"
+      }
+    },
+    {
+      "id": "button_income_structure_region",
+      "type": "button",
+      "title": "Регион",
+      "dataSourceKey": "income_structure",
+      "settings": {
+        "fieldId": "region",
+        "groupBy": "region"
+      }
+    }
+  ],
+  "columns": [...]
+}
+```
 
 ---
 
@@ -155,6 +187,6 @@ related:
 ## Рекомендации
 
 1. **Добавить поддержку `filters`** - реализовать логику построения filters из БД
-2. **Добавить `groupableFields` для таблиц** - получить из БД и добавить к компонентам типа "table"
+2. ✅ **Кнопки для группировки** - реализовано через кнопки-компоненты (заменяют `groupableFields`)
 3. **Добавить `isDimension` и `isMeasure` для колонок** - получить из БД (возможно из `field_type` или отдельного поля)
 4. **Добавить `compactDisplay` для карточек** - получить из БД или использовать значение по умолчанию

@@ -59,6 +59,57 @@ export function formatDateForSQL(date: Date): string {
 }
 
 /**
+ * Get last day of previous month from a given date
+ */
+function getLastDayOfPreviousMonth(fromDate: Date): Date {
+  const result = new Date(fromDate);
+  result.setDate(1); // First day of current month
+  result.setDate(0); // Last day of previous month (setDate(0) gives last day of prev month)
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+/**
+ * Get last day of previous year from a given date
+ */
+function getLastDayOfPreviousYear(fromDate: Date): Date {
+  const result = new Date(fromDate);
+  result.setFullYear(result.getFullYear() - 1);
+  result.setMonth(11, 31); // December 31
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+/**
+ * Calculate header dates based on current date:
+ * 1. periodDate = последний день предыдущего месяца от NOW()
+ * 2. ppDate = последний день предыдущего месяца от periodDate
+ * 3. pyDate = последний день предыдущего года от periodDate
+ */
+export function getHeaderDates(): {
+  periodDate: string;
+  ppDate: string;
+  pyDate: string;
+} {
+  const now = new Date();
+  
+  // 1. periodDate = последний день предыдущего месяца от NOW()
+  const periodDate = getLastDayOfPreviousMonth(now);
+  
+  // 2. ppDate = последний день предыдущего месяца от periodDate
+  const ppDate = getLastDayOfPreviousMonth(periodDate);
+  
+  // 3. pyDate = последний день предыдущего года от periodDate
+  const pyDate = getLastDayOfPreviousYear(periodDate);
+  
+  return {
+    periodDate: formatDateForSQL(periodDate),
+    ppDate: formatDateForSQL(ppDate),
+    pyDate: formatDateForSQL(pyDate),
+  };
+}
+
+/**
  * Interface for period dates
  */
 export interface PeriodDates {

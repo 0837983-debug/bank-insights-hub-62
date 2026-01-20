@@ -232,7 +232,16 @@ interface LayoutComponent {
     isMeasure?: boolean;          // Является ли метрикой
     format?: Record<string, string>;
   }>;
-  groupableFields?: string[];     // Поля для группировки
+  buttons?: Array<{              // Кнопки для группировки (заменяют groupableFields)
+    id: string;
+    type: 'button';
+    title: string;
+    dataSourceKey?: string;
+    settings?: {
+      fieldId: string;
+      groupBy: string;
+    };
+  }>;
 }
 ```
 
@@ -259,7 +268,28 @@ interface LayoutComponent {
   "type": "table",
   "title": "Структура доходов",
   "dataSourceKey": "financial_results_income",
-  "groupableFields": ["cfo", "client_segment"],
+  "buttons": [
+    {
+      "id": "button_income_table_cfo",
+      "type": "button",
+      "title": "ЦФО",
+      "dataSourceKey": "financial_results_income",
+      "settings": {
+        "fieldId": "cfo",
+        "groupBy": "cfo"
+      }
+    },
+    {
+      "id": "button_income_table_client_segment",
+      "type": "button",
+      "title": "Сегмент клиента",
+      "dataSourceKey": "financial_results_income",
+      "settings": {
+        "fieldId": "client_segment",
+        "groupBy": "client_segment"
+      }
+    }
+  ],
   "columns": [
     {
       "id": "name",

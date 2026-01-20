@@ -336,7 +336,7 @@ function GroupableTable({ tableId }: { tableId: string }) {
     .flatMap(s => s.components)
     .find(c => c.dataSourceKey === tableId);
 
-  const groupableFields = tableComponent?.groupableFields || [];
+  const buttons = tableComponent?.buttons || [];
 
   const { data } = useTableData(tableId, {
     groupBy: selectedGroupBy ? [selectedGroupBy] : undefined
@@ -344,18 +344,18 @@ function GroupableTable({ tableId }: { tableId: string }) {
 
   return (
     <div>
-      {groupableFields.length > 0 && (
-        <select
-          value={selectedGroupBy}
-          onChange={(e) => setSelectedGroupBy(e.target.value)}
-        >
-          <option value="">No grouping</option>
-          {groupableFields.map(field => (
-            <option key={field} value={field}>
-              Group by {field}
-            </option>
+      {buttons.length > 0 && (
+        <div className="flex gap-2">
+          {buttons.map(button => (
+            <button
+              key={button.id}
+              onClick={() => setSelectedGroupBy(button.settings?.groupBy)}
+              className={selectedGroupBy === button.settings?.groupBy ? 'active' : ''}
+            >
+              {button.title}
+            </button>
           ))}
-        </select>
+        </div>
       )}
       {/* Отображение таблицы */}
     </div>

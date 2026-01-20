@@ -87,6 +87,18 @@ export interface GroupingOption {
   label: string;
 }
 
+// Интерфейс для кнопки из layout
+export interface ButtonComponent {
+  id: string;
+  componentId: string;
+  type: "button";
+  title: string;
+  label?: string;
+  tooltip?: string;
+  icon?: string;
+  dataSourceKey?: string;
+}
+
 interface FinancialTableProps {
   title: string;
   rows: TableRowData[];
@@ -97,9 +109,14 @@ interface FinancialTableProps {
   periodLabel?: string;
   tableId?: string;
   componentId?: string; // ID компонента для получения форматов из layout
+  // Deprecated: используйте buttons вместо этого
   groupingOptions?: GroupingOption[];
   activeGrouping?: string | null;
   onGroupingChange?: (groupBy: string | null) => void;
+  // Новые props для кнопок
+  buttons?: ButtonComponent[];
+  activeButtonId?: string | null;
+  onButtonClick?: (buttonId: string | null) => void;
   isLoading?: boolean;
 }
 
@@ -110,9 +127,12 @@ export const FinancialTable = ({
   showChange = true,
   periodLabel = "Значение",
   componentId,
-  groupingOptions,
-  activeGrouping: externalActiveGrouping,
-  onGroupingChange,
+  groupingOptions, // Deprecated
+  activeGrouping: externalActiveGrouping, // Deprecated
+  onGroupingChange, // Deprecated
+  buttons,
+  activeButtonId: externalActiveButtonId,
+  onButtonClick,
   isLoading = false,
 }: FinancialTableProps) => {
   // Получаем layout для доступа к форматам
@@ -141,9 +161,13 @@ export const FinancialTable = ({
   const ytdChangeFormatId = ytdChangeSubColumn?.format || percentageFormatId;
   const ytdChangeAbsoluteFormatId = ytdChangeAbsoluteSubColumn?.format || valueFormatId;
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Deprecated: для обратной совместимости
   const [internalActiveGrouping, setInternalActiveGrouping] = useState<string | null>(null);
   const activeGrouping =
     externalActiveGrouping !== undefined ? externalActiveGrouping : internalActiveGrouping;
+  // Новое состояние для кнопок
+  const [internalActiveButtonId, setInternalActiveButtonId] = useState<string | null>(null);
+  const activeButtonId = externalActiveButtonId !== undefined ? externalActiveButtonId : internalActiveButtonId;
   const [selectedRow, setSelectedRow] = useState<TableRowData | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
@@ -367,6 +391,7 @@ export const FinancialTable = ({
     }
   };
 
+  // Deprecated: для обратной совместимости
   const handleGroupingClick = (groupId: string) => {
     const newGrouping = activeGrouping === groupId ? null : groupId;
     // Update internal state only if external state is not provided
@@ -375,6 +400,19 @@ export const FinancialTable = ({
     }
     setCollapsedGroups(new Set());
     onGroupingChange?.(newGrouping);
+  };
+
+  // Новая функция для обработки клика по кнопке
+  const handleButtonClick = (buttonId: string | null) => {
+    const newButtonId = activeButtonId === buttonId ? null : buttonId;
+    // Update internal state only if external state is not provided
+    if (externalActiveButtonId === undefined) {
+      setInternalActiveButtonId(newButtonId);
+    }
+    if (onButtonClick) {
+      onButtonClick(newButtonId);
+    }
+    setCollapsedGroups(new Set());
   };
 
   const visibleRows = sortedRows.filter(isRowVisible);
@@ -412,8 +450,26 @@ export const FinancialTable = ({
           )}
         </div>
 
-        {/* Grouping buttons */}
-        {groupingOptions && groupingOptions.length > 0 && (
+        {/* Buttons from layout */}
+        {buttons && buttons.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {buttons.map((button) => (
+              <Button
+                key={button.id}
+                variant={activeButtonId === button.id ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => handleButtonClick(button.id)}
+                disabled={isLoading}
+                title={button.tooltip}
+              >
+                {button.label || button.title}
+              </Button>
+            ))}
+          </div>
+        )}
+        {/* Deprecated: Grouping buttons (для обратной совместимости) */}
+        {groupingOptions && groupingOptions.length > 0 && !buttons && (
           <div className="flex flex-wrap gap-2">
             {groupingOptions.map((option) => (
               <Button

@@ -97,7 +97,8 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
         c.action_type as "component.actionType",
         c.action_target as "component.actionTarget", c.action_params as "component.actionParams",
         c.settings as "component.settings", c.description as "component.description",
-        c.category as "component.category", c.is_active as "component.isActive"
+        c.category as "component.category", c.is_active as "component.isActive",
+        c.data_source_key as "component.dataSourceKey"
       FROM config.layout_component_mapping lcm
       INNER JOIN config.components c ON lcm.component_id = c.id
       WHERE lcm.layout_id = $1
@@ -147,7 +148,8 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
           c.action_type as "component.actionType",
           c.action_target as "component.actionTarget", c.action_params as "component.actionParams",
           c.settings as "component.settings", c.description as "component.description",
-          c.category as "component.category", c.is_active as "component.isActive"
+          c.category as "component.category", c.is_active as "component.isActive",
+          c.data_source_key as "component.dataSourceKey"
         FROM config.layout_component_mapping lcm
         INNER JOIN config.components c ON lcm.component_id = c.id
         WHERE lcm.layout_id = $1
@@ -180,6 +182,7 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
           description: row["component.description"],
           category: row["component.category"],
           isActive: row["component.isActive"],
+          dataSourceKey: row["component.dataSourceKey"],
         },
       }));
 
@@ -274,6 +277,7 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             ...(mapping.component.tooltip ? { tooltip: mapping.component.tooltip } : {}),
             ...(mapping.component.icon ? { icon: mapping.component.icon } : {}),
             ...(columns.length > 0 ? { columns } : {}),
+            ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
           };
           components.push(card);
         } else if (type === "table") {
@@ -357,19 +361,6 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
               return column;
             });
           
-          // Получаем groupableFields - поля где is_groupable = true
-          const groupableFieldsResult = await pool.query(
-            `SELECT field_id
-             FROM config.component_fields
-             WHERE component_id = $1
-               AND is_groupable = TRUE
-               AND is_active = TRUE
-               AND deleted_at IS NULL
-             ORDER BY display_order ASC`,
-            [mapping.componentId]
-          );
-          const groupableFields = groupableFieldsResult.rows.map((row: any) => row.field_id);
-          
           // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
           const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
           
@@ -379,7 +370,7 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             type: "table",
             title: mapping.component.title ?? mapping.componentId,
             columns,
-            ...(groupableFields.length > 0 ? { groupableFields } : {}),
+            ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
           };
 
           // Если это таблица assets в секции Balance, включаем данные
@@ -402,6 +393,51 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             console.log(`[layoutService] Table ${compositeId} is not assets table (componentId: ${mapping.componentId})`);
           }
 
+          // Получаем дочерние компоненты таблицы (кнопки)
+          const tableButtonsResult = await pool.query(
+            `SELECT 
+              lcm.id, lcm.layout_id as "layoutId", lcm.component_id as "componentId",
+              lcm.display_order as "displayOrder", lcm.is_visible as "isVisible",
+              c.id as "component.id", c.component_type as "component.componentType",
+              c.title as "component.title", c.label as "component.label",
+              c.tooltip as "component.tooltip", c.icon as "component.icon",
+              c.action_type as "component.actionType",
+              c.action_target as "component.actionTarget", c.action_params as "component.actionParams",
+              c.settings as "component.settings", c.description as "component.description",
+              c.category as "component.category", c.is_active as "component.isActive",
+              c.data_source_key as "component.dataSourceKey"
+            FROM config.layout_component_mapping lcm
+            INNER JOIN config.components c ON lcm.component_id = c.id
+            WHERE lcm.layout_id = $1
+              AND lcm.parent_component_id = $2
+              AND lcm.deleted_at IS NULL
+              AND c.component_type = 'button'
+            ORDER BY lcm.display_order ASC, lcm.id ASC`,
+            [layoutId, mapping.componentId]
+          );
+
+          const buttons: any[] = [];
+          for (const buttonRow of tableButtonsResult.rows) {
+            const buttonCompositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}::${buttonRow.componentId}`;
+            const button: any = {
+              id: buttonCompositeId,
+              componentId: buttonRow.componentId,
+              type: "button",
+              title: buttonRow["component.title"] ?? buttonRow.componentId,
+              ...(buttonRow["component.label"] ? { label: buttonRow["component.label"] } : {}),
+              ...(buttonRow["component.tooltip"] ? { tooltip: buttonRow["component.tooltip"] } : {}),
+              ...(buttonRow["component.icon"] ? { icon: buttonRow["component.icon"] } : {}),
+              ...(buttonRow["component.settings"] ? { settings: buttonRow["component.settings"] } : {}),
+              ...(buttonRow["component.dataSourceKey"] ? { dataSourceKey: buttonRow["component.dataSourceKey"] } : {}),
+            };
+            buttons.push(button);
+          }
+
+          // Добавляем кнопки в таблицу, если они есть
+          if (buttons.length > 0) {
+            table.buttons = buttons;
+          }
+
           components.push(table);
         } else if (type === "chart") {
           // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
@@ -412,8 +448,27 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
             componentId: mapping.componentId,
             type: "chart",
             title: mapping.component.title ?? mapping.componentId,
+            ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
           };
           components.push(chart);
+        } else if (type === "header") {
+          // Формируем составной ID: layoutId::sectionId::componentId (используем :: как разделитель)
+          const compositeId = `${layoutId}::${sectionComponentId}::${mapping.componentId}`;
+          
+          const header: any = {
+            id: compositeId,
+            componentId: mapping.componentId,
+            type: "header",
+            title: mapping.component.title ?? mapping.componentId,
+            ...(mapping.component.tooltip ? { tooltip: mapping.component.tooltip } : {}),
+            ...(mapping.component.icon ? { icon: mapping.component.icon } : {}),
+            ...(mapping.component.dataSourceKey ? { dataSourceKey: mapping.component.dataSourceKey } : {}),
+          };
+          components.push(header);
+        } else if (type === "button") {
+          // Кнопки обрабатываются как дочерние компоненты таблиц выше
+          // Если кнопка попала сюда, значит она не привязана к таблице - пропускаем
+          continue;
         } else if (type === "filter") {
           // Фильтры будут добавлены в filters[] позже при необходимости; пропускаем добавление как компонент
           continue;
@@ -424,6 +479,68 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
         id: sectionComponentId,
         title: sectionTitle,
         components,
+      });
+    }
+
+    // 4) Компоненты верхнего уровня, которые не являются контейнерами (например, header)
+    const topLevelComponentsResult = await pool.query(
+      `SELECT 
+        lcm.id, lcm.layout_id as "layoutId", lcm.component_id as "componentId",
+        lcm.display_order as "displayOrder", lcm.is_visible as "isVisible",
+        c.id as "component.id", c.component_type as "component.componentType",
+        c.title as "component.title", c.label as "component.label",
+        c.tooltip as "component.tooltip", c.icon as "component.icon",
+        c.action_type as "component.actionType",
+        c.action_target as "component.actionTarget", c.action_params as "component.actionParams",
+        c.settings as "component.settings", c.description as "component.description",
+        c.category as "component.category", c.is_active as "component.isActive",
+        c.data_source_key as "component.dataSourceKey"
+      FROM config.layout_component_mapping lcm
+      INNER JOIN config.components c ON lcm.component_id = c.id
+      WHERE lcm.layout_id = $1
+        AND lcm.parent_component_id IS NULL
+        AND lcm.deleted_at IS NULL
+        AND c.component_type != 'container'
+      ORDER BY lcm.display_order ASC, lcm.id ASC`,
+      [layoutId]
+    );
+
+    const topLevelComponents: any[] = [];
+    for (const row of topLevelComponentsResult.rows) {
+      const type = row["component.componentType"];
+      const componentId = row.componentId;
+      const compositeId = `${layoutId}::${componentId}`;
+
+      if (type === "header") {
+        const header: any = {
+          id: compositeId,
+          componentId: componentId,
+          type: "header",
+          title: row["component.title"] ?? componentId,
+          ...(row["component.tooltip"] ? { tooltip: row["component.tooltip"] } : {}),
+          ...(row["component.icon"] ? { icon: row["component.icon"] } : {}),
+          ...(row["component.dataSourceKey"] ? { dataSourceKey: row["component.dataSourceKey"] } : {}),
+        };
+        topLevelComponents.push(header);
+      } else {
+        // Для других типов компонентов верхнего уровня (если появятся)
+        const component: any = {
+          id: compositeId,
+          componentId: componentId,
+          type: type,
+          title: row["component.title"] ?? componentId,
+          ...(row["component.dataSourceKey"] ? { dataSourceKey: row["component.dataSourceKey"] } : {}),
+        };
+        topLevelComponents.push(component);
+      }
+    }
+
+    // Добавляем компоненты верхнего уровня в начало sections (если они есть)
+    if (topLevelComponents.length > 0) {
+      sections.unshift({
+        id: "top_level",
+        title: "Top Level",
+        components: topLevelComponents,
       });
     }
 

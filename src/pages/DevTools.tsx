@@ -25,6 +25,7 @@ import {
   Trash2,
   Plus,
   Hash,
+  Code,
 } from "lucide-react";
 import { fetchLayout, type Layout, type LayoutFormat } from "@/lib/api";
 import { formatValue, initializeFormats } from "@/lib/formatters";
@@ -129,6 +130,50 @@ export default function DevTools() {
         2
       ),
     },
+    {
+      id: "data-get",
+      name: "Get Data",
+      method: "GET",
+      path: "/api/data/:query_id",
+      description: "Получить данные через SQL Builder по query_id. Параметры передаются отдельными query параметрами",
+      pathParams: [{ name: "query_id", example: "assets_table", description: "ID запроса из config.component_queries" }],
+      queryParams: [
+        {
+          name: "component_id",
+          example: "assets_table",
+          description: "Идентификатор компонента (обязательно для табличных запросов)",
+        },
+        {
+          name: "p1",
+          example: "2025-12-31",
+          description: "Параметр p1 (дата)",
+        },
+        {
+          name: "p2",
+          example: "2025-11-30",
+          description: "Параметр p2 (дата)",
+        },
+        {
+          name: "p3",
+          example: "2025-12-31",
+          description: "Параметр p3 (дата)",
+        },
+        {
+          name: "class",
+          example: "assets",
+          description: "Класс данных (например: assets)",
+        },
+      ],
+      responseExample: JSON.stringify(
+        {
+          componentId: "assets_table",
+          type: "table",
+          rows: [{ class: "assets", value: 1000000 }],
+        },
+        null,
+        2
+      ),
+    },
   ];
 
   const [selectedEndpoint, setSelectedEndpoint] = useState<string>("");
@@ -143,6 +188,17 @@ export default function DevTools() {
   const [selectedFormatId, setSelectedFormatId] = useState<string>("");
   const [testValue, setTestValue] = useState<string>("");
   const [formattedResult, setFormattedResult] = useState<string>("");
+
+  // SQL Builder states
+  const [sqlBuilderQueryId, setSqlBuilderQueryId] = useState<string>("");
+  const [sqlBuilderParams, setSqlBuilderParams] = useState<string>("");
+  const [sqlBuilderResult, setSqlBuilderResult] = useState<{
+    sql: string;
+    params: unknown[];
+    config?: unknown;
+  } | null>(null);
+  const [sqlBuilderStatus, setSqlBuilderStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [sqlBuilderError, setSqlBuilderError] = useState<string>("");
 
   const resources = [
     {
@@ -253,6 +309,61 @@ export default function DevTools() {
       setFormattedResult("");
     }
   }, [selectedFormatId, testValue]);
+
+  // SQL Builder: Test query
+  const handleSqlBuilderTest = async () => {
+    if (!sqlBuilderQueryId.trim()) {
+      setSqlBuilderError("Query ID is required");
+      setSqlBuilderStatus("error");
+      return;
+    }
+
+    setSqlBuilderStatus("loading");
+    setSqlBuilderError("");
+    setSqlBuilderResult(null);
+
+    try {
+      let params = {};
+      if (sqlBuilderParams.trim()) {
+        params = JSON.parse(sqlBuilderParams);
+      }
+
+      const response = await fetch("http://localhost:3001/api/sql-builder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query_id: sqlBuilderQueryId,
+          params: params,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to build SQL query");
+      }
+
+      setSqlBuilderResult(data);
+      setSqlBuilderStatus("success");
+    } catch (error: any) {
+      setSqlBuilderError(error.message || "Invalid JSON or config error");
+      setSqlBuilderStatus("error");
+      setSqlBuilderResult(null);
+    }
+  };
+
+  // Load example params
+  const loadExampleParams = () => {
+    const example = {
+      p1: "2025-08-01",
+      p2: "2025-07-01",
+      p3: "2024-08-01",
+      class: "assets",
+    };
+    setSqlBuilderParams(JSON.stringify(example, null, 2));
+  };
 
   // Handle endpoint selection
   const handleEndpointSelect = (endpointId: string) => {
@@ -745,6 +856,137 @@ export default function DevTools() {
                   {JSON.stringify(layout.formats[selectedFormatId], null, 2)}
                 </pre>
               </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* SQL Builder Testing */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Code className="h-5 w-5" />
+            SQL Builder Testing
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Query ID Input */}
+          <div className="space-y-2">
+            <Label>Query ID</Label>
+            <Input
+              placeholder="Введите query_id (например: assets_table, header_dates)"
+              value={sqlBuilderQueryId}
+              onChange={(e) => setSqlBuilderQueryId(e.target.value)}
+            />
+          </div>
+
+          {/* Params Input */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Parameters (JSON)</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={loadExampleParams}
+              >
+                Load Example
+              </Button>
+            </div>
+            <Textarea
+              placeholder='{"p1": "2025-08-01", "class": "assets"}'
+              value={sqlBuilderParams}
+              onChange={(e) => setSqlBuilderParams(e.target.value)}
+              className="font-mono text-sm min-h-[150px]"
+            />
+          </div>
+          
+          <Button
+            onClick={handleSqlBuilderTest}
+            disabled={sqlBuilderStatus === "loading" || !sqlBuilderQueryId.trim()}
+            className="w-full"
+          >
+            {sqlBuilderStatus === "loading" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Building SQL...
+              </>
+            ) : (
+              <>
+                <PlayCircle className="mr-2 h-4 w-4" />
+                Build SQL Query
+              </>
+            )}
+          </Button>
+
+          {/* Error Display */}
+          {sqlBuilderStatus === "error" && sqlBuilderError && (
+            <div className="p-4 rounded-lg border bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
+              <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+                <XCircle className="h-5 w-5" />
+                <span className="font-semibold">Error</span>
+              </div>
+              <pre className="mt-2 text-sm font-mono text-red-600 dark:text-red-400 whitespace-pre-wrap">
+                {sqlBuilderError}
+              </pre>
+            </div>
+          )}
+
+          {/* Result Display */}
+          {sqlBuilderStatus === "success" && sqlBuilderResult && (
+            <div className="space-y-4">
+              {/* SQL Result */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Generated SQL
+                </Label>
+                <div className="p-4 rounded-lg border bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                  <pre className="text-sm font-mono text-green-900 dark:text-green-100 whitespace-pre-wrap overflow-x-auto">
+                    {sqlBuilderResult.sql}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Parameters */}
+              <div className="space-y-2">
+                <Label>Parameters (in order of use)</Label>
+                <div className="p-4 rounded-lg border bg-muted/30">
+                  <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                    {JSON.stringify(sqlBuilderResult.params, null, 2)}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Formatted SQL */}
+              <div className="space-y-2">
+                <Label>Formatted SQL</Label>
+                <div className="p-4 rounded-lg border bg-muted/30">
+                  <pre className="text-sm font-mono overflow-x-auto whitespace-pre-wrap">
+                    {sqlBuilderResult.sql
+                      .replace(/SELECT /g, "SELECT\n  ")
+                      .replace(/FROM /g, "\nFROM ")
+                      .replace(/WHERE /g, "\nWHERE ")
+                      .replace(/GROUP BY /g, "\nGROUP BY ")
+                      .replace(/ORDER BY /g, "\nORDER BY ")
+                      .replace(/LIMIT /g, "\nLIMIT ")
+                      .replace(/OFFSET /g, "\nOFFSET ")
+                      .replace(/,/g, ",\n  ")}
+                  </pre>
+                </div>
+              </div>
+
+              {/* JSON Config */}
+              {sqlBuilderResult.config && (
+                <div className="space-y-2">
+                  <Label>JSON Config</Label>
+                  <div className="p-4 rounded-lg border bg-muted/30">
+                    <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                      {JSON.stringify(sqlBuilderResult.config, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

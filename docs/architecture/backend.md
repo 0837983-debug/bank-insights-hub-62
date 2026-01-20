@@ -27,11 +27,26 @@ backend/
 │   ├── services/        # Бизнес-логика
 │   │   ├── config/      # Сервисы для работы с config схемой
 │   │   │   └── layoutService.ts
-│   │   └── mart/        # Data Mart сервисы (mart схема)
-│   │       ├── balanceService.ts
-│   │       ├── kpiService.ts
-│   │       ├── base/
-│   │       └── types.ts
+│   │   ├── mart/        # Data Mart сервисы (mart схема)
+│   │   │   ├── balanceService.ts
+│   │   │   ├── kpiService.ts
+│   │   │   ├── base/    # Базовые сервисы
+│   │   │   │   ├── periodService.ts
+│   │   │   │   ├── calculationService.ts
+│   │   │   │   ├── componentService.ts
+│   │   │   │   └── rowNameMapper.ts
+│   │   │   └── types.ts
+│   │   ├── queryBuilder/ # SQL Builder
+│   │   │   ├── builder.ts
+│   │   │   ├── validator.ts
+│   │   │   ├── queryLoader.ts
+│   │   │   └── types.ts
+│   │   └── upload/      # Сервисы загрузки файлов
+│   │       ├── fileParserService.ts
+│   │       ├── validationService.ts
+│   │       ├── storageService.ts
+│   │       ├── ingestionService.ts
+│   │       └── rollbackService.ts
 │   │
 │   ├── middleware/      # Express middleware
 │   │   └── errorHandler.ts
@@ -50,6 +65,8 @@ backend/
 ## Архитектурные слои
 
 ### 1. Route Layer (Routes)
+
+[Перейти к разделу "Сервисы" →](#сервисы)
 
 Обработка HTTP запросов и валидация входных данных.
 
@@ -76,41 +93,55 @@ backend/
 
 Бизнес-логика и работа с данными.
 
-**Основные сервисы:**
+## Сервисы
 
-#### Config Services
+### SQL Builder (`services/queryBuilder/`)
 
-**layoutService (`services/config/layoutService.ts`):**
-Построение layout структуры из БД.
+Библиотека для построения SQL запросов из JSON-конфигурации.
+
+**Основные функции:**
+- `buildQueryFromId(queryId, paramsJson)` - построение SQL по `query_id` из БД
+- `buildQuery(config, params, wrapJson?)` - построение SQL из конфига
+
+**Компоненты:**
+- `builder.ts` - основная логика построения SQL
+- `validator.ts` - валидация JSON-конфигов
+- `queryLoader.ts` - загрузка конфигов из `config.component_queries`
+- `types.ts` - TypeScript типы для конфигов
+
+**Особенности:**
+- Защита от SQL-инъекций через экранирование значений
+- Строгая валидация параметров (missing/excess)
+- Поддержка `wrapJson` для JSON агрегации
+- Работа с одной таблицей (без JOIN)
+- Поддержка CASE агрегаций, WHERE условий, GROUP BY, ORDER BY
+
+**См. также:** [SQL Builder документация](/reference/sql-builder) - детальное описание формата конфигов и API
+
+### Layout Service (`services/config/layoutService.ts`)
+
+Построение layout структуры дашборда из БД.
 
 **Функции:**
-- `buildLayoutFromDB()` - построение layout
+- `buildLayoutFromDB()` - построение полного layout
 
 **Процесс:**
 1. Загрузка форматов из `config.formats`
 2. Загрузка секций из `config.layouts`
 3. Загрузка компонентов из `config.components`
 4. Связывание через `config.layout_component_mapping`
-5. Формирование JSON структуры
+5. Формирование JSON структуры с `data_source_key`
 
 **Особенности:**
 - Работа с `config` схемой PostgreSQL
 - Динамическое построение структуры дашборда
 - Фильтрация неактивных компонентов и форматов
+- Возврат `data_source_key` для компонентов
 
-#### Data Mart Services
+**См. также:** [Layout Architecture](/architecture/layout) - архитектура layout системы
 
-Сервисы для работы с агрегированными данными:
+### KPI Service (`services/mart/kpiService.ts`)
 
-**balanceService:**
-- `getAssets()` - активы баланса
-- `getLiabilities()` - обязательства баланса
-
-**financialResultsService:**
-- `getIncome()` - доходы
-- `getExpenses()` - расходы
-
-**kpiService (`services/mart/kpiService.ts`):**
 Работа с KPI метриками из Data Mart.
 
 **Функции:**
@@ -126,11 +157,88 @@ backend/
 - Поддержка периодов (current, previous month, previous year)
 - Все расчетные поля вычисляются на backend, frontend получает готовые значения
 
-**Base Services:**
-- `periodService` - работа с периодами
-- `calculationService` - расчеты (изменения, проценты)
-- `componentService` - работа с компонентами
-- `rowNameMapper` - маппинг названий строк
+### Balance Service (`services/mart/balanceService.ts`)
+
+Работа с данными баланса из Data Mart.
+
+**Функции:**
+- `getAssets()` - активы баланса
+- `getLiabilities()` - обязательства баланса
+
+**Особенности:**
+- Работа с `mart.balance` таблицей
+- Агрегация данных по периодам
+- Поддержка группировки и фильтрации
+
+### Base Services (`services/mart/base/`)
+
+Вспомогательные сервисы для работы с данными:
+
+**periodService:**
+- `getHeaderDates()` - расчет дат периодов (current, previous month, previous year)
+- Работа с периодами относительно `NOW()`
+
+**calculationService:**
+- Расчет изменений (ppChange, ytdChange)
+- Расчет процентов (percentage)
+- Абсолютные изменения
+
+**componentService:**
+- `getComponentById()` - метаданные компонента
+- `getComponentsByType()` - компоненты по типу
+- `getComponentFields()` - поля таблицы
+
+**rowNameMapper:**
+- Маппинг `row_code` в человекочитаемые названия
+- Используется для отображения строк таблиц
+
+### Upload Services (`services/upload/`)
+
+Сервисы для загрузки и обработки файлов.
+
+**fileParserService:**
+- Парсинг CSV и XLSX файлов
+- Валидация структуры файла
+- Извлечение данных
+
+**validationService:**
+- Валидация данных перед загрузкой
+- Проверка типов и форматов
+- Проверка обязательных полей
+
+**storageService:**
+- Сохранение файлов в `row/processed/`
+- Управление путями и именами файлов
+
+**ingestionService:**
+- Загрузка данных в STG схему
+- Трансформация данных
+- Загрузка в ODS и MART
+
+**rollbackService:**
+- Откат загруженных данных
+- Удаление записей из STG, ODS, MART
+- Очистка файлов
+
+**См. также:** [File Upload API](/api/upload-api) - документация API загрузки файлов
+
+### Formatter (Frontend)
+
+**Расположение:** `src/lib/formatters.ts`
+
+Утилиты форматирования чисел, валют и процентов на frontend.
+
+**Функции:**
+- `initializeFormats(formats)` - инициализация кэша форматов из layout API
+- `formatValue(formatId, value)` - форматирование значения по формату
+
+**Особенности:**
+- Форматы загружаются из layout API
+- Кэширование форматов в памяти
+- Поддержка сокращений (K, M, B)
+- Поддержка валютных символов и процентов
+
+**См. также:** [Frontend Architecture](/architecture/frontend) - описание форматирования на frontend
 
 ### 3. Data Access Layer
 
@@ -282,3 +390,6 @@ npm run migrate
 - [Общая архитектура](/architecture/overview) - обзор системы
 - [База данных](/architecture/database) - структура БД
 - [Поток данных](/architecture/data-flow) - детальный поток данных
+- [SQL Builder](/reference/sql-builder) - документация SQL Builder
+- [Component Queries](/reference/component-queries) - конфиги SQL запросов
+- [File Upload API](/api/upload-api) - API загрузки файлов

@@ -65,17 +65,27 @@ related:
 
 Глобальная библиотека компонентов дашборда.
 
-**Назначение:** Хранение определений всех компонентов (карточки, таблицы, графики).
+**Назначение:** Хранение определений всех компонентов (карточки, таблицы, графики, header).
 
 **Ключевые поля:**
 - `id` (VARCHAR(200), PK) - Идентификатор компонента
-- `component_type` (VARCHAR(50)) - Тип: 'card', 'table', 'chart', 'container'
+- `component_type` (VARCHAR(50)) - Тип: 'card', 'table', 'chart', 'container', 'header'
 - `title` (VARCHAR(200)) - Заголовок компонента
-- `data_source_key` (VARCHAR(200)) - Ключ источника данных
+- `data_source_key` (VARCHAR(200)) - Ключ источника данных (ссылка на `config.component_queries.query_id`)
 - `category` (VARCHAR(100)) - Категория (для фильтрации)
 - `icon` (VARCHAR(200)) - Название иконки
 
-**Использование:** В `layoutService.ts` и `kpiService.ts` для получения метаданных компонентов.
+**data_source_key:**
+- Связывает компонент с запросом в `config.component_queries`
+- Используется для получения данных через endpoint `/api/data` с `query_id = data_source_key`
+- Пример: `header` компонент имеет `data_source_key = 'header_dates'` для получения дат периодов
+
+**Примеры компонентов:**
+- `header` - компонент header с `data_source_key = 'header_dates'` для получения дат периодов
+- `assets_table` - таблица активов с `data_source_key = 'assets_table'`
+- `capital_card` - карточка капитала (без `data_source_key`, использует KPI API)
+
+**Использование:** В `layoutService.ts` и `kpiService.ts` для получения метаданных компонентов. Компоненты с `data_source_key` получают данные через `/api/data` endpoint.
 
 ### config.layout_component_mapping
 

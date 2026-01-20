@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { useLayout, useAllKPIs, useTableData } from "@/hooks/useAPI";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useLayout, useAllKPIs, useTableData, useGetData } from "@/hooks/useAPI";
 import { KPICard } from "@/components/KPICard";
 import { Header } from "@/components/Header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -187,58 +187,109 @@ interface DynamicTableProps {
 }
 
 function DynamicTable({ component }: DynamicTableProps) {
-  const [activeGrouping, setActiveGrouping] = useState<string | null>(null);
+  const [activeButtonId, setActiveButtonId] = useState<string | null>(null);
 
-  // Generate grouping options from layout component's groupableFields
-  const groupingOptions: GroupingOption[] = component.groupableFields
-    ? component.groupableFields.map((field) => {
-        // Map common field names to readable labels
-        const labelMap: Record<string, string> = {
-          product_line: "Продуктовая линейка",
-          region: "Регион",
-          client_type: "Тип клиента",
-          cfo: "ЦФО",
-          segment: "Сегмент",
-        };
+  // Получаем кнопки из layout компонента
+  const buttons = component.buttons || [];
 
-        const label =
-          labelMap[field] ||
-          field
-            .split("_")
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
+  // Определяем активную кнопку
+  const activeButton = activeButtonId
+    ? buttons.find((btn) => btn.id === activeButtonId)
+    : null;
 
-        return {
-          id: field,
-          label,
-        };
-      })
-    : [];
+  // Определяем data_source_key для загрузки данных:
+  // 1. Если есть активная кнопка - используем её data_source_key
+  // 2. Иначе используем data_source_key таблицы
+  const dataSourceKey = activeButton?.dataSourceKey || component.dataSourceKey;
 
-  // Load table data with grouping parameter
-  const { data, isLoading, error } = useTableData(component.componentId, {
-    groupBy: activeGrouping || undefined,
-  });
+  // Получаем dates из контекста родительского компонента
+  const dates = (component as any).dates; // TODO: типизировать через props
 
-  const handleGroupingChange = useCallback((groupBy: string | null) => {
-    setActiveGrouping(groupBy);
+  // Загружаем данные через getData, если есть data_source_key
+  const { 
+    data: tableDataFromGetData, 
+    isLoading: isLoadingGetData,
+    error: getDataError,
+  } = useGetData(
+    dataSourceKey || null,
+    dates ? {
+      p1: dates.periodDate,
+      p2: dates.ppDate,
+      p3: dates.pyDate,
+    } : {},
+    { 
+      enabled: !!dataSourceKey && !!dates, // Включаем только если есть dates
+      componentId: component.componentId,
+    }
+  );
+
+  // Fallback на старый endpoint, если нет data_source_key
+  const { data: tableDataFromLegacy, isLoading: isLoadingLegacy, error } = useTableData(
+    component.componentId,
+    {
+      periodDate: dates?.periodDate,
+    },
+    { enabled: !dataSourceKey }
+  );
+
+  // Используем данные из getData или из legacy endpoint
+  const isLoading = dataSourceKey ? isLoadingGetData : isLoadingLegacy;
+
+  // Преобразуем данные из getData в формат TableData, если нужно
+  const transformedData = useMemo(() => {
+    if (dataSourceKey && tableDataFromGetData) {
+      // Данные из getData приходят в формате { componentId, type, rows }
+      // Используем напрямую, так как формат уже соответствует TableData
+      return {
+        componentId: tableDataFromGetData.componentId,
+        type: tableDataFromGetData.type,
+        rows: (tableDataFromGetData.rows || []) as TableData["rows"],
+      };
+    }
+    
+    return tableDataFromLegacy;
+  }, [dataSourceKey, tableDataFromGetData, tableDataFromLegacy]);
+
+  const handleButtonClick = useCallback((buttonId: string | null) => {
+    setActiveButtonId(buttonId);
   }, []);
 
-  if (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  // Обработка ошибок
+  const currentError = dataSourceKey ? getDataError : error;
+  const hasError = currentError && !transformedData;
+  
+  if (hasError) {
+    const errorMessage = currentError instanceof Error 
+      ? currentError.message 
+      : String(currentError) || "Unknown error";
+    
+    // Если нет дат, показываем специальное сообщение
+    const missingDatesError = dataSourceKey && !dates;
+    
     return (
       <Alert variant="destructive" className="mt-4">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Ошибка загрузки таблицы</AlertTitle>
         <AlertDescription>
-          Не удалось загрузить данные для таблицы "{component.title}" (componentId: {component.componentId})
-          {errorMessage && <div className="mt-2 text-xs font-mono">{errorMessage}</div>}
+          {missingDatesError ? (
+            <>
+              Не удалось загрузить даты из header. Таблица "{component.title}" не может загрузить данные без параметров дат.
+              <div className="mt-2 text-xs font-mono">
+                Data source: {dataSourceKey}, Dates: {dates ? "loaded" : "not loaded"}
+              </div>
+            </>
+          ) : (
+            <>
+              Не удалось загрузить данные для таблицы "{component.title}" (componentId: {component.componentId})
+              {errorMessage && <div className="mt-2 text-xs font-mono">{errorMessage}</div>}
+            </>
+          )}
         </AlertDescription>
       </Alert>
     );
   }
 
-  if (isLoading && !data) {
+  if (isLoading && !transformedData) {
     return (
       <div className="mt-4">
         <Skeleton className="h-8 w-48 mb-4" />
@@ -247,7 +298,7 @@ function DynamicTable({ component }: DynamicTableProps) {
     );
   }
 
-  if (!data || !data.rows || data.rows.length === 0) {
+  if (!transformedData || !transformedData.rows || transformedData.rows.length === 0) {
     return (
       <div className="text-sm text-muted-foreground mt-4 p-4 border rounded-lg">
         Нет данных для таблицы "{component.title}"
@@ -255,7 +306,7 @@ function DynamicTable({ component }: DynamicTableProps) {
     );
   }
 
-  const tableRows = transformTableData(data);
+  const tableRows = transformTableData(transformedData);
 
   return (
     <div className="mt-6">
@@ -266,9 +317,9 @@ function DynamicTable({ component }: DynamicTableProps) {
         showChange={true}
         tableId={component.componentId}
         componentId={component.componentId}
-        groupingOptions={groupingOptions.length > 0 ? groupingOptions : undefined}
-        activeGrouping={activeGrouping}
-        onGroupingChange={handleGroupingChange}
+        buttons={buttons.length > 0 ? buttons : undefined}
+        activeButtonId={activeButtonId}
+        onButtonClick={handleButtonClick}
         isLoading={isLoading}
       />
     </div>
@@ -279,6 +330,77 @@ export default function DynamicDashboard() {
   const { data: layout, isLoading: layoutLoading, error: layoutError } = useLayout();
   const { data: kpis, isLoading: kpisLoading, error: kpisError } = useAllKPIs();
 
+  // Находим header компонент в layout
+  const headerComponent = useMemo(() => {
+    if (!layout) return null;
+    // Ищем header компонент во всех секциях
+    for (const section of layout.sections) {
+      const header = section.components.find((c) => c.type === "header");
+      if (header) return header;
+    }
+    return null;
+  }, [layout]);
+
+  // Получаем data_source_key для header (используем componentId, если data_source_key не задан)
+  const headerDataSourceKey = useMemo(() => {
+    if (!headerComponent) return null;
+    return headerComponent.dataSourceKey || "header_dates"; // fallback на header_dates
+  }, [headerComponent]);
+
+  // Загружаем даты через getData
+  const { 
+    data: headerData, 
+    isLoading: headerDataLoading, 
+    error: headerDataError 
+  } = useGetData(
+    headerDataSourceKey,
+    {},
+    { 
+      enabled: !!headerDataSourceKey,
+      componentId: headerComponent?.componentId,
+    }
+  );
+
+  // Логирование ошибок загрузки дат
+  useEffect(() => {
+    if (headerDataError) {
+      console.error("[DynamicDashboard] Error loading header dates:", headerDataError);
+    }
+  }, [headerDataError]);
+
+  // Извлекаем даты из ответа getData
+  // Новый формат: { componentId, type, rows }
+  const dates = useMemo(() => {
+    if (!headerData?.rows || !Array.isArray(headerData.rows) || headerData.rows.length === 0) {
+      console.warn("[DynamicDashboard] Header data is empty or invalid:", headerData);
+      return null;
+    }
+    // Предполагаем, что данные приходят в формате [{ periodDate, ppDate, pyDate }]
+    const firstRow = headerData.rows[0] as Record<string, string>;
+    const extractedDates = {
+      periodDate: firstRow.periodDate || firstRow.period_date || firstRow.p1,
+      ppDate: firstRow.ppDate || firstRow.pp_date || firstRow.p2,
+      pyDate: firstRow.pyDate || firstRow.py_date || firstRow.p3,
+    };
+    
+    // Логирование для проверки
+    console.log("[DynamicDashboard] Extracted dates from header:", {
+      headerData,
+      firstRow,
+      extractedDates,
+    });
+    
+    // Проверяем, что все даты извлечены
+    if (!extractedDates.periodDate || !extractedDates.ppDate || !extractedDates.pyDate) {
+      console.warn("[DynamicDashboard] Missing dates in header data:", {
+        extractedDates,
+        firstRow,
+      });
+    }
+    
+    return extractedDates;
+  }, [headerData]);
+
   // Initialize formats cache when layout is loaded
   useEffect(() => {
     if (layout && layout.formats) {
@@ -286,10 +408,31 @@ export default function DynamicDashboard() {
     }
   }, [layout]);
 
+  // Логирование data_source_key для всех компонентов (для отладки)
+  useEffect(() => {
+    if (layout) {
+      const componentsWithDataSource = layout.sections.flatMap((section) =>
+        section.components
+          .filter((c) => c.dataSourceKey)
+          .map((c) => ({
+            type: c.type,
+            componentId: c.componentId,
+            dataSourceKey: c.dataSourceKey,
+          }))
+      );
+      if (componentsWithDataSource.length > 0) {
+        console.log("[DynamicDashboard] Components with data_source_key:", componentsWithDataSource);
+      }
+    }
+  }, [layout]);
+
+  // Рендерим Header только если header компонент не найден в layout (обратная совместимость)
+  const shouldRenderLegacyHeader = !headerComponent;
+
   if (layoutError || kpisError) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        {shouldRenderLegacyHeader && <Header />}
         <div className="container mx-auto p-6">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -308,7 +451,7 @@ export default function DynamicDashboard() {
   if (layoutLoading || kpisLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        {shouldRenderLegacyHeader && <Header />}
         <div className="container mx-auto p-6 space-y-8">
           <Skeleton className="h-8 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -324,7 +467,7 @@ export default function DynamicDashboard() {
   if (!layout || !kpis) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        {shouldRenderLegacyHeader && <Header />}
         <div className="container mx-auto p-6">
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -344,7 +487,7 @@ export default function DynamicDashboard() {
   if (sectionsWithContent.length === 0) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
+        {shouldRenderLegacyHeader && <Header />}
         <main className="container mx-auto px-6 py-8">
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -360,7 +503,7 @@ export default function DynamicDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      {shouldRenderLegacyHeader && <Header />}
       <main className="container mx-auto px-6 py-8 space-y-12">
         {sectionsWithContent.map((section) => {
           const cardComponents = section.components.filter(
@@ -387,7 +530,7 @@ export default function DynamicDashboard() {
                 .map((tableComponent) => (
                   <DynamicTable
                     key={tableComponent.id}
-                    component={tableComponent}
+                    component={{ ...tableComponent, dates } as LayoutComponent & { dates: typeof dates }}
                   />
                 ))}
             </CollapsibleSection>

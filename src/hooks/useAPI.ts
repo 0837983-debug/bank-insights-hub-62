@@ -8,10 +8,13 @@ import {
   fetchAllKPIs,
   fetchTableData,
   fetchHealth,
+  getData,
   type Layout,
   type KPIMetric,
   type TableData,
   type HealthStatus,
+  type GetDataParams,
+  type GetDataResponse,
 } from "@/lib/api";
 
 // Query Keys
@@ -21,6 +24,8 @@ export const queryKeys = {
   tableData: (tableId: string, params?: Record<string, unknown>) =>
     ["table", tableId, params] as const,
   health: ["health"] as const,
+  getData: (queryId: string, params?: GetDataParams) =>
+    ["getData", queryId, params] as const,
 };
 
 // ============================================================================
@@ -83,6 +88,27 @@ export function useHealth(options?: Omit<UseQueryOptions<HealthStatus>, "queryKe
     queryFn: fetchHealth,
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    ...options,
+  });
+}
+
+// ============================================================================
+// GetData Hook
+// ============================================================================
+
+export function useGetData(
+  queryId: string | null,
+  params?: GetDataParams,
+  options?: Omit<UseQueryOptions<GetDataResponse>, "queryKey" | "queryFn"> & {
+    componentId?: string;
+  }
+) {
+  const componentId = options?.componentId;
+  return useQuery({
+    queryKey: queryKeys.getData(queryId || "", params),
+    queryFn: () => getData(queryId!, params, componentId),
+    enabled: !!queryId,
+    staleTime: 1 * 60 * 1000, // 1 minute
     ...options,
   });
 }
