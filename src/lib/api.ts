@@ -44,6 +44,14 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
     if (error instanceof APIError) {
       throw error;
     }
+    // Обработка сетевых ошибок (ERR_CONNECTION_REFUSED и т.д.)
+    if (error instanceof TypeError && (error.message.includes("fetch") || error.message.includes("Failed to fetch"))) {
+      throw new APIError(
+        `Не удалось подключиться к серверу. Убедитесь, что бэкенд запущен на ${API_BASE_URL}`,
+        0,
+        { originalError: error.message }
+      );
+    }
     throw new APIError(error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
@@ -193,8 +201,13 @@ export async function fetchLayout(layoutId?: string | unknown): Promise<Layout> 
 export interface KPIMetric {
   id: string;
   value: number;
-  change: number;
-  ytdChange?: number;
+  change?: number; // Deprecated: используйте ppChange
+  previousValue?: number; // Значение за предыдущий период
+  ytdValue?: number; // Значение за аналогичный период прошлого года
+  ppChange?: number; // Изменение к предыдущему периоду (в долях)
+  ppChangeAbsolute?: number; // Абсолютное изменение к предыдущему периоду
+  ytdChange?: number; // Изменение YTD (в долях)
+  ytdChangeAbsolute?: number; // Абсолютное изменение YTD
 }
 
 /**
@@ -364,11 +377,12 @@ export async function fetchHealth(): Promise<HealthStatus> {
 export interface UploadResponse {
   uploadId: number;
   status: "pending" | "processing" | "completed" | "failed" | "rolled_back";
-  validationErrors?: ValidationError[];
+  validationErrors?: AggregatedValidationError[]; // Бэкенд возвращает агрегированные ошибки
   rowsProcessed?: number;
   rowsSuccessful?: number;
   rowsFailed?: number;
   duplicatePeriodsWarning?: string;
+  error?: string; // Общее сообщение об ошибке (если есть)
 }
 
 export interface ValidationError {
@@ -410,7 +424,7 @@ export interface UploadSheets {
 }
 
 export interface UploadHistoryResponse {
-  uploads: Omit<UploadStatus, "validationErrors">[];
+  uploads: UploadStatus[]; // Включаем validationErrors для отображения деталей ошибок
   total: number;
 }
 
@@ -443,6 +457,9 @@ export async function uploadFile(
   const formData = new FormData();
   formData.append("file", file);
   formData.append("targetTable", targetTable);
+  // Явно передаём имя файла для правильной обработки кириллицы на сервере
+  // Используем encodeURIComponent для правильной кодировки, но сервер должен декодировать
+  formData.append("originalFilename", file.name);
   if (sheetName) {
     formData.append("sheetName", sheetName);
   }
@@ -461,6 +478,22 @@ export async function uploadFile(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      
+      // Если в ответе есть validationErrors и uploadId, возвращаем их как часть ответа
+      // Это позволяет обработать ошибки валидации как обычный ответ, а не как исключение
+      if (errorData.validationErrors && Array.isArray(errorData.validationErrors) && errorData.uploadId) {
+        // Возвращаем ответ с ошибками валидации, чтобы компонент мог их обработать
+        return {
+          uploadId: errorData.uploadId,
+          status: errorData.status || "failed",
+          validationErrors: errorData.validationErrors,
+          rowsProcessed: errorData.rowsProcessed,
+          rowsSuccessful: errorData.rowsSuccessful || 0,
+          rowsFailed: errorData.rowsFailed || 0,
+        } as UploadResponse;
+      }
+      
+      // Для других ошибок бросаем исключение
       throw new APIError(
         errorData.error || `HTTP ${response.status}: ${response.statusText}`,
         response.status,

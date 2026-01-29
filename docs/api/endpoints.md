@@ -7,7 +7,7 @@ description: Полный список всех API endpoints
 
 ## Layout
 
-### `GET /api/data` (рекомендуется)
+### `GET /api/data`
 
 Получить структуру layout дашборда через единый endpoint `/api/data`.
 
@@ -92,11 +92,7 @@ GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-1
 
 **Примечание:** Для получения конкретной метрики по ID используйте фильтрацию на клиенте из массива всех метрик.
 
-::: danger Устаревший endpoint
-Старый endpoint `GET /api/kpis` был удален и больше не доступен (возвращает 404). Используйте новый endpoint через `/api/data` (см. выше).
-:::
-
-## Table Data Endpoints
+## Table Data
 
 ### `GET /api/table-data/:tableId`
 
@@ -107,8 +103,6 @@ GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-1
 - `financial_results_expenses` - Расходы
 - `balance_assets` - Активы баланса
 - `balance_liabilities` - Обязательства баланса
-- `income` - Доходы (legacy)
-- `expenses` - Расходы (legacy)
 
 **Query параметры:**
 - `groupBy` (опционально) - Группировка (например: 'cfo', 'client_segment', 'fot')
@@ -319,7 +313,9 @@ GET /api/uploads?limit=100&offset=0
 
 ### `GET /api/data`
 
-Единый endpoint для получения данных через SQL Builder.
+**Единый универсальный endpoint для получения всех данных через SQL Builder.**
+
+SQL Builder строит запросы из конфигов в `config.component_queries` по `query_id`, что позволяет динамически настраивать запросы без изменения кода.
 
 **Query параметры (обязательные):**
 - `query_id` (string) - Идентификатор запроса из `config.component_queries.query_id`
@@ -360,8 +356,5 @@ GET /api/data?query_id=header_dates&component_Id=header
 ---
 
 Подробнее в разделах:
-- [Get Data API](/api/get-data) - детальное описание `/api/data` endpoint
-- [KPI API](/api/kpi-api)
-- [Table Data API](/api/table-data-api)
-- [Layout API](/api/layout-api)
+- [Get Data API](/api/get-data) - детальное описание `/api/data` endpoint (KPI, Layout, таблицы и все типы данных)
 - [Upload API](/api/upload-api) - детальное описание API загрузки файлов

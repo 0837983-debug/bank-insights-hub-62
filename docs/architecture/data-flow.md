@@ -4,7 +4,7 @@ description: Как данные проходят через систему от
 related:
   - /architecture/overview
   - /architecture/frontend
-  - /architecture/backend
+  - /architecture/backend/
 ---
 
 # Поток данных
@@ -46,27 +46,27 @@ Host: localhost:3001
 
 ### 3. Backend обработка
 
-**Route (`routes/kpiRoutes.ts`):**
+**Route (`routes/dataRoutes.ts`):**
 - Принимает запрос
 - Извлекает query параметры (category, periodDate)
 - Вызывает сервис
 
-**Service (`services/mart/kpiService.ts`):**
-- Определяет период (latest или указанный)
-- SQL запрос к `mart.kpi_metrics`
-- **Расчет всех метрик на backend:** ppChange, ytdChange, percentage
-- Трансформация данных с готовыми расчетными полями
+**Route (`routes/dataRoutes.ts`):**
+- Валидирует параметры (`query_id=kpis`, `component_Id=kpis`)
+- Вызывает SQL Builder для построения SQL из конфига `config.component_queries` где `query_id='kpis'`
+- SQL Builder загружает конфиг и строит SQL запрос
+- Выполняет SQL запрос к БД
+- Трансформирует данные через `transformKPIData()` (возвращает только сырые значения: value, previousValue, ytdValue)
 
-**SQL запрос:**
+**SQL запрос (строится SQL Builder из конфига):**
 ```sql
 SELECT 
-  km.component_id,
-  km.value,
-  c.title,
-  c.description
-FROM mart.kpi_metrics km
-JOIN config.components c ON km.component_id = c.id
-WHERE km.period_date = $1
+  component_id,
+  value,
+  prev_period,
+  prev_year
+FROM mart.kpis_view
+WHERE period_date = $1
 ```
 
 ### 4. Формирование ответа
@@ -141,24 +141,25 @@ GET /api/table-data/financial_results_income?groupBy=cfo
 - Проверяет маппинг legacy IDs
 - Вызывает соответствующий сервис
 
-**Service (`services/mart/balanceService.ts` или аналогичный):**
-- SQL запрос к mart таблицам
-- Расчет метрик: ppChange, ytdChange, percentage на backend
-- Возврат плоских строк с иерархией через поля (class, section, item, sub_item)
+**Route (`routes/dataRoutes.ts`):**
+- Валидирует параметры (`query_id=assets_table`, `component_Id=assets_table`, `parametrs=...`)
+- Вызывает SQL Builder для построения SQL из конфига `config.component_queries` где `query_id='assets_table'`
+- SQL Builder загружает конфиг и строит SQL запрос с подстановкой параметров
+- Выполняет SQL запрос к БД
+- Трансформирует данные через `transformTableData()` (добавляет id, sortOrder, преобразует типы)
 
-**SQL запрос и обработка:**
+**SQL запрос (строится SQL Builder из конфига):**
 ```sql
 SELECT 
   class, section, item, sub_item,
   value, prev_period, prev_year
 FROM mart.balance
-WHERE period_date = $1
+WHERE period_date = $1 AND class = $2
 ```
 
-**Backend расчеты:**
-- `ppChange = (current - previous) / previous`
-- `ytdChange = (current - ytdValue) / ytdValue`
-- `percentage = value / total`
+**Frontend расчеты:**
+- `ppChange`, `ytdChange` рассчитываются на фронтенде через `calculatePercentChange()` из `src/lib/calculations.ts`
+- `percentage` рассчитывается на фронтенде через `calculateRowPercentage()` (если нужно)
 
 **Ответ (плоские строки):**
 ```json
@@ -186,7 +187,7 @@ WHERE period_date = $1
 - Сортировка по иерархии
 - Форматирование через `formatValue()` для отображения
 
-**Важно:** Все расчеты выполняются на backend. Frontend только строит UI структуру и форматирует для отображения. Пересчет метрик для групп - единственное исключение, необходимое для корректной агрегации групп.
+**Важно:** API возвращает только сырые значения (`value`, `previousValue`, `ytdValue`). Расчеты процентных изменений (`ppChange`, `ytdChange`) выполняются на фронтенде через `calculatePercentChange()` из `src/lib/calculations.ts`. Frontend строит UI структуру, форматирует для отображения и пересчитывает метрики для групп при необходимости.
 
 ## Детальный поток: Layout
 
@@ -205,27 +206,22 @@ GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_d
 
 ### 3. Backend обработка
 
-**SQL Builder (`services/queryBuilder/builder.ts`):**
-- Загрузка конфига из `config.component_queries` по `query_id=layout`
-- Построение SQL запроса через view `config.layout_sections_json_view`
-- Возврат структуры `{ sections: [...] }`
-- Загрузка секций из `config.layouts`
-- Загрузка компонентов из `config.components`
-- Связывание через `config.layout_component_mapping`
-- Построение JSON структуры
+**Route (`routes/dataRoutes.ts`):**
+- Валидирует параметры (`query_id=layout`, `component_Id=layout`, `parametrs={"layout_id":"main_dashboard"}`)
+- Вызывает SQL Builder для построения SQL из конфига `config.component_queries` где `query_id='layout'`
+- SQL Builder загружает конфиг и строит SQL запрос через view `config.layout_sections_json_view`
+- Выполняет SQL запрос к БД
+- Извлекает `sections` из результата `jsonb_agg`
+- Возвращает структуру `{ sections: [...] }`
 
-**SQL запросы:**
+**SQL запрос (строится SQL Builder из конфига):**
 ```sql
--- Форматы
-SELECT * FROM config.formats WHERE id IN (...);
-
--- Секции
-SELECT * FROM config.layouts WHERE id = $1;
-
--- Компоненты
-SELECT c.* FROM config.components c
-JOIN config.layout_component_mapping lcm ON c.id = lcm.component_id
-WHERE lcm.layout_id = $1;
+SELECT jsonb_agg(row_to_json(t)) as jsonb_agg
+FROM (
+  SELECT section
+  FROM config.layout_sections_json_view
+  WHERE layout_id = $1
+) t;
 ```
 
 ### 4. Формирование структуры
@@ -438,5 +434,5 @@ MART (mart.balance) - расчет метрик
 
 - [Общая архитектура](/architecture/overview) - обзор системы
 - [Frontend архитектура](/architecture/frontend) - детали frontend
-- [Backend архитектура](/architecture/backend) - детали backend
+- [Backend архитектура](/architecture/backend/) - детали backend
 - [Upload API](/api/upload-api) - детальное описание API загрузки

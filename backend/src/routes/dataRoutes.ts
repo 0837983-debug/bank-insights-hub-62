@@ -12,9 +12,7 @@ import { Router, Request, Response } from "express";
 import { buildQueryFromId } from "../services/queryBuilder/builder.js";
 import { pool } from "../config/database.js";
 import { getSortOrder } from "../services/mart/base/rowNameMapper.js";
-import { getHeaderDates } from "../services/mart/base/periodService.js";
-import { calculateChange } from "../services/mart/base/calculationService.js";
-import { formatDateForSQL } from "../services/mart/base/periodService.js";
+import { getPeriodDates, formatDateForSQL } from "../services/mart/base/periodService.js";
 
 const router = Router();
 
@@ -55,7 +53,8 @@ function transformTableData(rows: any[]): any[] {
 }
 
 /**
- * Трансформация данных KPI: расчет изменений и форматирование
+ * Трансформация данных KPI: форматирование сырых значений
+ * Расчёт процентов теперь происходит на фронтенде
  */
 function transformKPIData(rows: any[], periodDate: string): any[] {
   return rows.map(row => {
@@ -65,28 +64,12 @@ function transformKPIData(rows: any[], periodDate: string): any[] {
       ? parseFloat(row.prev_year) || 0 
       : undefined;
     
-    // Расчет изменений в долях (не в процентах)
-    const ppChange = calculateChange(currentValue, previousValue) / 100;
-    const ytdChange = ytdValue !== undefined 
-      ? calculateChange(currentValue, ytdValue) / 100 
-      : undefined;
-    
-    // Расчет изменений в абсолютных значениях
-    const ppChangeAbsolute = currentValue - previousValue;
-    const ytdChangeAbsolute = ytdValue !== undefined 
-      ? currentValue - ytdValue 
-      : undefined;
-    
     return {
       id: row.component_id,
       periodDate: periodDate,
       value: currentValue,
       previousValue: previousValue,
-      ytdValue: ytdValue,
-      ppChange: ppChange,
-      ppChangeAbsolute: ppChangeAbsolute,
-      ytdChange: ytdChange,
-      ytdChangeAbsolute: ytdChangeAbsolute,
+      ytdValue: ytdValue, // Значение за аналогичный период прошлого года
     };
   });
 }
@@ -134,16 +117,17 @@ router.get("/", async (req: Request, res: Response) => {
     // Логирование запроса
     console.log(`[getData] GET Request: query_id=${query_id}, component_Id=${component_Id}, paramsJson=${paramsJson}`);
 
-    // Специальная обработка для header_dates - используем periodService
+    // Специальная обработка для header_dates - используем getPeriodDates
     if (query_id === "header_dates") {
-      const dates = getHeaderDates();
+      const periodDates = await getPeriodDates();
+      // Преобразуем PeriodDates в формат header_dates
       return res.json({
         componentId: component_Id,
         type: "table",
         rows: [{
-          periodDate: dates.periodDate,
-          ppDate: dates.ppDate,
-          pyDate: dates.pyDate,
+          periodDate: periodDates.current ? formatDateForSQL(periodDates.current) : "",
+          ppDate: periodDates.previousMonth ? formatDateForSQL(periodDates.previousMonth) : "",
+          pyDate: periodDates.previousYear ? formatDateForSQL(periodDates.previousYear) : "",
         }],
       });
     }

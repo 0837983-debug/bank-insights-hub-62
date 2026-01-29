@@ -3,9 +3,7 @@ title: Примеры использования API
 description: Практические примеры использования API в различных сценариях
 related:
   - /api/endpoints
-  - /api/kpi-api
-  - /api/table-data-api
-  - /api/layout-api
+  - /api/get-data
 ---
 
 # Примеры использования API
@@ -406,6 +404,4 @@ async function fetchTableDataDirectly(tableId: string, groupBy?: string) {
 ## См. также
 
 - [API Endpoints](/api/endpoints) - все доступные endpoints
-- [KPI API](/api/kpi-api) - детальная документация KPI API
-- [Table Data API](/api/table-data-api) - детальная документация Table Data API
-- [Layout API](/api/layout-api) - детальная документация Layout API
+- [Get Data API](/api/get-data) - детальная документация единого endpoint для всех типов данных

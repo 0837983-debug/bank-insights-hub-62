@@ -1,6 +1,74 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi, beforeEach, afterEach } from "vitest";
 import { buildQuery, buildQueryFromId } from "../builder.js";
 import type { QueryConfig } from "../types.js";
+import * as queryLoader from "../queryLoader.js";
+
+// Моки для loadQueryConfig (вынесены наружу для использования в разных describe блоках)
+const mockHeaderDatesConfig: QueryConfig = {
+  from: {
+    schema: "mart",
+    table: "kpi_metrics",
+  },
+  select: [
+    {
+      type: "agg",
+      func: "max",
+      field: "period_date",
+      as: "periodDate",
+    },
+  ],
+  params: {},
+  paramTypes: {},
+};
+
+const mockAssetsTableConfig: QueryConfig = {
+  from: {
+    schema: "mart",
+    table: "balance",
+  },
+  select: [
+    { type: "column", field: "class" },
+    { type: "column", field: "section" },
+    {
+      type: "case_agg",
+      func: "sum",
+      when: { field: "period_date", op: "=", value: ":p1" },
+      then: { field: "value" },
+      else: null,
+      as: "value",
+    },
+    {
+      type: "case_agg",
+      func: "sum",
+      when: { field: "period_date", op: "=", value: ":p2" },
+      then: { field: "value" },
+      else: null,
+      as: "ppValue",
+    },
+    {
+      type: "case_agg",
+      func: "sum",
+      when: { field: "period_date", op: "=", value: ":p3" },
+      then: { field: "value" },
+      else: null,
+      as: "pyValue",
+    },
+  ],
+  where: {
+    op: "and",
+    items: [
+      { field: "class", op: "=", value: "Активы" },
+    ],
+  },
+  groupBy: ["class", "section"],
+  orderBy: [{ field: "class", direction: "asc" }],
+  params: {},
+  paramTypes: {
+    p1: "date",
+    p2: "date",
+    p3: "date",
+  },
+};
 
 describe("SQL Builder v1", () => {
   describe("buildQuery with value substitution", () => {
@@ -59,7 +127,7 @@ describe("SQL Builder v1", () => {
 
       // Проверка SQL структуры
       expect(sql).toContain("SELECT");
-      expect(sql).toContain("FROM mart.balance");
+      expect(sql).toContain('FROM "mart"."balance"');
       expect(sql).toContain("WHERE");
       expect(sql).toContain("GROUP BY");
       expect(sql).toContain("ORDER BY");
@@ -244,6 +312,39 @@ describe("SQL Builder v1", () => {
   });
 
   describe("buildQueryFromId - загрузка конфига из БД", () => {
+    beforeEach(() => {
+      // Мокируем loadQueryConfig
+      vi.spyOn(queryLoader, "loadQueryConfig").mockImplementation(async (queryId: string) => {
+        if (queryId === "header_dates") {
+          return {
+            config: mockHeaderDatesConfig,
+            wrapJson: true,
+          };
+        }
+        if (queryId === "assets_table") {
+          return {
+            config: mockAssetsTableConfig,
+            wrapJson: true,
+          };
+        }
+        if (queryId === "non_existent_query") {
+          return null;
+        }
+        // Для теста с wrapJson=false
+        if (queryId === "header_dates_no_wrap") {
+          return {
+            config: mockHeaderDatesConfig,
+            wrapJson: false,
+          };
+        }
+        return null;
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it("должен загрузить конфиг header_dates из БД и построить SQL", async () => {
       const params = {};
       const paramsJson = JSON.stringify(params);
@@ -261,7 +362,6 @@ describe("SQL Builder v1", () => {
         p1: "2025-08-01",
         p2: "2025-07-01",
         p3: "2024-08-01",
-        class: "assets",
       };
 
       const paramsJson = JSON.stringify(params);
@@ -278,7 +378,7 @@ describe("SQL Builder v1", () => {
       expect(sql).toContain("'2025-08-01'");
       expect(sql).toContain("'2025-07-01'");
       expect(sql).toContain("'2024-08-01'");
-      expect(sql).toContain("'assets'");
+      // class захардкожен в конфиге, не передается как параметр
 
       // Проверка case_agg
       expect(sql).toContain("SUM(CASE WHEN");
@@ -298,7 +398,7 @@ describe("SQL Builder v1", () => {
     });
 
     it("должен выбросить ошибку 'invalid params' при отсутствии требуемых параметров", async () => {
-      // assets_table требует параметры p1, p2, p3, class
+      // assets_table требует параметры p1, p2, p3 (class захардкожен в конфиге)
       const paramsJson = JSON.stringify({});
       await expect(
         buildQueryFromId("assets_table", paramsJson)
@@ -316,7 +416,6 @@ describe("SQL Builder v1", () => {
         p1: "2025-08-01",
         p2: "2025-07-01",
         p3: "2024-08-01",
-        class: "assets",
         extraParam: "should not be here", // Лишний параметр
       };
       const paramsJson = JSON.stringify(params);
@@ -529,22 +628,16 @@ describe("SQL Builder v1", () => {
     });
 
     it("должен выбрасывать ошибку при wrapJson=false в buildQueryFromId", async () => {
-      // header_dates имеет wrap_json = FALSE в БД, поэтому должна быть ошибка
-      const paramsJson1 = JSON.stringify({});
-      await expect(
-        buildQueryFromId("header_dates", paramsJson1)
-      ).rejects.toThrow("wrap_json=false");
+      // Мокируем конфиг с wrapJson=false
+      vi.spyOn(queryLoader, "loadQueryConfig").mockResolvedValueOnce({
+        config: mockHeaderDatesConfig,
+        wrapJson: false,
+      });
 
-      // assets_table имеет wrap_json = TRUE в БД, поэтому должен работать
-      const params = {
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
-      };
-      const paramsJson2 = JSON.stringify(params);
-      const sqlAssets = await buildQueryFromId("assets_table", paramsJson2);
-      expect(sqlAssets).toContain("jsonb_agg");
+      const headerParamsJson = JSON.stringify({});
+      await expect(
+        buildQueryFromId("header_dates_no_wrap", headerParamsJson)
+      ).rejects.toThrow("wrap_json=false");
     });
 
     it("должен создавать валидный SQL с jsonb_agg для исполнения", () => {

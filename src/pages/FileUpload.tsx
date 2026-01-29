@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
+import { CheckCircle2, AlertCircle, RotateCcw, FileSpreadsheet, TrendingUp } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Header } from "@/components/Header";
-import { FileUploader } from "@/components/upload/FileUploader";
+import { FileUploader, type FileUploaderRef } from "@/components/upload/FileUploader";
 import { UploadProgress } from "@/components/upload/UploadProgress";
 import { ValidationErrors } from "@/components/upload/ValidationErrors";
 import { UploadHistory } from "@/components/upload/UploadHistory";
 import { useFileUpload, useUploadStatus, useRollbackUpload } from "@/hooks/useFileUpload";
+import { APIError } from "@/lib/api";
 import type { AggregatedValidationError } from "@/lib/api";
 
 export default function FileUpload() {
@@ -18,6 +18,8 @@ export default function FileUpload() {
   const [targetTable, setTargetTable] = useState<string>("balance");
   const [sheetName, setSheetName] = useState<string | undefined>(undefined);
   const [uploadId, setUploadId] = useState<number | null>(null);
+  
+  const fileUploaderRef = useRef<FileUploaderRef>(null);
 
   const { upload, isLoading, progress, error, data: uploadResponse, isSuccess, reset } = useFileUpload({
     targetTable,
@@ -36,6 +38,17 @@ export default function FileUpload() {
     reset(); // Сбрасываем предыдущее состояние
     setUploadId(null);
     setSheetName(undefined);
+  };
+
+  // Обработчик клика по кнопке загрузки
+  const handleUploadButtonClick = (table: "balance" | "fin_results") => {
+    setTargetTable(table);
+    reset();
+    setUploadId(null);
+    setSelectedFile(null);
+    fileUploaderRef.current?.clearFile();
+    // Открываем file picker
+    fileUploaderRef.current?.openFilePicker();
   };
 
   const handleUpload = async () => {
@@ -72,8 +85,56 @@ export default function FileUpload() {
 
   // Определяем текущий статус
   const currentStatus = uploadStatus?.status || uploadResponse?.status || (isLoading ? "processing" : undefined);
-  const validationErrors: AggregatedValidationError[] | undefined =
-    uploadStatus?.validationErrors || uploadResponse?.validationErrors;
+  
+  // Конвертируем validationErrors из формата backend в формат frontend
+  const convertValidationErrors = (errors: any): AggregatedValidationError[] | undefined => {
+    if (!errors) return undefined;
+    
+    // Если уже массив - возвращаем как есть
+    if (Array.isArray(errors)) {
+      return errors;
+    }
+    
+    // Если объект с examples/byType - конвертируем в массив
+    if (errors.examples && Array.isArray(errors.examples)) {
+      return errors.examples.map((ex: any) => {
+        const fieldInfo = ex.field ? `Поле "${ex.field}": ` : '';
+        const message = ex.message || 'Ошибка валидации';
+        return {
+          errorType: ex.type || 'unknown',
+          errorMessage: `${fieldInfo}${message}`,
+          fieldName: ex.field,
+          totalCount: errors.byType?.[ex.type] || 1,
+          exampleMessages: [`${fieldInfo}${message}`],
+        };
+      });
+    }
+    
+    return undefined;
+  };
+
+  // Извлекаем validationErrors из разных источников:
+  // 1. Из uploadStatus (если загрузка завершилась с ошибками)
+  // 2. Из uploadResponse (если ошибка в ответе)
+  // 3. Из error.data (если ошибка при загрузке)
+  const validationErrors: AggregatedValidationError[] | undefined = (() => {
+    // Сначала проверяем статус загрузки
+    if (uploadStatus?.validationErrors) {
+      return convertValidationErrors(uploadStatus.validationErrors);
+    }
+    // Затем проверяем ответ
+    if (uploadResponse?.validationErrors) {
+      return convertValidationErrors(uploadResponse.validationErrors);
+    }
+    // Если есть ошибка API, проверяем её data
+    if (error && error instanceof APIError && error.data) {
+      const errorData = error.data as any;
+      if (errorData.validationErrors) {
+        return convertValidationErrors(errorData.validationErrors);
+      }
+    }
+    return undefined;
+  })();
 
   return (
     <div className="min-h-screen bg-background">
@@ -83,26 +144,40 @@ export default function FileUpload() {
 
         <div className="space-y-6">
           {/* Форма загрузки */}
-          <Card>
+          <Card data-testid="upload-form">
             <CardHeader>
               <CardTitle>Загрузить файл</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Выбор целевой таблицы */}
-              <div className="space-y-2">
-                <Label>Целевая таблица</Label>
-                <Select value={targetTable} onValueChange={setTargetTable} disabled={isLoading}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="balance">Balance</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Кнопки выбора типа загрузки */}
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-24 flex flex-col items-center justify-center gap-2"
+                  onClick={() => handleUploadButtonClick("balance")}
+                  disabled={isLoading}
+                  data-testid="btn-upload-balance"
+                >
+                  <FileSpreadsheet className="h-8 w-8" />
+                  <span className="font-medium">Загрузить Баланс</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-24 flex flex-col items-center justify-center gap-2"
+                  onClick={() => handleUploadButtonClick("fin_results")}
+                  disabled={isLoading}
+                  data-testid="btn-upload-fin-results"
+                >
+                  <TrendingUp className="h-8 w-8" />
+                  <span className="font-medium">Загрузить Финрез</span>
+                </Button>
               </div>
 
-              {/* Выбор файла */}
+              {/* Скрытый FileUploader для выбора файла */}
               <FileUploader
+                ref={fileUploaderRef}
                 onFileSelect={handleFileSelect}
                 acceptedFormats={[".csv", ".xlsx"]}
                 disabled={isLoading}
@@ -133,13 +208,18 @@ export default function FileUpload() {
                 <ValidationErrors errors={validationErrors} />
               )}
 
-              {/* Общие ошибки */}
-              {error && (
+              {/* Общие ошибки (показываем только если нет validationErrors) */}
+              {error && !validationErrors && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Ошибка загрузки</AlertTitle>
                   <AlertDescription>
                     {error instanceof Error ? error.message : "Произошла ошибка при загрузке файла"}
+                    {error instanceof APIError && error.data && typeof error.data === 'object' && 'error' in error.data && (
+                      <div className="mt-2 text-sm">
+                        {String((error.data as any).error)}
+                      </div>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
@@ -160,13 +240,19 @@ export default function FileUpload() {
                 </Alert>
               )}
 
-              {/* Кнопки действий */}
+              {/* Информация о выбранной таблице и кнопки действий */}
+              {selectedFile && (
+                <div className="text-sm text-muted-foreground">
+                  Загрузка в: <span className="font-medium text-foreground">{targetTable === "balance" ? "Баланс" : "Финрез"}</span>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button
                   onClick={handleUpload}
                   disabled={!selectedFile || isLoading || currentStatus === "completed"}
+                  data-testid="btn-upload"
                 >
-                  {isLoading ? "Загрузка..." : "Загрузить"}
+                  {isLoading ? "Загрузка..." : `Загрузить в ${targetTable === "balance" ? "Баланс" : "Финрез"}`}
                 </Button>
 
                 {currentStatus === "completed" && uploadId && (
@@ -174,6 +260,7 @@ export default function FileUpload() {
                     variant="outline"
                     onClick={handleRollback}
                     disabled={rollbackMutation.isPending}
+                    data-testid="btn-rollback"
                   >
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Откатить загрузку
@@ -183,8 +270,8 @@ export default function FileUpload() {
             </CardContent>
           </Card>
 
-          {/* История загрузок */}
-          <UploadHistory targetTable={targetTable} limit={10} />
+          {/* История загрузок — показываем все загрузки */}
+          <UploadHistory limit={10} />
         </div>
       </main>
     </div>

@@ -34,6 +34,7 @@ src/
 ├── lib/              # Утилиты и библиотеки
 │   ├── api.ts        # API клиент
 │   ├── formatters.ts # Форматирование данных
+│   ├── calculations.ts # Расчеты процентных изменений
 │   └── utils.ts      # Общие утилиты
 │
 ├── App.tsx           # Главный компонент
@@ -245,21 +246,23 @@ const { data, isLoading, error } = useAllKPIs();
 
 ## Обработка данных на фронтенде
 
-### Принцип минимальной обработки
+### Принцип обработки данных
 
-Проект следует принципу **минимальной обработки данных на фронтенде**. Все расчеты (ppChange, ytdChange, percentage) выполняются на backend, фронтенд получает готовые значения.
+Проект следует принципу **минимальной обработки данных на фронтенде**, но некоторые расчеты выполняются на клиенте для обеспечения актуальности и гибкости.
 
 **Что делает backend:**
-- Расчет всех метрик (ppChange, ytdChange, percentage)
 - Агрегация данных из БД
 - Формирование плоских строк с иерархией (class, section, item, sub_item)
+- Предоставление базовых значений (value, previousValue, ytdValue)
 
 **Что делает frontend:**
+- Расчет процентных изменений (ppChange, ytdChange) через `calculatePercentChange()`
+- Расчет процента от родительской строки через `calculateRowPercentage()`
 - Форматирование данных для отображения (`formatValue`)
 - Построение иерархической структуры UI из плоских данных (`transformTableData`)
 - Пересчет метрик для групп при необходимости (агрегация групп на лету)
 
-**Исключение:** `transformTableData` пересчитывает метрики для групп (ppChange, ytdChange, percentage), это необходимо для корректной агрегации групп в UI, когда данные приходят плоскими.
+**Важно:** Расчеты процентных изменений выполняются на фронтенде для обеспечения актуальности данных и возможности переключения между процентными и абсолютными изменениями в UI.
 
 ### Форматирование данных
 
@@ -294,6 +297,129 @@ formatValue("percent", 5.2); // "5.2%"
 - Форматы должны быть инициализированы через `initializeFormats()` перед использованием
 - `formatId` должен соответствовать ключу из `layout.formats`
 - Если формат не найден, функция вернет строковое представление числа
+
+### Расчеты (`lib/calculations.ts`)
+
+Сервис для расчета процентных изменений и других вычислений на фронтенде.
+
+**Функции:**
+
+#### `calculatePercentChange(current, previous, previousYear?)`
+
+Расчет процентных изменений (PPTD и YTD) для метрик.
+
+**Параметры:**
+- `current` (number | null | undefined) - Текущее значение (value)
+- `previous` (number | null | undefined) - Значение за предыдущий период (previousValue)
+- `previousYear` (number | null | undefined, опционально) - Значение за аналогичный период прошлого года (ytdValue)
+
+**Возвращает:**
+```typescript
+interface PercentChangeResult {
+  ppDiff: number;        // Абсолютное изменение к предыдущему периоду: current - previous
+  ppPercent: number;     // Изменение к предыдущему периоду в долях: (current - previous) / previous (0.1 = 10%)
+  ytdDiff: number;      // Абсолютное изменение YTD: current - previousYear
+  ytdPercent: number;   // Изменение YTD в долях: (current - previousYear) / previousYear (0.1 = 10%)
+}
+```
+
+**Пример использования:**
+```typescript
+import { calculatePercentChange } from '@/lib/calculations';
+
+// В компоненте KPICard
+const percentChanges = calculatePercentChange(
+  kpi.value,           // 1500000000
+  kpi.previousValue,   // 1425000000
+  kpi.ytdValue         // 1335000000
+);
+
+// Результат:
+// {
+//   ppDiff: 75000000,        // 1500000000 - 1425000000
+//   ppPercent: 0.0526,        // (1500000000 - 1425000000) / 1425000000 ≈ 0.0526 (5.26%)
+//   ytdDiff: 165000000,       // 1500000000 - 1335000000
+//   ytdPercent: 0.1236         // (1500000000 - 1335000000) / 1335000000 ≈ 0.1236 (12.36%)
+// }
+
+// Использование в UI
+const ppChange = showAbsolute 
+  ? percentChanges.ppDiff      // Абсолютное изменение
+  : percentChanges.ppPercent;   // Процентное изменение в долях
+```
+
+**Особенности:**
+- Изменения возвращаются в долях (0.1 = 10%), не в процентах
+- Для отображения в процентах умножьте на 100: `ppPercent * 100`
+- Обрабатывает `null` и `undefined` (возвращает 0)
+- Избегает деления на 0 (если previous = 0, то ppPercent = 0)
+- Округление до 4 знаков после запятой для процентных значений
+
+#### `calculateRowPercentage(value, parentTotal)`
+
+Расчет процента от родительской строки (доля от суммы родителя).
+
+**Параметры:**
+- `value` (number | null | undefined) - Значение текущей строки
+- `parentTotal` (number | null | undefined) - Сумма родительской строки
+
+**Возвращает:**
+- `number` - Процент от родителя (0-100)
+
+**Пример использования:**
+```typescript
+import { calculateRowPercentage } from '@/lib/calculations';
+
+const percentage = calculateRowPercentage(50, 200);
+// percentage = 25 (50 составляет 25% от 200)
+```
+
+**Особенности:**
+- Возвращает значение в процентах (0-100), не в долях
+- Обрабатывает `null` и `undefined` (возвращает 0)
+- Избегает деления на 0 (если parentTotal = 0, возвращает 0)
+- Округление до 2 знаков после запятой
+
+**Использование в компонентах:**
+
+**KPICard:**
+```typescript
+import { calculatePercentChange } from '@/lib/calculations';
+
+// Расчет изменений для KPI карточки
+const percentChanges = calculatePercentChange(
+  kpi.value,
+  kpi.previousValue,
+  kpi.ytdValue
+);
+
+// Переключение между процентными и абсолютными изменениями
+const ppChange = showAbsolute 
+  ? percentChanges.ppDiff
+  : percentChanges.ppPercent;
+```
+
+**FinancialTable:**
+```typescript
+import { calculatePercentChange } from '@/lib/calculations';
+
+// Расчет изменений для строк таблицы
+if (row.value !== undefined && row.value !== null) {
+  const percentChanges = calculatePercentChange(
+    row.value,
+    row.previousValue,
+    row.ytdValue
+  );
+  ppChangeValue = percentChanges.ppPercent;
+  ytdChangeValue = percentChanges.ytdPercent;
+}
+```
+
+**Важно:**
+- Расчеты выполняются на фронтенде для обеспечения актуальности данных
+- Позволяет переключаться между процентными и абсолютными изменениями в UI
+- Все значения обрабатываются безопасно (null/undefined → 0)
+- Избегает деления на 0
 
 ## Оптимизация
 

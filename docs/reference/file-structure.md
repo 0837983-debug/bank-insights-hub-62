@@ -76,15 +76,19 @@ backend/
 │   │
 │   ├── routes/             # API routes (Express)
 │   │   ├── index.ts        # Главный роутер
-│   │   ├── kpiRoutes.ts    # KPI endpoints
+│   │   ├── dataRoutes.ts    # Универсальный endpoint /api/data
 │   │   └── tableDataRoutes.ts  # Table data endpoints
 │   │
 │   ├── services/           # Бизнес-логика
 │   │   ├── config/         # Сервисы для работы с config схемой
-│   │   │   └── layoutService.ts  # Построение layout из БД
+│   │   │   └── layoutService.ts  # Построение layout из БД (устаревший, используется через SQL Builder)
+│   │   ├── queryBuilder/   # SQL Builder - универсальный сервис для построения SQL из конфигов
+│   │   │   ├── builder.ts  # Основная логика построения SQL
+│   │   │   ├── validator.ts # Валидация параметров
+│   │   │   └── queryLoader.ts # Загрузка конфигов из БД
 │   │   └── mart/           # Data Mart сервисы (mart схема)
-│   │       ├── balanceService.ts      # Работа с балансом
-│   │       ├── kpiService.ts          # Работа с KPI метриками
+│   │       ├── balanceService.ts      # Работа с балансом (устаревший, используется через SQL Builder)
+│   │       ├── kpiService.ts          # Работа с KPI метриками (устаревший, используется через SQL Builder)
 │   │       ├── types.ts               # Общие типы
 │   │       └── base/                  # Базовые сервисы
 │   │           ├── calculationService.ts  # Расчеты (ppChange, ytdChange)
@@ -119,9 +123,7 @@ docs/
 ├── api/                   # API документация
 │   ├── index.md
 │   ├── endpoints.md
-│   ├── kpi-api.md
-│   ├── table-data-api.md
-│   ├── layout-api.md
+│   ├── get-data.md          # Единый endpoint для всех данных
 │   ├── data-models.md
 │   └── examples.md
 │
@@ -232,15 +234,21 @@ scripts/
 - `backend/src/server.ts` - Express приложение, настройка middleware
 
 **Routes:**
-- `backend/src/routes/index.ts` - Главный роутер, layout endpoint
-- `backend/src/routes/kpiRoutes.ts` - KPI endpoints
-- `backend/src/routes/tableDataRoutes.ts` - Table data endpoints
+- `backend/src/routes/index.ts` - Главный роутер
+- `backend/src/routes/dataRoutes.ts` - Универсальный endpoint /api/data (SQL Builder)
+- `backend/src/routes/uploadRoutes.ts` - Загрузка файлов
+- `backend/src/routes/tableDataRoutes.ts` - Table data endpoints (legacy)
 
 **Services:**
-- `backend/src/services/config/layoutService.ts` - Построение layout
-- `backend/src/services/mart/kpiService.ts` - KPI метрики
-- `backend/src/services/mart/balanceService.ts` - Баланс
-- `backend/src/services/mart/base/calculationService.ts` - Расчеты
+- `backend/src/services/queryBuilder/` - SQL Builder (универсальный сервис для всех данных)
+  - `builder.ts` - построение SQL из конфигов
+  - `validator.ts` - валидация параметров
+  - `queryLoader.ts` - загрузка конфигов из БД
+- `backend/src/services/mart/base/calculationService.ts` - Расчеты (используется в transformKPIData)
+- `backend/src/services/mart/base/periodService.ts` - Работа с периодами
+- `backend/src/services/config/layoutService.ts` - Построение layout (устаревший, используется через SQL Builder)
+- `backend/src/services/mart/kpiService.ts` - KPI метрики (устаревший, используется через SQL Builder)
+- `backend/src/services/mart/balanceService.ts` - Баланс (устаревший, используется через SQL Builder)
 
 ## См. также
 

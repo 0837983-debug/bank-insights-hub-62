@@ -6,16 +6,14 @@ test.describe("GET /api/data - Fixed Format", () => {
   test.describe("New format response", () => {
     test("should return { componentId, type, rows } format", async ({ request }) => {
       const params = {
-        component_id: "assets_table",
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
       };
 
-      const queryString = new URLSearchParams(params as any).toString();
+      const paramsStr = encodeURIComponent(JSON.stringify(params));
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?${queryString}`
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
       expect(response.ok()).toBeTruthy();
@@ -35,16 +33,14 @@ test.describe("GET /api/data - Fixed Format", () => {
 
     test("should return rows array with correct structure", async ({ request }) => {
       const params = {
-        component_id: "assets_table",
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
       };
 
-      const queryString = new URLSearchParams(params as any).toString();
+      const paramsStr = encodeURIComponent(JSON.stringify(params));
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?${queryString}`
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
       expect(response.ok()).toBeTruthy();
@@ -67,17 +63,10 @@ test.describe("GET /api/data - Fixed Format", () => {
   });
 
   test.describe("Error handling - wrapJson=false", () => {
-    test("should return 400 when wrapJson=false", async ({ request }) => {
-      // header_dates имеет wrapJson=false
-      const response = await request.get(
-        `${API_BASE_URL}/data/header_dates?component_id=header`
-      );
-
-      expect(response.status()).toBe(400);
-      
-      const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toBe("Query must have wrapJson=true");
+    test.skip("should return 400 when wrapJson=false", async ({ request }) => {
+      // header_dates теперь обрабатывается специально и не требует wrapJson=true
+      // Этот тест устарел, так как header_dates использует getPeriodDates() напрямую
+      test.skip();
     });
   });
 
@@ -111,18 +100,16 @@ test.describe("GET /api/data - Fixed Format", () => {
   });
 
   test.describe("Query parameters", () => {
-    test("should accept component_id as query parameter", async ({ request }) => {
+    test("should accept component_Id as query parameter", async ({ request }) => {
       const params = {
-        component_id: "assets_table",
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
       };
 
-      const queryString = new URLSearchParams(params as any).toString();
+      const paramsStr = encodeURIComponent(JSON.stringify(params));
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?${queryString}`
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
       expect(response.ok()).toBeTruthy();
@@ -133,16 +120,14 @@ test.describe("GET /api/data - Fixed Format", () => {
 
     test("should parse date parameters correctly", async ({ request }) => {
       const params = {
-        component_id: "assets_table",
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
       };
 
-      const queryString = new URLSearchParams(params as any).toString();
+      const paramsStr = encodeURIComponent(JSON.stringify(params));
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?${queryString}`
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
       expect(response.ok()).toBeTruthy();
@@ -156,16 +141,14 @@ test.describe("GET /api/data - Fixed Format", () => {
   test.describe("Response format validation", () => {
     test("should have correct Content-Type", async ({ request }) => {
       const params = {
-        component_id: "assets_table",
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
       };
 
-      const queryString = new URLSearchParams(params as any).toString();
+      const paramsStr = encodeURIComponent(JSON.stringify(params));
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?${queryString}`
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
       expect(response.ok()).toBeTruthy();
@@ -176,16 +159,14 @@ test.describe("GET /api/data - Fixed Format", () => {
 
     test("should return valid JSON structure", async ({ request }) => {
       const params = {
-        component_id: "assets_table",
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
       };
 
-      const queryString = new URLSearchParams(params as any).toString();
+      const paramsStr = encodeURIComponent(JSON.stringify(params));
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?${queryString}`
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
       expect(response.ok()).toBeTruthy();

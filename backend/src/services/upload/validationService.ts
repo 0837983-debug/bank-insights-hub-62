@@ -10,6 +10,7 @@ import {
   isValidDateRange,
 } from "../../utils/dateUtils.js";
 import type { ParsedRow } from "./fileParserService.js";
+import { getRowValue } from "./fileParserService.js";
 
 export interface ValidationError {
   rowNumber?: number;
@@ -30,7 +31,7 @@ export interface ValidationResult {
  * @param targetTable - целевая таблица (balance, и т.д.)
  * @returns маппинг полей
  */
-async function getFieldMapping(targetTable: string): Promise<
+export async function getFieldMapping(targetTable: string): Promise<
   Array<{
     sourceField: string;
     targetField: string;
@@ -120,11 +121,13 @@ function validateFieldType(
       break;
     }
     case "varchar": {
-      if (typeof value !== "string") {
+      // Числа и строки допустимы в текстовых полях (числа будут преобразованы в строки)
+      // Отклоняем только объекты и массивы
+      if (typeof value === "object" && value !== null) {
         return {
           fieldName,
           errorType: "type_mismatch",
-          errorMessage: `Ожидается строка, получено: ${typeof value}`,
+          errorMessage: `Ожидается строка или число, получено: ${Array.isArray(value) ? 'array' : 'object'}`,
           fieldValue: value,
         };
       }
@@ -193,7 +196,7 @@ function validateRow(
   const errors: ValidationError[] = [];
 
   for (const map of mapping) {
-    const value = row[map.sourceField];
+    const value = getRowValue(row, map.sourceField);
 
     // Проверка обязательных полей
     if (map.isRequired && (value === null || value === undefined || value === "")) {
@@ -212,18 +215,20 @@ function validateRow(
       continue;
     }
 
-    // Валидация типа данных
-    const typeError = validateFieldType(value, map.fieldType, map.sourceField);
-    if (typeError) {
-      errors.push({ ...typeError, rowNumber });
-      continue; // Не проверяем диапазон, если тип неверный
-    }
+    // Валидация типа данных (value может быть undefined, но мы уже проверили выше)
+    if (value !== undefined) {
+      const typeError = validateFieldType(value, map.fieldType, map.sourceField);
+      if (typeError) {
+        errors.push({ ...typeError, rowNumber });
+        continue; // Не проверяем диапазон, если тип неверный
+      }
 
-    // Валидация диапазонов
-    if (map.validationRules) {
-      const rangeError = validateFieldRange(value, map.validationRules, map.sourceField);
-      if (rangeError) {
-        errors.push({ ...rangeError, rowNumber });
+      // Валидация диапазонов
+      if (map.validationRules) {
+        const rangeError = validateFieldRange(value, map.validationRules, map.sourceField);
+        if (rangeError) {
+          errors.push({ ...rangeError, rowNumber });
+        }
       }
     }
   }
@@ -295,10 +300,10 @@ function checkUniqueness(
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const periodDate = row[periodDateMap.sourceField];
-    const classValue = row[classMap.sourceField];
-    const section = sectionMap ? row[sectionMap.sourceField] : null;
-    const item = itemMap ? row[itemMap.sourceField] : null;
+    const periodDate = getRowValue(row, periodDateMap.sourceField);
+    const classValue = getRowValue(row, classMap.sourceField);
+    const section = sectionMap ? getRowValue(row, sectionMap.sourceField) : null;
+    const item = itemMap ? getRowValue(row, itemMap.sourceField) : null;
 
     // Формируем ключ уникальности
     const keyParts = [periodDate, classValue, section, item].filter((v) => v !== null && v !== undefined);

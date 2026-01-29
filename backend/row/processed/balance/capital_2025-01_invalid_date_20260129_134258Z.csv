@@ -1,0 +1,4 @@
+month;class;section;item;amount
+2025/01/01;assets;loans;corporate_loans;4500000000
+01-2025-01;assets;loans;retail_loans;5000000000
+invalid_date;assets;investments;government_bonds;3500000000

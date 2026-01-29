@@ -3,7 +3,7 @@ title: Общая архитектура
 description: Обзор архитектуры системы Bank Insights Hub
 related:
   - /architecture/frontend
-  - /architecture/backend
+  - /architecture/backend/
   - /architecture/database
   - /architecture/data-flow
 ---
@@ -162,10 +162,11 @@ Database Config → Layout Service → Frontend Components
 
 ### 2. Single Responsibility
 
-Каждый модуль/сервис решает одну задачу:
-- `layoutService` (config) - построение layout из config схемы
-- `kpiService` (mart) - работа с KPI метриками из mart схемы
-- `balanceService` (mart) - работа с балансом из mart схемы
+Все данные получаются через единый endpoint `/api/data` с использованием SQL Builder:
+- `/api/data?query_id=layout` - получение layout структуры
+- `/api/data?query_id=kpis` - получение KPI метрик
+- `/api/data?query_id=assets_table` - получение табличных данных
+- SQL Builder строит запросы из конфигов в `config.component_queries`
 
 ### 3. DRY (Don't Repeat Yourself)
 
@@ -246,6 +247,6 @@ TypeScript используется везде:
 ## См. также
 
 - [Frontend архитектура](/architecture/frontend) - детали frontend
-- [Backend архитектура](/architecture/backend) - детали backend
+- [Backend архитектура](/architecture/backend/) - детали backend
 - [База данных](/architecture/database) - структура БД
 - [Поток данных](/architecture/data-flow) - детальный поток данных

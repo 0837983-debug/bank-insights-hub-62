@@ -70,6 +70,10 @@ function transformTableData(apiData: TableData): TableRowData[] {
     let parentId: string | undefined;
     const pathParts: string[] = [];
 
+    // Маппим поля из бэкенда: prev_period -> previousValue, prev_year -> ytdValue
+    const previousValue = (row as any).prev_period ?? (row as any).previousValue;
+    const ytdValue = (row as any).prev_year ?? (row as any).ytdValue;
+
     hierarchyLevels.forEach((level, idx) => {
       const levelValue = row[level];
       if (!levelValue) return;
@@ -78,8 +82,8 @@ function transformTableData(apiData: TableData): TableRowData[] {
       parentId = group.id;
 
       group.value += row.value ?? 0;
-      group.previousValue += row.previousValue ?? 0;
-      group.ytdValue += row.ytdValue ?? 0;
+      group.previousValue += previousValue ?? 0;
+      group.ytdValue += ytdValue ?? 0;
     });
 
     const leafRow: TableRowData = {
@@ -89,8 +93,8 @@ function transformTableData(apiData: TableData): TableRowData[] {
       sub_item: row.sub_item,
       value: row.value,
       percentage: row.percentage,
-      previousValue: row.previousValue,
-      ytdValue: row.ytdValue,
+      previousValue: previousValue,
+      ytdValue: ytdValue,
       ppChange: row.ppChange,
       ppChangeAbsolute: row.ppChangeAbsolute,
       ytdChange: row.ytdChange,
@@ -542,6 +546,19 @@ export default function DynamicDashboard() {
             <h1 className="text-xl font-bold text-foreground">
               {headerComponent.title || headerComponent.componentId}
             </h1>
+            {dates && (
+              <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                <span data-testid="header-date-periodDate">
+                  Период: {dates.periodDate}
+                </span>
+                <span data-testid="header-date-ppDate">
+                  ПП: {dates.ppDate}
+                </span>
+                <span data-testid="header-date-pyDate">
+                  ПГ: {dates.pyDate}
+                </span>
+              </div>
+            )}
           </div>
         </header>
       )}

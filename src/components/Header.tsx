@@ -30,20 +30,20 @@ export const Header = () => {
               </div>
             </div>
 
-            <nav className="hidden md:flex items-center gap-1">
-              <NavLink to="/">Дашборд</NavLink>
-              <NavLink to="/upload">Загрузка файлов</NavLink>
-              <NavLink to="/dev-tools">Dev Tools</NavLink>
+            <nav className="hidden md:flex items-center gap-1" data-testid="header-nav">
+              <NavLink to="/" data-testid="nav-link-dashboard">Дашборд</NavLink>
+              <NavLink to="/upload" data-testid="nav-link-upload">Загрузка файлов</NavLink>
+              <NavLink to="/dev-tools" data-testid="nav-link-dev-tools">Dev Tools</NavLink>
             </nav>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" data-testid="btn-header-notifications">
               <BellIcon className="w-5 h-5" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" data-testid="btn-header-settings">
                   <SettingsIcon className="w-5 h-5" />
                 </Button>
               </DropdownMenuTrigger>

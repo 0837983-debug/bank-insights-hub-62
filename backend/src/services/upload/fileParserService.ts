@@ -5,9 +5,27 @@
 import { parse as csvParse } from "csv-parse/sync";
 import ExcelJS from "exceljs";
 import { getFileType } from "../../utils/fileUtils.js";
+import { excelSerialToDate, formatDateForSQL } from "../../utils/dateUtils.js";
 
 export interface ParsedRow {
   [key: string]: string | number | null;
+}
+
+/**
+ * Получение значения из объекта row с учётом регистра (case-insensitive)
+ * @param row - объект строки данных
+ * @param fieldName - имя поля (из mapping, может быть в любом регистре)
+ * @returns значение поля или undefined, если поле не найдено
+ */
+export function getRowValue(row: ParsedRow, fieldName: string): string | number | null | undefined {
+  // Сначала пробуем точное совпадение (для обратной совместимости)
+  if (fieldName in row) {
+    return row[fieldName];
+  }
+  
+  // Ищем поле без учёта регистра
+  const key = Object.keys(row).find(k => k.toLowerCase() === fieldName.toLowerCase());
+  return key ? row[key] : undefined;
 }
 
 export interface ParseResult {
@@ -46,18 +64,12 @@ export async function parseCSV(fileBuffer: Buffer): Promise<ParseResult> {
     // Преобразуем строки в объекты с правильными типами
     const rows: ParsedRow[] = records.map((record: any) => {
       const row: ParsedRow = {};
-      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
       for (const key of headers) {
         const value = record[key];
-        // Пробуем преобразовать в число, если возможно, но сохраняем даты как строки
+        // Сохраняем строки как есть, без преобразования в числа
+        // Преобразование типов происходит на этапе валидации и загрузки в STG
         if (value && typeof value === "string" && value.trim() !== "") {
-          const trimmed = value.trim();
-          if (datePattern.test(trimmed)) {
-            row[key] = trimmed;
-            continue;
-          }
-          const numValue = parseFloat(trimmed.replace(/,/g, "."));
-          row[key] = isNaN(numValue) ? trimmed : numValue;
+          row[key] = value.trim();
         } else {
           row[key] = value && typeof value === "string" ? value.trim() : null;
         }
@@ -89,6 +101,8 @@ export async function parseXLSX(
 ): Promise<ParseResult> {
   try {
     const workbook = new ExcelJS.Workbook();
+    // ExcelJS ожидает Buffer, но TypeScript видит другой тип из-за версий библиотек
+    // @ts-expect-error - проблема совместимости типов между версиями библиотек
     await workbook.xlsx.load(fileBuffer);
 
     // Получаем список доступных листов
@@ -140,17 +154,24 @@ export async function parseXLSX(
           // Преобразуем значение в строку или число
           if (value === null || value === undefined) {
             rowData[header] = null;
+          } else if (value instanceof Date) {
+            // ExcelJS иногда сам конвертирует даты в Date объект
+            rowData[header] = formatDateForSQL(value);
+            hasData = true;
           } else if (typeof value === "number") {
+            // Числа сохраняем как есть
+            // Excel serial dates будут конвертированы на этапе загрузки в STG
+            // на основании типа поля из маппинга (date vs numeric)
             rowData[header] = value;
             hasData = true;
           } else if (typeof value === "string") {
             const trimmed = value.trim();
             if (trimmed !== "") {
-              // Пробуем преобразовать в число
-              const numValue = parseFloat(trimmed.replace(/,/g, "."));
-              rowData[header] = isNaN(numValue) ? trimmed : numValue;
+              // Сохраняем строки как есть, без преобразования в числа
+              // Это важно для полей типа "1) ЧПД" которые начинаются с цифры
+              rowData[header] = trimmed;
               hasData = true;
-          } else {
+            } else {
               rowData[header] = null;
             }
           } else {
@@ -219,8 +240,12 @@ export function validateFileStructure(
 ): { valid: boolean; missing: string[] } {
   const missing: string[] = [];
   
+  // Приводим заголовки файла к нижнему регистру для сравнения
+  const headersLower = headers.map((h) => h.toLowerCase());
+  
   for (const required of requiredHeaders) {
-    if (!headers.includes(required)) {
+    // Сравниваем без учёта регистра
+    if (!headersLower.includes(required.toLowerCase())) {
       missing.push(required);
     }
   }

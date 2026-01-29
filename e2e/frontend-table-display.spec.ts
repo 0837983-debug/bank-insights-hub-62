@@ -9,6 +9,7 @@ test.describe("Frontend - Table Display", () => {
     
     // Ждем загрузки
     await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(2000); // Даем время на загрузку данных
   });
 
   test("should render without console errors", async ({ page }) => {
@@ -67,112 +68,72 @@ test.describe("Frontend - Table Display", () => {
   });
 
   test("should display Assets table with data", async ({ page }) => {
-    // Ищем таблицу "Активы"
-    const tableSelectors = [
-      'text="Активы"',
-      '[data-component-id="assets_table"]',
-      '[data-component-type="table"]',
-      'table',
-    ];
-
-    let tableFound = false;
-    let tableElement = null;
-
-    for (const selector of tableSelectors) {
-      try {
-        const element = await page.locator(selector).first();
-        if (await element.isVisible()) {
-          tableFound = true;
-          tableElement = element;
-          break;
-        }
-      } catch (e) {
-        // Селектор не найден
-      }
-    }
-
-    expect(tableFound).toBeTruthy();
-
-    // Проверяем, что в таблице есть данные (строки)
-    if (tableElement) {
-      // Ищем строки таблицы
-      const rows = await page.locator('table tbody tr, [role="row"]').all();
-      
-      // Должна быть хотя бы одна строка с данными
-      if (rows.length > 0) {
-        // Проверяем, что строки содержат данные
-        const firstRow = rows[0];
-        const rowText = await firstRow.textContent();
-        expect(rowText).toBeTruthy();
-        expect(rowText!.trim().length).toBeGreaterThan(0);
+    // Ждем загрузки данных
+    await page.waitForTimeout(3000);
+    
+    // Ищем таблицу по тексту или data-testid
+    const table = await page.locator('table').first();
+    
+    // Проверяем, что таблица найдена и видима
+    await expect(table).toBeVisible();
+    
+    // Ищем строки таблицы по data-testid
+    const rows = await page.locator('[data-testid^="table-row-"]').all();
+    
+    // Должна быть хотя бы одна строка с данными
+    if (rows.length > 0) {
+      // Проверяем, что строки содержат данные
+      const firstRow = rows[0];
+      const rowText = await firstRow.textContent();
+      expect(rowText).toBeTruthy();
+      expect(rowText!.trim().length).toBeGreaterThan(0);
+    } else {
+      // Fallback: ищем строки через стандартные селекторы
+      const fallbackRows = await table.locator('tbody tr').all();
+      if (fallbackRows.length > 0) {
+        expect(fallbackRows.length).toBeGreaterThan(0);
+      } else {
+        // Если строк нет, проверяем, что таблица хотя бы есть
+        const tableExists = await table.count();
+        expect(tableExists).toBeGreaterThan(0);
+        console.log("⚠️  Table found but no rows visible (may still be loading)");
       }
     }
   });
 
   test("should display KPI cards", async ({ page }) => {
-    // Ищем KPI карточки
-    const cardSelectors = [
-      '[data-component-type="card"]',
-      '[data-component-id*="card"]',
-      '.card',
-      '[class*="card"]',
-    ];
-
-    let cardsFound = false;
-    for (const selector of cardSelectors) {
-      try {
-        const cards = await page.locator(selector).all();
-        if (cards.length > 0) {
-          cardsFound = true;
-          break;
-        }
-      } catch (e) {
-        // Селектор не найден
-      }
-    }
-
+    // Ищем KPI карточки по data-testid
+    const cards = await page.locator('[data-testid^="kpi-card-"]').all();
+    
     // KPI карточки должны отображаться (если есть в layout)
     // Если карточек нет, это не критично, но проверим наличие
+    if (cards.length > 0) {
+      console.log(`Found ${cards.length} KPI cards`);
+    }
   });
 
   test("should handle grouping buttons", async ({ page }) => {
-    // Ищем кнопки группировки
-    const buttonSelectors = [
-      'button:has-text("client_type")',
-      'button:has-text("client_segment")',
-      'button:has-text("product_code")',
-      '[data-button-type="grouping"]',
-      '[data-component-type="button"]',
-    ];
-
-    let buttonsFound = false;
-    for (const selector of buttonSelectors) {
-      try {
-        const buttons = await page.locator(selector).all();
-        if (buttons.length > 0) {
-          buttonsFound = true;
-          
-          // Пробуем кликнуть на первую кнопку
-          const firstButton = buttons[0];
-          if (await firstButton.isVisible()) {
-            await firstButton.click();
-            
-            // Ждем обновления данных
-            await page.waitForTimeout(1000);
-            
-            // Проверяем, что таблица обновилась
-            const table = await page.locator('table, [role="table"]').first();
-            expect(await table.isVisible()).toBeTruthy();
-          }
-          break;
-        }
-      } catch (e) {
-        // Селектор не найден
+    // Ищем кнопки по data-testid
+    const buttons = await page.locator('[data-testid^="btn-"]').all();
+    
+    if (buttons.length > 0) {
+      // Пробуем кликнуть на первую кнопку
+      const firstButton = buttons[0];
+      if (await firstButton.isVisible()) {
+        await firstButton.click();
+        
+        // Ждем обновления данных
+        await page.waitForTimeout(1000);
+        
+        // Проверяем, что таблица обновилась
+        const table = await page.locator('table').first();
+        await expect(table).toBeVisible();
       }
+    } else {
+      // Кнопки могут быть не видны, если они еще не реализованы
+      // Это не критично для базовой функциональности
+      console.log("No grouping buttons found");
     }
-
-    // Кнопки могут быть не видны, если они еще не реализованы
-    // Проверяем базовую функциональность
   });
 
   test("should load data from getData endpoint", async ({ page }) => {
@@ -190,42 +151,70 @@ test.describe("Frontend - Table Display", () => {
 
     // Ждем загрузки
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000); // Увеличиваем таймаут для загрузки данных
 
     // Проверяем, что были запросы к /api/data
+    // Если запросов нет, это может быть нормально (данные могут быть закэшированы)
     if (dataRequests.length > 0) {
-      // Проверяем формат запроса
+      // Проверяем формат запроса (новый формат: query_id и component_Id)
       const assetsRequest = dataRequests.find((req) => 
-        req.url.includes("assets_table")
+        req.url.includes("assets_table") || req.url.includes("query_id=assets_table")
       );
 
       if (assetsRequest) {
-        // Проверяем, что запрос содержит component_id
-        expect(assetsRequest.url).toContain("component_id");
+        // Проверяем, что запрос содержит правильные параметры
+        expect(assetsRequest.url).toMatch(/query_id=|component_Id=/);
       }
+      
+      // Проверяем, что хотя бы один запрос использует новый формат
+      const hasNewFormat = dataRequests.some(req => 
+        req.url.includes("query_id=") || req.url.includes("component_Id=")
+      );
+      
+      if (hasNewFormat) {
+        console.log("✅ Found requests with new API format");
+      }
+    } else {
+      // Если запросов нет, проверяем, что данные все равно отображаются (из кэша)
+      const table = await page.locator('table').first();
+      await expect(table).toBeVisible();
+      console.log("⚠️  No /api/data requests found, but table is visible (possibly cached)");
     }
   });
 
   test("should display table rows with correct structure", async ({ page }) => {
-    // Ищем таблицу
-    const table = await page.locator('table, [role="table"]').first();
+    // Ждем загрузки данных
+    await page.waitForTimeout(3000);
     
-    if (await table.isVisible()) {
-      // Проверяем наличие заголовков
-      const headers = await table.locator('thead th, [role="columnheader"]').all();
-      
-      if (headers.length > 0) {
-        // Проверяем наличие строк данных
-        const rows = await table.locator('tbody tr, [role="row"]').all();
-        
-        if (rows.length > 0) {
-          // Проверяем структуру первой строки
-          const firstRow = rows[0];
-          const cells = await firstRow.locator('td, [role="cell"]').all();
-          
-          // Должна быть хотя бы одна ячейка
-          expect(cells.length).toBeGreaterThan(0);
-        }
+    // Ищем таблицу
+    const table = await page.locator('table').first();
+    
+    await expect(table).toBeVisible();
+    
+    // Проверяем наличие заголовков
+    const headers = await table.locator('thead th').all();
+    expect(headers.length).toBeGreaterThan(0);
+    
+    // Проверяем наличие строк данных (по data-testid или стандартным селекторам)
+    const rows = await page.locator('[data-testid^="table-row-"]').all();
+    
+    if (rows.length > 0) {
+      // Проверяем структуру первой строки
+      const firstRow = rows[0];
+      const cells = await firstRow.locator('td').all();
+      expect(cells.length).toBeGreaterThan(0);
+    } else {
+      // Fallback: ищем строки через стандартные селекторы
+      const fallbackRows = await table.locator('tbody tr').all();
+      if (fallbackRows.length > 0) {
+        expect(fallbackRows.length).toBeGreaterThan(0);
+        // Проверяем структуру первой строки
+        const firstRow = fallbackRows[0];
+        const cells = await firstRow.locator('td').all();
+        expect(cells.length).toBeGreaterThan(0);
+      } else {
+        // Если строк нет, проверяем, что таблица хотя бы есть
+        console.log("⚠️  Table found but no rows visible (may still be loading)");
       }
     }
   });

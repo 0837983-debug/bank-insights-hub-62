@@ -24,6 +24,7 @@ import { useTableSort } from "@/hooks/use-table-sort";
 import { SortableHeader } from "@/components/SortableHeader";
 import { useLayout } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
+import { calculatePercentChange } from "@/lib/calculations";
 
 // Данные для столбца с числовыми значениями
 export interface DataColumnValue {
@@ -183,34 +184,43 @@ export const FinancialTable = ({
       .filter(Boolean)
       .join(' - ') || row.id;
     
+    // Рассчитываем базовые значения для детализации
+    const baseValue = row.value ?? 0;
+    const basePreviousValue = row.previousValue ?? 0;
+    const baseYtdValue = row.ytdValue ?? 0;
+    
     return [
       {
         id: `${row.id}-d1`,
         section: `${displayName} - Детализация 1`,
-        value: (row.value ?? 0) * 0.35,
+        value: baseValue * 0.35,
+        previousValue: basePreviousValue * 0.35,
+        ytdValue: baseYtdValue * 0.35,
         percentage: 35.0,
-        ppChange: (row.ppChange ?? 0) + 0.012,
       },
       {
         id: `${row.id}-d2`,
         section: `${displayName} - Детализация 2`,
-        value: (row.value ?? 0) * 0.28,
+        value: baseValue * 0.28,
+        previousValue: basePreviousValue * 0.28,
+        ytdValue: baseYtdValue * 0.28,
         percentage: 28.0,
-        ppChange: (row.ppChange ?? 0) - 0.005,
       },
       {
         id: `${row.id}-d3`,
         section: `${displayName} - Детализация 3`,
-        value: (row.value ?? 0) * 0.22,
+        value: baseValue * 0.22,
+        previousValue: basePreviousValue * 0.22,
+        ytdValue: baseYtdValue * 0.22,
         percentage: 22.0,
-        ppChange: (row.ppChange ?? 0) + 0.008,
       },
       {
         id: `${row.id}-d4`,
         section: `${displayName} - Детализация 4`,
-        value: (row.value ?? 0) * 0.15,
+        value: baseValue * 0.15,
+        previousValue: basePreviousValue * 0.15,
+        ytdValue: baseYtdValue * 0.15,
         percentage: 15.0,
-        ppChange: (row.ppChange ?? 0) - 0.011,
       },
     ];
   };
@@ -432,6 +442,7 @@ export const FinancialTable = ({
                     size="icon"
                     className="h-8 w-8"
                     onClick={collapseOneLevel}
+                    data-testid="btn-collapse-level"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -440,7 +451,13 @@ export const FinancialTable = ({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={expandOneLevel}>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8" 
+                    onClick={expandOneLevel}
+                    data-testid="btn-expand-level"
+                  >
                     <ChevronDown className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
@@ -462,6 +479,7 @@ export const FinancialTable = ({
                 onClick={() => handleButtonClick(button.id)}
                 disabled={isLoading}
                 title={button.tooltip}
+                data-testid={`btn-${button.id}`}
               >
                 {button.label || button.title}
               </Button>
@@ -563,6 +581,7 @@ export const FinancialTable = ({
                     key={row.id}
                     className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
                     onDoubleClick={() => handleRowDoubleClick(row)}
+                    data-testid={`table-row-${row.id}`}
                   >
                     {/* Колонка "Показатель" с иерархией */}
                     {textColumns.length > 0 && (
@@ -578,6 +597,7 @@ export const FinancialTable = ({
                                 toggleGroup(row.id);
                               }}
                             className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                            data-testid={`btn-toggle-row-${row.id}`}
                           >
                             {isCollapsed ? (
                               <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -619,15 +639,33 @@ export const FinancialTable = ({
                       const formatId = col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
                       const numValue = typeof value === "number" ? value : undefined;
                       
-                      // Для колонки value берём ppChange/ytdChange напрямую из row
+                      // Рассчитываем ppChange/ytdChange через утилиту для колонки value
+                      let ppChangeValue: number | undefined;
+                      let ytdChangeValue: number | undefined;
+                      
+                      if (col.id === "value") {
+                        // Для колонки value рассчитываем через calculatePercentChange
+                        // Проверяем, что есть хотя бы value для расчёта
+                        if (row.value !== undefined && row.value !== null) {
+                          const percentChanges = calculatePercentChange(
+                            row.value,
+                            row.previousValue,
+                            row.ytdValue
+                          );
+                          ppChangeValue = percentChanges.ppPercent;
+                          ytdChangeValue = percentChanges.ytdPercent;
+                        }
+                      } else {
+                        // Для других колонок берём из sub_columns (если есть)
+                        const ppChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ppChange");
+                        const ytdChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ytdChange");
+                        ppChangeValue = ppChangeSubCol ? (row as any)[ppChangeSubCol.id] : undefined;
+                        ytdChangeValue = ytdChangeSubCol ? (row as any)[ytdChangeSubCol.id] : undefined;
+                      }
+                      
+                      // Получаем форматы для отображения изменений
                       const ppChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ppChange");
                       const ytdChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ytdChange");
-                      const ppChangeValue = col.id === "value" 
-                        ? (row as any).ppChange 
-                        : (ppChangeSubCol ? (row as any)[ppChangeSubCol.id] : undefined);
-                      const ytdChangeValue = col.id === "value"
-                        ? (row as any).ytdChange
-                        : (ytdChangeSubCol ? (row as any)[ytdChangeSubCol.id] : undefined);
                       const ppChangeFormat = ppChangeSubCol?.format || percentageFormatId;
                       const ytdChangeFormat = ytdChangeSubCol?.format || percentageFormatId;
                       
@@ -699,21 +737,35 @@ export const FinancialTable = ({
                       </span>
                     </div>
                   )}
-                  {selectedRow.ppChange !== undefined && (
-                    <div>
-                      <span className="text-muted-foreground">Изменение:</span>
-                      <span
-                        className={cn(
-                          "ml-2 font-semibold",
-                          selectedRow.ppChange > 0 && "text-green-600",
-                          selectedRow.ppChange < 0 && "text-red-600"
-                        )}
-                      >
-                        {selectedRow.ppChange > 0 ? "+" : ""}
-                        {formatValue(ppChangeFormatId, Math.abs(selectedRow.ppChange))}
-                      </span>
-                    </div>
-                  )}
+                  {(() => {
+                    // Проверяем, что есть данные для расчёта
+                    if (selectedRow.value === undefined || selectedRow.value === null) {
+                      return null;
+                    }
+                    
+                    const percentChanges = calculatePercentChange(
+                      selectedRow.value,
+                      selectedRow.previousValue,
+                      selectedRow.ytdValue
+                    );
+                    const ppChange = percentChanges.ppPercent;
+                    
+                    return ppChange !== undefined && ppChange !== 0 ? (
+                      <div>
+                        <span className="text-muted-foreground">Изменение:</span>
+                        <span
+                          className={cn(
+                            "ml-2 font-semibold",
+                            ppChange > 0 && "text-green-600",
+                            ppChange < 0 && "text-red-600"
+                          )}
+                        >
+                          {ppChange > 0 ? "+" : ""}
+                          {formatValue(ppChangeFormatId, Math.abs(ppChange))}
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 
@@ -728,8 +780,19 @@ export const FinancialTable = ({
                 </TableHeader>
                 <TableBody>
                   {getDetailRows(selectedRow).map((detailRow) => {
-                    const isPositive = detailRow.ppChange !== undefined && detailRow.ppChange > 0;
-                    const isNegative = detailRow.ppChange !== undefined && detailRow.ppChange < 0;
+                    // Рассчитываем ppChange через функцию для детализации
+                    // Проверяем, что есть данные для расчёта
+                    let detailPpChange: number | undefined;
+                    if (detailRow.value !== undefined && detailRow.value !== null) {
+                      const detailPercentChanges = calculatePercentChange(
+                        detailRow.value,
+                        detailRow.previousValue,
+                        detailRow.ytdValue
+                      );
+                      detailPpChange = detailPercentChanges.ppPercent;
+                    }
+                    const isPositive = detailPpChange !== undefined && detailPpChange > 0;
+                    const isNegative = detailPpChange !== undefined && detailPpChange < 0;
                     const detailDisplayName = [detailRow.section, detailRow.item, detailRow.sub_item]
                       .filter(Boolean)
                       .join(' - ') || detailRow.id;
@@ -752,7 +815,7 @@ export const FinancialTable = ({
                           {detailRow.value !== undefined ? formatValue(valueFormatId, detailRow.value) : "—"}
                         </TableCell>
                         <TableCell className="text-right py-3">
-                          {detailRow.ppChange !== undefined && (
+                          {detailPpChange !== undefined && detailPpChange !== 0 && (
                             <div
                               className={cn(
                                 "flex items-center justify-end gap-1 text-sm",
@@ -763,8 +826,8 @@ export const FinancialTable = ({
                               {isPositive && <TrendingUp className="w-3 h-3" />}
                               {isNegative && <TrendingDown className="w-3 h-3" />}
                               <span>
-                                {detailRow.ppChange > 0 ? "+" : ""}
-                                {formatValue(ppChangeFormatId, Math.abs(detailRow.ppChange))}
+                                {detailPpChange > 0 ? "+" : ""}
+                                {formatValue(ppChangeFormatId, Math.abs(detailPpChange))}
                               </span>
                             </div>
                           )}

@@ -3,9 +3,7 @@ title: Модели данных
 description: TypeScript интерфейсы и структуры данных API
 related:
   - /api/endpoints
-  - /api/kpi-api
-  - /api/table-data-api
-  - /api/layout-api
+  - /api/get-data
 ---
 
 # Модели данных
@@ -14,47 +12,88 @@ related:
 
 ## KPI Metric
 
-Модель данных для KPI метрик. Все расчетные поля вычисляются на backend.
+Модель данных для KPI метрик. API возвращает только сырые значения, расчеты процентных изменений выполняются на фронтенде.
+
+::: info Расчеты на фронтенде
+Процентные изменения (ppChange, ytdChange) рассчитываются на фронтенде через функцию `calculatePercentChange()` из `src/lib/calculations.ts`. API возвращает только базовые значения: `value`, `previousValue`, `ytdValue`.
+:::
+
+**Структура ответа API (`/api/data?query_id=kpis`):**
+
+```typescript
+interface KPIMetricAPI {
+  id: string;              // Уникальный идентификатор метрики (component_id)
+  periodDate: string;      // Дата периода (YYYY-MM-DD)
+  value: number;           // Текущее значение
+  previousValue: number;   // Значение предыдущего периода
+  ytdValue?: number;       // Значение за аналогичный период прошлого года (опционально)
+}
+```
+
+**Полная модель данных (после расчетов на фронтенде):**
 
 ```typescript
 interface KPIMetric {
   id: string;              // Уникальный идентификатор метрики
-  title: string;           // Название метрики (из config.components)
-  value: number;           // Числовое значение (из mart.kpi_metrics)
-  previousValue: number;   // Значение предыдущего периода (рассчитано на backend)
-  ytdValue?: number;       // Значение на конец прошлого года (рассчитано на backend)
-  ppChange: number;        // Изменение относительно предыдущего периода в долях (0.05 = 5%) (рассчитано на backend)
-  ppChangeAbsolute?: number; // Абсолютное изменение относительно предыдущего периода (рассчитано на backend)
-  ytdChange?: number;      // Изменение YTD в долях (0.12 = 12%) (рассчитано на backend)
-  ytdChangeAbsolute?: number; // Абсолютное изменение YTD (рассчитано на backend)
-  description?: string;    // Описание метрики (из config.components)
-  category: string;        // Категория метрики (из config.components)
-  categoryId: string;      // ID категории
-  iconName?: string;       // Название иконки (Lucide, из config.components)
-  sortOrder: number;       // Порядок сортировки
   periodDate: string;      // Дата периода (YYYY-MM-DD)
+  value: number;           // Текущее значение
+  previousValue: number;   // Значение предыдущего периода
+  ytdValue?: number;       // Значение за аналогичный период прошлого года (опционально)
+  // Расчетные поля (рассчитываются на фронтенде через calculatePercentChange)
+  ppChange: number;        // Изменение относительно предыдущего периода в долях (0.05 = 5%)
+  ppChangeAbsolute: number; // Абсолютное изменение относительно предыдущего периода
+  ytdChange?: number;      // Изменение YTD в долях (0.12 = 12%) (опционально)
+  ytdChangeAbsolute?: number; // Абсолютное изменение YTD (опционально)
+  // Метаданные (из config.components, добавляются на фронтенде)
+  title?: string;          // Название метрики
+  description?: string;    // Описание метрики
+  category?: string;       // Категория метрики
+  categoryId?: string;     // ID категории
+  iconName?: string;       // Название иконки (Lucide)
+  sortOrder?: number;      // Порядок сортировки
 }
 ```
 
-**Пример JSON:**
+**Пример JSON ответа API:**
 ```json
-{
-  "id": "capital",
-  "title": "Капитал",
-  "value": 1500000000,
-  "description": "Собственный капитал банка",
-  "change": 5.2,
-  "ytdChange": 12.5,
-  "category": "balance",
-  "categoryId": "balance",
-  "iconName": "Landmark",
-  "sortOrder": 1
-}
+[
+  {
+    "id": "capital",
+    "periodDate": "2025-12-31",
+    "value": 1500000000,
+    "previousValue": 1425000000,
+    "ytdValue": 1335000000
+  }
+]
+```
+
+**Пример использования на фронтенде:**
+```typescript
+import { calculatePercentChange } from '@/lib/calculations';
+
+// Получаем данные из API
+const kpiData = await fetch('/api/data?query_id=kpis&component_Id=kpis&parametrs={}');
+
+// Рассчитываем процентные изменения
+const kpiWithChanges = kpiData.map(kpi => {
+  const changes = calculatePercentChange(kpi.value, kpi.previousValue, kpi.ytdValue);
+  return {
+    ...kpi,
+    ppChange: changes.ppPercent,
+    ppChangeAbsolute: changes.ppDiff,
+    ytdChange: changes.ytdPercent,
+    ytdChangeAbsolute: changes.ytdDiff,
+  };
+});
 ```
 
 ## Table Row Data
 
-Модель данных для строк таблиц. Все расчетные поля вычисляются на backend.
+Модель данных для строк таблиц. API возвращает только сырые значения, расчеты процентных изменений выполняются на фронтенде.
+
+::: info Расчеты на фронтенде
+Процентные изменения (ppChange, ytdChange) рассчитываются на фронтенде через функцию `calculatePercentChange()` из `src/lib/calculations.ts`. API возвращает только базовые значения: `value`, `previousValue`, `ytdValue`.
+:::
 
 ```typescript
 interface TableRowData {
@@ -64,15 +103,17 @@ interface TableRowData {
   item?: string;           // Статья
   sub_item?: string;       // Подстатья
   
-  // Значения (рассчитаны на backend)
+  // Значения (возвращаются API)
   value: number;           // Числовое значение
-  previousValue?: number;  // Значение предыдущего периода (рассчитано на backend)
-  ytdValue?: number;       // Значение на конец прошлого года (рассчитано на backend)
+  previousValue?: number;  // Значение предыдущего периода
+  ytdValue?: number;       // Значение на конец прошлого года
   percentage?: number;     // Процент от общего в долях (0.8 = 80%) (рассчитано на backend)
-  ppChange?: number;       // Изменение относительно предыдущего периода в долях (0.05 = 5%) (рассчитано на backend)
-  ppChangeAbsolute?: number; // Абсолютное изменение относительно предыдущего периода (рассчитано на backend)
-  ytdChange?: number;      // Изменение YTD в долях (0.12 = 12%) (рассчитано на backend)
-  ytdChangeAbsolute?: number; // Абсолютное изменение YTD (рассчитано на backend)
+  
+  // Расчетные поля (рассчитываются на фронтенде через calculatePercentChange)
+  ppChange?: number;       // Изменение относительно предыдущего периода в долях (0.05 = 5%)
+  ppChangeAbsolute?: number; // Абсолютное изменение относительно предыдущего периода
+  ytdChange?: number;      // Изменение YTD в долях (0.12 = 12%)
+  ytdChangeAbsolute?: number; // Абсолютное изменение YTD
   
   // Аналитические разрезы
   client_type?: string;
@@ -424,6 +465,4 @@ import type {
 ## См. также
 
 - [API Endpoints](/api/endpoints) - все endpoints
-- [KPI API](/api/kpi-api) - работа с KPI
-- [Table Data API](/api/table-data-api) - работа с таблицами
-- [Layout API](/api/layout-api) - работа с layout
+- [Get Data API](/api/get-data) - работа с KPI, Layout, таблицами и всеми типами данных

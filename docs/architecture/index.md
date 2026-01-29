@@ -65,7 +65,7 @@ Bank Insights Hub построен как full-stack приложение с р�
 
 - [Общая архитектура](/architecture/overview) - детальное описание
 - [Frontend архитектура](/architecture/frontend) - структура frontend
-- [Backend архитектура](/architecture/backend) - структура backend
+- [Backend архитектура](/architecture/backend/) - структура backend
 - [База данных](/architecture/database) - структура БД
 - [Поток данных](/architecture/data-flow) - детальный поток данных
 - [Layout Architecture](/architecture/layout) - архитектура layout системы и data_source_key

@@ -1,4 +1,65 @@
 import { defineConfig } from 'vitepress'
+import { readdirSync } from 'fs'
+import { join } from 'path'
+
+// Функция для автоматического сканирования файлов в папке
+function getMarkdownFiles(dir: string, basePath: string): Array<{ text: string; link: string }> {
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true })
+    const files = entries
+      .filter(entry => entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'index.md')
+      .map(entry => {
+        const fileName = entry.name.replace('.md', '')
+        // Преобразуем имя файла в читаемый формат (заменяем подчеркивания на пробелы)
+        const displayName = fileName.replace(/_/g, ' ')
+        return {
+          text: displayName,
+          link: `${basePath}/${fileName}`
+        }
+      })
+      .sort((a, b) => a.text.localeCompare(b.text))
+    return files
+  } catch (error) {
+    console.warn(`Не удалось прочитать директорию ${dir}:`, error)
+    return []
+  }
+}
+
+// Функция для автоматического обнаружения всех подпапок в plans/ и создания структуры навигации
+function getPlansSidebar() {
+  const plansDir = join(__dirname, '../plans')
+  const items: any[] = [
+    { text: 'Обзор', link: '/plans/' },
+    { text: 'Roadmap', link: '/plans/ROADMAP' },
+    { text: 'Статус', link: '/plans/STATUS' }
+  ]
+
+  try {
+    const entries = readdirSync(plansDir, { withFileTypes: true })
+    const subdirs = entries
+      .filter(entry => entry.isDirectory())
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    for (const subdir of subdirs) {
+      const subdirPath = join(plansDir, subdir.name)
+      const files = getMarkdownFiles(subdirPath, `/plans/${subdir.name}`)
+      
+      if (files.length > 0) {
+        // Преобразуем имя папки в читаемый формат
+        const displayName = subdir.name.replace(/_/g, ' ')
+        items.push({
+          text: displayName,
+          collapsed: false,
+          items: files
+        })
+      }
+    }
+  } catch (error) {
+    console.warn(`Не удалось прочитать директорию plans:`, error)
+  }
+
+  return items
+}
 
 export default defineConfig({
   title: 'Bank Insights Hub',
@@ -23,6 +84,8 @@ export default defineConfig({
       { text: 'API', link: '/api/' },
       { text: 'Разработка', link: '/development/' },
       { text: 'База данных', link: '/database/' },
+      { text: 'Context', link: '/context/' },
+      { text: 'Планы', link: '/plans/' },
       { text: 'Деплой', link: '/deployment/' }
     ],
     
@@ -47,7 +110,22 @@ export default defineConfig({
             { text: 'Обзор', link: '/architecture/' },
             { text: 'Общая архитектура', link: '/architecture/overview' },
             { text: 'Frontend', link: '/architecture/frontend' },
-            { text: 'Backend', link: '/architecture/backend' },
+            {
+              text: 'Backend',
+              collapsed: false,
+              items: [
+                { text: 'Обзор', link: '/architecture/backend/' },
+                { text: 'Структура приложения', link: '/architecture/backend/structure' },
+                { text: 'Архитектурные слои', link: '/architecture/backend/layers' },
+                { text: 'Сервисы', link: '/architecture/backend/services' },
+                { text: 'Middleware', link: '/architecture/backend/middleware' },
+                { text: 'Data Mart Pattern', link: '/architecture/backend/data-mart' },
+                { text: 'Обработка запросов', link: '/architecture/backend/request-processing' },
+                { text: 'Безопасность', link: '/architecture/backend/security' },
+                { text: 'Оптимизация', link: '/architecture/backend/optimization' },
+                { text: 'Миграции', link: '/architecture/backend/migrations' }
+              ]
+            },
             { text: 'База данных', link: '/architecture/database' },
             { text: 'Поток данных', link: '/architecture/data-flow' },
             {
@@ -66,9 +144,8 @@ export default defineConfig({
           items: [
             { text: 'Обзор API', link: '/api/' },
             { text: 'Все Endpoints', link: '/api/endpoints' },
-            { text: 'KPI API', link: '/api/kpi-api' },
-            { text: 'Table Data API', link: '/api/table-data-api' },
-            { text: 'Layout API', link: '/api/layout-api' },
+            { text: 'Get Data API', link: '/api/get-data' },
+            { text: 'Upload API', link: '/api/upload-api' },
             { text: 'Модели данных', link: '/api/data-models' },
             { text: 'Примеры использования', link: '/api/examples' }
           ]
@@ -118,10 +195,32 @@ export default defineConfig({
           text: 'Руководства',
           items: [
             { text: 'Обзор', link: '/guides/' },
+            { text: 'Добавление нового источника данных', link: '/guides/adding-data-source' },
+            { text: 'Загрузка файлов', link: '/guides/file-upload' },
+            { text: 'Загрузка данных и валидация', link: '/guides/file-upload-validation' },
             { text: 'Восстановление файлов', link: '/guides/restoration' },
             { text: 'Сравнение Layout API', link: '/guides/layout-comparison' },
             { text: 'Решение проблем', link: '/guides/troubleshooting' }
           ]
+        }
+      ],
+      
+      '/context/': [
+        {
+          text: 'Context',
+          items: [
+            { text: 'Обзор', link: '/context/' },
+            { text: 'Backend', link: '/context/backend' },
+            { text: 'Frontend', link: '/context/frontend' },
+            { text: 'Database', link: '/context/database' }
+          ]
+        }
+      ],
+      
+      '/plans/': [
+        {
+          text: 'Планы',
+          items: getPlansSidebar()
         }
       ],
       

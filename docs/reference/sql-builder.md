@@ -423,6 +423,80 @@ Endpoint `/api/data` требует `wrapJson=true`:
 wrap_json=false: query must have wrapJson=true
 ```
 
+## Пустая структура конфига
+
+Минимальная структура для создания нового конфига:
+
+```json
+{
+  "from": {
+    "schema": "schema_name",
+    "table": "table_name"
+  },
+  "select": [
+    {
+      "type": "column",
+      "field": "field_name"
+    }
+  ],
+  "params": {}
+}
+```
+
+**Полная пустая структура со всеми опциональными полями:**
+
+```json
+{
+  "from": {
+    "schema": "schema_name",
+    "table": "table_name"
+  },
+  "select": [
+    {
+      "type": "column",
+      "field": "field_name",
+      "as": "alias_name"
+    }
+  ],
+  "where": {
+    "op": "and",
+    "items": [
+      {
+        "field": "field_name",
+        "op": "=",
+        "value": ":param_name"
+      }
+    ]
+  },
+  "groupBy": [],
+  "orderBy": [
+    {
+      "field": "field_name",
+      "direction": "asc"
+    }
+  ],
+  "limit": 1000,
+  "offset": 0,
+  "params": {
+    "param_name": "example_value"
+  },
+  "paramTypes": {
+    "param_name": "string"
+  }
+}
+```
+
+**Описание полей:**
+- `from` (обязательно) - схема и таблица для запроса
+- `select` (обязательно, не пустой массив) - список полей для выборки
+- `where` (опционально) - условия фильтрации
+- `groupBy` (опционально) - группировка по полям
+- `orderBy` (опционально) - сортировка результатов
+- `limit` (опционально) - ограничение количества строк
+- `offset` (опционально) - смещение для пагинации
+- `params` (обязательно) - примеры значений параметров (для документации)
+- `paramTypes` (опционально) - типы параметров для корректного форматирования
+
 ## Примеры конфигураций
 
 ### Пример 1: Простой запрос с агрегацией
@@ -565,7 +639,103 @@ WHERE "class" = 'assets' AND "period_date" IN ('2025-12-31', '2025-11-30')
 GROUP BY "class", "section";
 ```
 
-### Пример 4: WHERE с BETWEEN и IN
+### Пример 4: KPI метрики с агрегацией по периодам
+
+```json
+{
+  "from": {
+    "schema": "mart",
+    "table": "kpis_view"
+  },
+  "select": [
+    {
+      "type": "column",
+      "field": "component_id"
+    },
+    {
+      "type": "case_agg",
+      "func": "sum",
+      "when": {
+        "field": "period_date",
+        "op": "=",
+        "value": ":p1"
+      },
+      "then": {
+        "field": "value"
+      },
+      "else": null,
+      "as": "value"
+    },
+    {
+      "type": "case_agg",
+      "func": "sum",
+      "when": {
+        "field": "period_date",
+        "op": "=",
+        "value": ":p2"
+      },
+      "then": {
+        "field": "value"
+      },
+      "else": null,
+      "as": "prev_period"
+    },
+    {
+      "type": "case_agg",
+      "func": "sum",
+      "when": {
+        "field": "period_date",
+        "op": "=",
+        "value": ":p3"
+      },
+      "then": {
+        "field": "value"
+      },
+      "else": null,
+      "as": "prev_year"
+    }
+  ],
+  "where": {
+    "op": "and",
+    "items": [
+      { "field": "layout_id", "op": "=", "value": ":layout_id" },
+      { "field": "period_date", "op": "in", "value": [":p1", ":p2", ":p3"] }
+    ]
+  },
+  "groupBy": ["component_id"],
+  "orderBy": [
+    { "field": "component_id", "direction": "asc" }
+  ],
+  "params": {
+    "layout_id": "main_dashboard",
+    "p1": "2025-12-31",
+    "p2": "2025-11-30",
+    "p3": "2024-12-31"
+  },
+  "paramTypes": {
+    "layout_id": "string",
+    "p1": "date",
+    "p2": "date",
+    "p3": "date"
+  }
+}
+```
+
+**SQL (с параметрами):**
+```sql
+SELECT
+  "component_id",
+  SUM(CASE WHEN "period_date" = '2025-12-31' THEN "value" ELSE NULL END) AS "value",
+  SUM(CASE WHEN "period_date" = '2025-11-30' THEN "value" ELSE NULL END) AS "prev_period",
+  SUM(CASE WHEN "period_date" = '2024-12-31' THEN "value" ELSE NULL END) AS "prev_year"
+FROM "mart"."kpis_view"
+WHERE "layout_id" = 'main_dashboard' 
+  AND "period_date" IN ('2025-12-31', '2025-11-30', '2024-12-31')
+GROUP BY "component_id"
+ORDER BY "component_id" ASC;
+```
+
+### Пример 5: WHERE с BETWEEN и IN
 
 ```json
 {

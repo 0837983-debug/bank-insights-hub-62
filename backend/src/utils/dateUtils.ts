@@ -22,18 +22,56 @@ export function isValidDateFormat(dateString: string): boolean {
 }
 
 /**
+ * Конвертация Excel serial date в JavaScript Date
+ * Excel хранит даты как число дней с 1899-12-30 (включая баг с 1900-02-29)
+ * 
+ * @param serial - Excel serial number (например, 45292 = 2024-01-01)
+ * @returns Date объект или null, если значение некорректно
+ */
+export function excelSerialToDate(serial: number): Date | null {
+  if (typeof serial !== 'number' || isNaN(serial) || serial < 1) {
+    return null;
+  }
+  
+  // Excel serial: дни с 1899-12-30 (включая баг с 1900-02-29)
+  // JavaScript Date: миллисекунды с 1970-01-01
+  // 25569 = количество дней между 1899-12-30 и 1970-01-01
+  const millisecondsPerDay = 86400000;
+  const excelEpoch = 25569; // 1899-12-30
+  
+  // Игнорируем дробную часть (время)
+  const days = Math.floor(serial);
+  
+  return new Date((days - excelEpoch) * millisecondsPerDay);
+}
+
+/**
  * Парсинг даты из разных форматов
  * Поддерживает:
  * - YYYY-MM-DD (стандартный формат)
  * - DD.MM.YYYY (российский формат)
  * - DD/MM/YYYY (международный формат)
  * - MM/DD/YYYY (американский формат)
+ * - Excel serial number (число в диапазоне 30000-100000)
  * 
- * @param dateString - строка с датой
+ * @param dateString - строка с датой или число (Excel serial)
  * @returns Date объект или null, если парсинг не удался
  */
-export function parseDate(dateString: string): Date | null {
-  if (!dateString || typeof dateString !== "string") {
+export function parseDate(dateString: string | number): Date | null {
+  if (dateString === null || dateString === undefined) {
+    return null;
+  }
+  
+  // Если это число, проверяем, похоже ли на Excel serial date
+  if (typeof dateString === "number") {
+    // Excel serial dates обычно в диапазоне ~1982-2173 (30000-100000)
+    if (dateString > 30000 && dateString < 100000) {
+      return excelSerialToDate(dateString);
+    }
+    return null;
+  }
+  
+  if (typeof dateString !== "string") {
     return null;
   }
 

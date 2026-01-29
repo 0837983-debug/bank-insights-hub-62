@@ -441,6 +441,7 @@ month;class;section;item;amount
 
 ## См. также
 
+- [Загрузка данных и валидация](/guides/file-upload-validation) - **полное руководство по конфигурации валидации и правилам**
 - [Все Endpoints](/api/endpoints) - полный список всех endpoints
 - [Руководство по загрузке файлов](/guides/file-upload) - инструкции для пользователей
 - [Поток данных](/architecture/data-flow) - описание потока данных при загрузке

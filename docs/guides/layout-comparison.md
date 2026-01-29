@@ -2,7 +2,7 @@
 title: Сравнение Layout API
 description: Сравнение структуры Layout API с мокапом и выявление различий
 related:
-  - /api/layout-api
+  - /api/get-data
 ---
 
 # Сравнение структуры Layout API с мокапом

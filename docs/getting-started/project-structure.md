@@ -65,15 +65,20 @@ backend/
 │   │
 │   ├── routes/            # API routes
 │   │   ├── index.ts       # Главный роутер
-│   │   ├── kpiRoutes.ts   # KPI endpoints
-│   │   └── tableDataRoutes.ts  # Table data endpoints
+│   │   ├── dataRoutes.ts  # Универсальный endpoint /api/data (SQL Builder)
+│   │   ├── uploadRoutes.ts # Загрузка файлов
+│   │   └── tableDataRoutes.ts  # Table data endpoints (legacy)
 │   │
 │   ├── services/          # Бизнес-логика
+│   │   ├── queryBuilder/  # SQL Builder - универсальный сервис
+│   │   │   ├── builder.ts # Построение SQL из конфигов
+│   │   │   ├── validator.ts # Валидация параметров
+│   │   │   └── queryLoader.ts # Загрузка конфигов из БД
 │   │   ├── config/        # Сервисы для работы с config схемой
-│   │   │   └── layoutService.ts
+│   │   │   └── layoutService.ts  # (устаревший, используется через SQL Builder)
 │   │   └── mart/          # Data Mart сервисы (mart схема)
-│   │       ├── balanceService.ts
-│   │       ├── kpiService.ts
+│   │       ├── balanceService.ts  # (устаревший, используется через SQL Builder)
+│   │       ├── kpiService.ts  # (устаревший, используется через SQL Builder)
 │   │       ├── base/
 │   │       └── types.ts
 │   │

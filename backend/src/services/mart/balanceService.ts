@@ -1,6 +1,6 @@
 import { pool } from "../../config/database.js";
 import { getPeriodDates, formatDateForSQL } from "./base/periodService.js";
-import { calculateChange, calculatePercentage } from "./base/calculationService.js";
+import { calculatePercentage } from "./base/calculationService.js";
 import { TableRowData, KPIMetric } from "./types.js";
 import { getKPIMetricsByCategory } from "./kpiService.js";
 import { getRowDescription, getSortOrder } from "./base/rowNameMapper.js";
@@ -223,11 +223,8 @@ export async function getAssets(periodDate?: Date): Promise<TableRowData[]> {
       const idParts = [row.class, row.section, row.item, row.sub_item].filter(Boolean);
       const rowId = idParts.join('-') || 'unknown';
 
-      // Вычисляем изменения в долях (без домножения на 100)
-      const ppChange = calculateChange(currentValue, previousValue) / 100;
-      const ppChangeAbsolute = currentValue - previousValue;
-      const ytdChange = row.prev_year !== null ? calculateChange(currentValue, ytdValue) / 100 : undefined;
-      const ytdChangeAbsolute = row.prev_year !== null ? currentValue - ytdValue : undefined;
+      // Расчёт процентов теперь происходит на фронтенде
+      // Возвращаем только сырые значения
       const percentage = total > 0 ? currentValue / total : 0; // В долях (0-1), не в процентах
 
       const periodDateFormatted = periodDates.current ? formatDateForSQL(periodDates.current) : undefined;
@@ -243,10 +240,6 @@ export async function getAssets(periodDate?: Date): Promise<TableRowData[]> {
         percentage: percentage,
         previousValue: previousValue,
         ytdValue: row.prev_year !== null ? ytdValue : undefined,
-        ppChange: ppChange,
-        ppChangeAbsolute: ppChangeAbsolute,
-        ytdChange: ytdChange,
-        ytdChangeAbsolute: ytdChangeAbsolute,
         // Служебные поля
         id: rowId,
         period_date: periodDateFormatted,
@@ -406,11 +399,8 @@ export async function getLiabilities(periodDate?: Date): Promise<TableRowData[]>
       const idParts = [row.class, row.section, row.item, row.sub_item].filter(Boolean);
       const rowId = idParts.join('-') || 'unknown';
 
-      // Вычисляем изменения в долях (без домножения на 100)
-      const ppChange = calculateChange(currentValue, previousValue) / 100;
-      const ppChangeAbsolute = currentValue - previousValue;
-      const ytdChange = row.prev_year !== null ? calculateChange(currentValue, ytdValue) / 100 : undefined;
-      const ytdChangeAbsolute = row.prev_year !== null ? currentValue - ytdValue : undefined;
+      // Расчёт процентов теперь происходит на фронтенде
+      // Возвращаем только сырые значения
       const percentage = total > 0 ? currentValue / total : 0; // В долях (0-1), не в процентах
 
       const periodDateFormatted = periodDates.current ? formatDateForSQL(periodDates.current) : undefined;
@@ -426,10 +416,6 @@ export async function getLiabilities(periodDate?: Date): Promise<TableRowData[]>
         percentage: percentage,
         previousValue: previousValue,
         ytdValue: row.prev_year !== null ? ytdValue : undefined,
-        ppChange: ppChange,
-        ppChangeAbsolute: ppChangeAbsolute,
-        ytdChange: ytdChange,
-        ytdChangeAbsolute: ytdChangeAbsolute,
         // Служебные поля
         id: rowId,
         period_date: periodDateFormatted,

@@ -5,6 +5,7 @@
 import { pool } from "../../config/database.js";
 import { formatDateForSQL, parseDate } from "../../utils/dateUtils.js";
 import type { ParsedRow } from "./fileParserService.js";
+import { getRowValue } from "./fileParserService.js";
 
 /**
  * Загрузка данных в STG
@@ -39,25 +40,29 @@ export async function loadToSTG(
 
     // Вставляем данные батчами
     for (const row of rows) {
-      const periodDateValue = row[periodDateMap.sourceField];
-      const periodDate = typeof periodDateValue === "string"
-        ? parseDate(periodDateValue)
-        : null;
+      // Обрабатываем дату периода (может быть строка или число Excel serial date)
+      const periodDateValue = getRowValue(row, periodDateMap.sourceField);
+      let periodDate: Date | null = null;
+      
+      if (typeof periodDateValue === "string" || typeof periodDateValue === "number") {
+        periodDate = parseDate(periodDateValue);
+      }
 
       if (!periodDate) {
         continue; // Пропускаем строки с невалидной датой
       }
 
-      const classValue = String(row[classMap.sourceField] || "");
-      const sectionValue = row[sectionMap.sourceField] 
-        ? String(row[sectionMap.sourceField])
+      const classValue = String(getRowValue(row, classMap.sourceField) || "");
+      const sectionValue = sectionMap && getRowValue(row, sectionMap.sourceField) 
+        ? String(getRowValue(row, sectionMap.sourceField))
         : null;
-      const itemValue = row[itemMap?.sourceField]
-        ? String(row[itemMap.sourceField])
+      const itemValue = itemMap && getRowValue(row, itemMap.sourceField)
+        ? String(getRowValue(row, itemMap.sourceField))
         : null;
-      const value = typeof row[valueMap.sourceField] === "number"
-        ? row[valueMap.sourceField]
-        : parseFloat(String(row[valueMap.sourceField] || 0));
+      const valueValue = getRowValue(row, valueMap.sourceField);
+      const value = typeof valueValue === "number"
+        ? valueValue
+        : parseFloat(String(valueValue || 0));
 
       await client.query(
         `INSERT INTO stg.balance_upload 
@@ -281,6 +286,120 @@ export async function updateUploadStatus(
        WHERE id = $1`,
       values
     );
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Загрузка данных Financial Results в STG
+ * @param uploadId - ID загрузки
+ * @param rows - данные для загрузки
+ * @param mapping - маппинг полей
+ * @returns количество загруженных строк
+ */
+export async function loadFinResultsToSTG(
+  uploadId: number,
+  rows: ParsedRow[],
+  mapping: Array<{
+    sourceField: string;
+    targetField: string;
+    fieldType: string;
+  }>
+): Promise<number> {
+  const client = await pool.connect();
+  try {
+    // Находим маппинги для всех полей
+    const classMap = mapping.find((m) => m.targetField === "class");
+    const categoryMap = mapping.find((m) => m.targetField === "category");
+    const itemMap = mapping.find((m) => m.targetField === "item");
+    const subitemMap = mapping.find((m) => m.targetField === "subitem");
+    const detailsMap = mapping.find((m) => m.targetField === "details");
+    const clientTypeMap = mapping.find((m) => m.targetField === "client_type");
+    const currencyCodeMap = mapping.find((m) => m.targetField === "currency_code");
+    const dataSourceMap = mapping.find((m) => m.targetField === "data_source");
+    const valueMap = mapping.find((m) => m.targetField === "value");
+    const periodDateMap = mapping.find((m) => m.targetField === "period_date");
+
+    if (!classMap || !categoryMap || !valueMap || !periodDateMap) {
+      throw new Error("Отсутствуют обязательные поля в маппинге (class, category, value, period_date)");
+    }
+
+    let insertedCount = 0;
+
+    // Вставляем данные батчами
+    for (const row of rows) {
+      // Обрабатываем дату периода (может быть строка или число Excel serial date)
+      const periodDateValue = getRowValue(row, periodDateMap.sourceField);
+      let periodDate: Date | null = null;
+      
+      if (typeof periodDateValue === "string" || typeof periodDateValue === "number") {
+        periodDate = parseDate(periodDateValue);
+      }
+
+      if (!periodDate) {
+        continue; // Пропускаем строки с невалидной датой
+      }
+
+      // Получаем обязательные поля
+      const classValue = String(getRowValue(row, classMap.sourceField) || "");
+      const categoryValue = String(getRowValue(row, categoryMap.sourceField) || "");
+      
+      if (!classValue || !categoryValue) {
+        continue; // Пропускаем строки без обязательных полей
+      }
+
+      // Получаем опциональные поля иерархии
+      const itemValue = itemMap && getRowValue(row, itemMap.sourceField)
+        ? String(getRowValue(row, itemMap.sourceField))
+        : null;
+      const subitemValue = subitemMap && getRowValue(row, subitemMap.sourceField)
+        ? String(getRowValue(row, subitemMap.sourceField))
+        : null;
+      const detailsValue = detailsMap && getRowValue(row, detailsMap.sourceField)
+        ? String(getRowValue(row, detailsMap.sourceField))
+        : null;
+
+      // Получаем аналитические поля
+      const clientTypeValue = clientTypeMap && getRowValue(row, clientTypeMap.sourceField)
+        ? String(getRowValue(row, clientTypeMap.sourceField))
+        : null;
+      const currencyCodeValue = currencyCodeMap && getRowValue(row, currencyCodeMap.sourceField)
+        ? String(getRowValue(row, currencyCodeMap.sourceField))?.substring(0, 3)
+        : null;
+      const dataSourceValue = dataSourceMap && getRowValue(row, dataSourceMap.sourceField)
+        ? String(getRowValue(row, dataSourceMap.sourceField))
+        : null;
+
+      // Получаем значение
+      const valueRaw = getRowValue(row, valueMap.sourceField);
+      const value = typeof valueRaw === "number"
+        ? valueRaw
+        : parseFloat(String(valueRaw || 0));
+
+      await client.query(
+        `INSERT INTO stg.fin_results_upload 
+         (upload_id, class, category, item, subitem, details, client_type, currency_code, data_source, value, period_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          uploadId,
+          classValue,
+          categoryValue,
+          itemValue,
+          subitemValue,
+          detailsValue,
+          clientTypeValue,
+          currencyCodeValue,
+          dataSourceValue,
+          value,
+          formatDateForSQL(periodDate)
+        ]
+      );
+
+      insertedCount++;
+    }
+
+    return insertedCount;
   } finally {
     client.release();
   }

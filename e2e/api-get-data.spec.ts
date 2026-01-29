@@ -5,33 +5,8 @@ const API_BASE_URL = "http://localhost:3001/api";
 test.describe("GET /api/data - getData endpoint", () => {
   test.describe("Successful requests", () => {
     test("should return data for header_dates query", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/data/header_dates`);
-
-      expect(response.ok()).toBeTruthy();
-      expect(response.status()).toBe(200);
-
-      const responseData = await response.json();
-      
-      // Проверка структуры ответа
-      expect(responseData).toBeDefined();
-      expect(responseData).toHaveProperty("data");
-      
-      // header_dates возвращает данные в поле data
-      const data = responseData.data;
-      expect(Array.isArray(data) || typeof data === "object").toBe(true);
-    });
-
-    test("should return data for assets_table query with params", async ({ request }) => {
-      const params = {
-        p1: "2025-08-01",
-        p2: "2025-07-01",
-        p3: "2024-08-01",
-        class: "assets",
-      };
-
-      const paramsStr = encodeURIComponent(JSON.stringify(params));
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?params=${paramsStr}`
+        `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
       expect(response.ok()).toBeTruthy();
@@ -39,17 +14,51 @@ test.describe("GET /api/data - getData endpoint", () => {
 
       const responseData = await response.json();
       
-      // Проверка структуры ответа
+      // Проверка структуры ответа (новый формат)
       expect(responseData).toBeDefined();
-      expect(responseData).toHaveProperty("data");
+      expect(responseData).toHaveProperty("componentId");
+      expect(responseData).toHaveProperty("type");
+      expect(responseData).toHaveProperty("rows");
       
-      // assets_table возвращает массив строк в поле data
-      const data = responseData.data;
-      expect(Array.isArray(data)).toBe(true);
+      // header_dates возвращает даты в rows
+      expect(Array.isArray(responseData.rows)).toBe(true);
+      if (responseData.rows.length > 0) {
+        const firstRow = responseData.rows[0];
+        expect(firstRow).toHaveProperty("periodDate");
+        expect(firstRow).toHaveProperty("ppDate");
+        expect(firstRow).toHaveProperty("pyDate");
+      }
+    });
+
+    test("should return data for assets_table query with params", async ({ request }) => {
+      const params = {
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
+      };
+
+      const paramsStr = encodeURIComponent(JSON.stringify(params));
+      const response = await request.get(
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
+      );
+
+      expect(response.ok()).toBeTruthy();
+      expect(response.status()).toBe(200);
+
+      const responseData = await response.json();
+      
+      // Проверка структуры ответа (новый формат)
+      expect(responseData).toBeDefined();
+      expect(responseData).toHaveProperty("componentId");
+      expect(responseData).toHaveProperty("type");
+      expect(responseData).toHaveProperty("rows");
+      
+      // assets_table возвращает массив строк в rows
+      expect(Array.isArray(responseData.rows)).toBe(true);
       
       // Если есть данные, проверяем структуру первой строки
-      if (data.length > 0) {
-        const firstRow = data[0];
+      if (responseData.rows.length > 0) {
+        const firstRow = responseData.rows[0];
         expect(firstRow).toHaveProperty("class");
         expect(firstRow).toHaveProperty("section");
         expect(firstRow).toHaveProperty("item");
@@ -57,83 +66,49 @@ test.describe("GET /api/data - getData endpoint", () => {
       }
     });
 
-    test("should accept POST request with query_id and params in body", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          query_id: "header_dates",
-          params: {},
-        },
-      });
-
-      expect(response.ok()).toBeTruthy();
-      expect(response.status()).toBe(200);
-
-      const responseData = await response.json();
-      expect(responseData).toBeDefined();
-      expect(responseData).toHaveProperty("data");
+    // POST запросы к /api/data удалены, используем только GET
+    test.skip("should accept POST request with query_id and params in body", async ({ request }) => {
+      // POST endpoint удален, используем GET вместо этого
+      test.skip();
     });
 
-    test("should return data for assets_table via POST", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          query_id: "assets_table",
-          params: {
-            p1: "2025-08-01",
-            p2: "2025-07-01",
-            p3: "2024-08-01",
-            class: "assets",
-          },
-        },
-      });
-
-      expect(response.ok()).toBeTruthy();
-      expect(response.status()).toBe(200);
-
-      const responseData = await response.json();
-      expect(responseData).toHaveProperty("data");
-      const data = responseData.data;
-      expect(Array.isArray(data)).toBe(true);
+    test.skip("should return data for assets_table via POST", async ({ request }) => {
+      // POST endpoint удален, используем GET вместо этого
+      test.skip();
     });
   });
 
   test.describe("Error handling - invalid params", () => {
     test("should return 400 for missing required params", async ({ request }) => {
-      // assets_table требует параметры p1, p2, p3, class
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          query_id: "assets_table",
-          params: {}, // Отсутствуют обязательные параметры
-        },
-      });
+      // assets_table требует параметры p1, p2, p3 через parametrs
+      const paramsStr = encodeURIComponent(JSON.stringify({})); // Пустые параметры
+      const response = await request.get(
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
+      );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
       expect(error).toHaveProperty("error");
-      expect(error.error).toMatch(/invalid params/i);
+      expect(error.error).toMatch(/invalid params|missing required/i);
     });
 
     test("should return 400 for invalid query_id", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          query_id: "non_existent_query",
-          params: {},
-        },
-      });
+      const response = await request.get(
+        `${API_BASE_URL}/data?query_id=non_existent_query&component_Id=test`
+      );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
       expect(error).toHaveProperty("error");
-      expect(error.error).toMatch(/invalid config/i);
+      expect(error.error).toMatch(/invalid config|not found/i);
     });
 
-    test("should return 400 for missing query_id in POST", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          params: {}, // query_id отсутствует
-        },
-      });
+    test("should return 400 for missing query_id", async ({ request }) => {
+      const response = await request.get(
+        `${API_BASE_URL}/data?component_Id=test`
+      );
 
       expect(response.status()).toBe(400);
       
@@ -144,7 +119,7 @@ test.describe("GET /api/data - getData endpoint", () => {
     test("should return 400 for invalid params format in GET", async ({ request }) => {
       // Некорректный JSON в query string
       const response = await request.get(
-        `${API_BASE_URL}/data/assets_table?params=invalid_json`
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=invalid_json`
       );
 
       expect(response.status()).toBe(400);
@@ -185,28 +160,28 @@ test.describe("GET /api/data - getData endpoint", () => {
 
   test.describe("Response format", () => {
     test("should return JSON array for table queries", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          query_id: "assets_table",
-          params: {
-            p1: "2025-08-01",
-            p2: "2025-07-01",
-            p3: "2024-08-01",
-            class: "assets",
-          },
-        },
-      });
+      const paramsStr = encodeURIComponent(JSON.stringify({
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
+      }));
+      const response = await request.get(
+        `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
+      );
 
       expect(response.ok()).toBeTruthy();
       
       const responseData = await response.json();
-      expect(responseData).toHaveProperty("data");
-      const data = responseData.data;
-      expect(Array.isArray(data)).toBe(true);
+      expect(responseData).toHaveProperty("componentId");
+      expect(responseData).toHaveProperty("type");
+      expect(responseData).toHaveProperty("rows");
+      expect(Array.isArray(responseData.rows)).toBe(true);
     });
 
     test("should return valid JSON structure", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/data/header_dates`);
+      const response = await request.get(
+        `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
+      );
 
       expect(response.ok()).toBeTruthy();
       
@@ -215,18 +190,18 @@ test.describe("GET /api/data - getData endpoint", () => {
       
       const responseData = await response.json();
       expect(responseData).toBeDefined();
-      expect(responseData).toHaveProperty("data");
+      expect(responseData).toHaveProperty("componentId");
+      expect(responseData).toHaveProperty("type");
+      expect(responseData).toHaveProperty("rows");
     });
   });
 
   test.describe("Edge cases", () => {
     test("should handle empty params object", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          query_id: "header_dates",
-          params: {},
-        },
-      });
+      const paramsStr = encodeURIComponent(JSON.stringify({}));
+      const response = await request.get(
+        `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${paramsStr}`
+      );
 
       // header_dates не требует параметров, должен вернуть успешный ответ
       expect(response.ok()).toBeTruthy();
@@ -235,7 +210,7 @@ test.describe("GET /api/data - getData endpoint", () => {
     test("should handle query_id with special characters", async ({ request }) => {
       // Попытка использовать query_id с недопустимыми символами
       const response = await request.get(
-        `${API_BASE_URL}/data/invalid-query-id-123`
+        `${API_BASE_URL}/data?query_id=invalid-query-id-123&component_Id=test`
       );
 
       expect(response.status()).toBe(400);
@@ -251,12 +226,10 @@ test.describe("GET /api/data - getData endpoint", () => {
         largeParams[`param${i}`] = `value${i}`;
       }
 
-      const response = await request.post(`${API_BASE_URL}/data`, {
-        data: {
-          query_id: "header_dates",
-          params: largeParams,
-        },
-      });
+      const paramsStr = encodeURIComponent(JSON.stringify(largeParams));
+      const response = await request.get(
+        `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${paramsStr}`
+      );
 
       // Должен обработать (хотя большинство параметров не используются)
       // Может вернуть 200 или 400 в зависимости от валидации

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,17 +13,38 @@ interface FileUploaderProps {
   disabled?: boolean;
 }
 
-export const FileUploader = ({
+export interface FileUploaderRef {
+  openFilePicker: () => void;
+  clearFile: () => void;
+}
+
+export const FileUploader = forwardRef<FileUploaderRef, FileUploaderProps>(({
   onFileSelect,
   acceptedFormats = [".csv", ".xlsx"],
   maxSize = 50 * 1024 * 1024, // 50MB по умолчанию
   className,
   disabled = false,
-}: FileUploaderProps) => {
+}, ref) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Экспортируем методы для родительского компонента
+  useImperativeHandle(ref, () => ({
+    openFilePicker: () => {
+      if (!disabled) {
+        fileInputRef.current?.click();
+      }
+    },
+    clearFile: () => {
+      setSelectedFile(null);
+      setError(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+  }), [disabled]);
 
   const validateFile = useCallback(
     (file: File): string | null => {
@@ -185,4 +206,6 @@ export const FileUploader = ({
       )}
     </div>
   );
-};
+});
+
+FileUploader.displayName = "FileUploader";

@@ -7,11 +7,9 @@ export interface KPIMetric {
   periodDate: string; // актуальная дата периода (YYYY-MM-DD)
   value: number;
   previousValue: number; // значение предыдущего периода
-  ytdValue?: number; // значение на конец прошлого года
-  ppChange: number; // изменение относительно предыдущего периода в долях
-  ppChangeAbsolute?: number; // абсолютное изменение относительно предыдущего периода
-  ytdChange?: number; // изменение YTD в долях
-  ytdChangeAbsolute?: number; // абсолютное изменение YTD
+  ytdValue?: number; // значение за аналогичный период прошлого года
+  // Расчёт процентов теперь происходит на фронтенде
+  // Поля ppChange, ppChangeAbsolute, ytdChange, ytdChangeAbsolute удалены
 }
 
 export interface TableRowData {
@@ -24,11 +22,9 @@ export interface TableRowData {
   // Расчетные поля
   percentage?: number;
   previousValue?: number; // значение предыдущего периода
-  ytdValue?: number; // значение на конец прошлого года
-  ppChange?: number; // изменение относительно предыдущего периода в долях
-  ppChangeAbsolute?: number; // абсолютное изменение относительно предыдущего периода
-  ytdChange?: number; // изменение YTD в долях
-  ytdChangeAbsolute?: number; // абсолютное изменение YTD
+  ytdValue?: number; // значение за аналогичный период прошлого года
+  // Расчёт процентов теперь происходит на фронтенде
+  // Поля ppChange, ppChangeAbsolute, ytdChange, ytdChangeAbsolute удалены
   // Поля из mart.balance (аналитика)
   client_type?: string;
   client_segment?: string;

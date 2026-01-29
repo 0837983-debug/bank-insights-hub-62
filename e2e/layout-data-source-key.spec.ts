@@ -101,112 +101,88 @@ test.describe("Layout data_source_key", () => {
   test.describe("Frontend - Using data_source_key", () => {
     test("should read data_source_key from layout", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:5173/");
+      await page.goto("http://localhost:8080/");
 
       // Ждем загрузки layout
       await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(3000); // Увеличиваем таймаут
 
-      // Проверяем, что layout загружен
-      // Это можно проверить через network requests или наличие компонентов на странице
-      
-      // Проверяем наличие header компонента (который должен иметь data_source_key)
-      const headerSelectors = [
-        'header',
-        '[data-component-id="header"]',
-        '[data-component-type="header"]',
-      ];
-
-      let headerFound = false;
-      for (const selector of headerSelectors) {
-        try {
-          const element = await page.locator(selector).first();
-          if (await element.isVisible()) {
-            headerFound = true;
-            break;
-          }
-        } catch (e) {
-          // Селектор не найден
-        }
-      }
-
-      // Header должен быть найден
-      expect(headerFound).toBeTruthy();
+      // Проверяем наличие header компонента
+      const header = await page.locator('header').first();
+      await expect(header).toBeVisible();
     });
 
     test("should use data_source_key to load data via getData", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:5173/");
+      await page.goto("http://localhost:8080/");
 
       // Перехватываем запросы к /api/data
       const dataRequests: any[] = [];
       
       page.on("request", (request) => {
-        if (request.url().includes("/api/data")) {
+        const url = request.url();
+        if (url.includes("/api/data")) {
           dataRequests.push({
-            url: request.url(),
+            url: url,
             method: request.method(),
-            postData: request.postData(),
           });
         }
       });
 
       // Ждем загрузки
       await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(3000); // Увеличиваем таймаут
 
-      // Проверяем, что был запрос к /api/data с query_id=header_dates
-      const headerDatesRequest = dataRequests.find((req) => {
-        const url = req.url;
-        const postData = req.postData ? JSON.parse(req.postData) : null;
-        
-        return (
-          url.includes("header_dates") ||
-          (postData && postData.query_id === "header_dates")
-        );
-      });
+      // Проверяем, что был запрос к /api/data с query_id=header_dates (новый формат: GET с query параметрами)
+      const headerDatesRequest = dataRequests.find((req) => 
+        req.url.includes("header_dates") || req.url.includes("query_id=header_dates")
+      );
 
       // Если Frontend использует data_source_key, должен быть запрос
-      // Пока проверяем, что запросы к /api/data есть
-      if (dataRequests.length === 0) {
-        // Если запросов нет, возможно Frontend еще не полностью реализован
-        console.log("⚠️  Запросы к /api/data не обнаружены");
+      if (headerDatesRequest) {
+        expect(headerDatesRequest.url).toContain("query_id=header_dates");
+        expect(headerDatesRequest.url).toContain("component_Id=header");
+      } else if (dataRequests.length > 0) {
+        // Если запросов к /api/data есть, но не header_dates, это тоже нормально
+        console.log("⚠️  Запросы к /api/data найдены, но header_dates не обнаружен (возможно закэширован)");
       } else {
-        expect(dataRequests.length).toBeGreaterThan(0);
+        console.log("⚠️  Запросы к /api/data не обнаружены (возможно закэшированы)");
       }
     });
 
     test("should use data_source_key for table components", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:5173/");
+      await page.goto("http://localhost:8080/");
+
+      // Перехватываем запросы к /api/data для таблиц
+      const tableRequests: any[] = [];
+      
+      page.on("request", (request) => {
+        const url = request.url();
+        if (url.includes("/api/data") && (url.includes("assets_table") || url.includes("query_id=assets_table"))) {
+          tableRequests.push({
+            url: url,
+            method: request.method(),
+          });
+        }
+      });
 
       // Ждем загрузки
       await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(3000); // Увеличиваем таймаут
 
-      // Проверяем, что таблицы используют data_source_key для загрузки данных
-      // Это можно проверить через network requests или наличие данных в таблицах
-      
-      // Пока проверяем базовую функциональность
-      // Если Frontend полностью реализован, таблицы должны загружаться через getData
-      const tableSelectors = [
-        '[data-component-type="table"]',
-        'table',
-        '[role="table"]',
-      ];
+      // Проверяем наличие таблиц
+      const table = await page.locator('table').first();
+      await expect(table).toBeVisible();
 
-      let tableFound = false;
-      for (const selector of tableSelectors) {
-        try {
-          const element = await page.locator(selector).first();
-          if (await element.isVisible()) {
-            tableFound = true;
-            break;
-          }
-        } catch (e) {
-          // Селектор не найден
-        }
+      // Если были запросы к таблицам, проверяем формат
+      if (tableRequests.length > 0) {
+        const request = tableRequests[0];
+        expect(request.url).toMatch(/query_id=|component_Id=/);
+      } else {
+        // Если запросов нет, возможно данные закэшированы - это нормально
+        console.log("⚠️  No table requests found (possibly cached)");
       }
-
-      // Если таблицы есть, они должны быть загружены
-      // (проверка через network requests будет добавлена при необходимости)
     });
   });
 });

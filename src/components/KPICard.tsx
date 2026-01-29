@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { useLayout, useAllKPIs } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
+import { calculatePercentChange } from "@/lib/calculations";
 import type { KPIMetric } from "@/lib/api";
 
 // Icon mapping for dynamic icon rendering from layout
@@ -50,6 +51,7 @@ function renderIcon(iconName?: string): React.ReactNode {
 
 interface KPICardProps {
   componentId: string;
+  kpis?: KPIMetric[];
 }
 
 export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
@@ -101,14 +103,21 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   const ytdChangeSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChange");
   const ytdChangeAbsoluteSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChangeAbsolute");
 
-  // Используем процентные изменения по умолчанию, абсолютные при клике
-  // Поддерживаем старый формат (change) и новый (ppChange)
+  // Рассчитываем процентные изменения через утилиту
+  // Используем value, previousValue, previousYearValue (или ytdValue) из kpi
+  const percentChanges = calculatePercentChange(
+    kpi.value,
+    kpi.previousValue,
+    kpi.ytdValue // или previousYearValue, если будет в API
+  );
+
+  // Используем рассчитанные значения: процентные по умолчанию, абсолютные при клике
   const ppChange = showAbsolute 
-    ? ((kpi as any).ppChangeAbsolute ?? undefined)
-    : ((kpi as any).ppChange ?? (kpi as any).change ?? undefined);
+    ? percentChanges.ppDiff
+    : percentChanges.ppPercent;
   const ytdChange = showAbsolute 
-    ? ((kpi as any).ytdChangeAbsolute ?? undefined)
-    : ((kpi as any).ytdChange ?? undefined);
+    ? percentChanges.ytdDiff
+    : percentChanges.ytdPercent;
   
   // Извлекаем formatId из sub_columns (format может быть строкой)
   const getFormatId = (subColumn: any): string | undefined => {
@@ -142,6 +151,7 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
     <Card 
       className="p-3 hover:shadow-lg transition-shadow min-w-0 cursor-pointer"
       onClick={() => setShowAbsolute(!showAbsolute)}
+      data-testid={`kpi-card-${componentId}`}
     >
       <div className="flex items-start justify-between gap-1.5">
         <div className="flex-1 min-w-0">

@@ -39,7 +39,7 @@ GET /api/data?query_id=header_dates&component_Id=header
 curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_table&parametrs=%7B%22p1%22%3A%222025-08-01%22%2C%22p2%22%3A%222025-07-01%22%2C%22p3%22%3A%222024-08-01%22%2C%22class%22%3A%22assets%22%7D"
 ```
 
-**Примечание:** Параметры используют опечатки в названиях (`component_Id` вместо `component_id`, `parametrs` вместо `params`) для обратной совместимости.
+**Примечание:** Обратите внимание на названия параметров: `component_Id` (с заглавной I) и `parametrs` (с опечаткой).
 
 ## Формат ответа
 
@@ -295,7 +295,142 @@ GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_d
 - `header`: `sections.find(s => s.id === "header").components[0]`
 - Контентные секции: `sections.filter(s => s.id !== "formats" && s.id !== "header")`
 
-**См. также:** [Layout API](/api/layout-api) - детальное описание layout endpoint
+### kpis
+
+Для `query_id = "kpis"` endpoint возвращает массив KPI метрик.
+
+**Процесс:**
+1. Построение SQL через SQL Builder (использует view `mart.kpis_view`)
+2. Выполнение SQL запроса
+3. Трансформация данных через `transformKPIData()`
+4. Возврат массива метрик напрямую (без обертки в объект)
+
+**Параметры:**
+- `category` (string, опционально) - Фильтр по категории (например: 'finance', 'balance')
+- `periodDate` (string, опционально) - Дата периода в формате YYYY-MM-DD
+
+**Пример запроса:**
+```bash
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={}
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"category":"finance"}
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-15"}
+```
+
+**Пример ответа:**
+```json
+[
+  {
+    "id": "capital",
+    "periodDate": "2025-12-31",
+    "value": 1500000000,
+    "previousValue": 1425000000,
+    "ytdValue": 1335000000
+  },
+  {
+    "id": "ebitda",
+    "periodDate": "2025-12-31",
+    "value": 500000000,
+    "previousValue": 480000000,
+    "ytdValue": 450000000
+  }
+]
+```
+
+**Важно:** API возвращает только сырые значения (`value`, `previousValue`, `ytdValue`). Процентные изменения (`ppChange`, `ytdChange`) рассчитываются на фронтенде через функцию `calculatePercentChange()` из `src/lib/calculations.ts`.
+
+**Использование на фронтенде:**
+```typescript
+import { calculatePercentChange } from '@/lib/calculations';
+
+const response = await fetch('/api/data?query_id=kpis&component_Id=kpis&parametrs={}');
+const kpis = await response.json(); // Массив KPIMetricAPI[]
+
+// Рассчитываем процентные изменения на фронтенде
+const kpisWithChanges = kpis.map(kpi => {
+  const changes = calculatePercentChange(kpi.value, kpi.previousValue, kpi.ytdValue);
+  return {
+    ...kpi,
+    ppChange: changes.ppPercent,
+    ppChangeAbsolute: changes.ppDiff,
+    ytdChange: changes.ytdPercent,
+    ytdChangeAbsolute: changes.ytdDiff,
+  };
+});
+```
+
+### Табличные данные
+
+Для табличных данных (например, `query_id = "assets_table"`, `query_id = "liabilities_table"`) endpoint возвращает структуру с массивом строк.
+
+**Процесс:**
+1. Построение SQL через SQL Builder из конфига в `config.component_queries`
+2. Выполнение SQL запроса
+3. Трансформация данных через `transformTableData()`
+4. Возврат в формате: `{ componentId, type: "table", rows: [...] }`
+
+**Пример запроса:**
+```bash
+GET /api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2025-12-31","p2":"2025-11-30","p3":"2024-12-31","class":"assets"}
+```
+
+**Пример ответа:**
+```json
+{
+  "componentId": "assets_table",
+  "type": "table",
+  "rows": [
+    {
+      "id": "assets-loans-corporate",
+      "class": "assets",
+      "section": "loans",
+      "item": "corporate_loans",
+      "value": 1000000,
+      "previousValue": 950000,
+      "ytdValue": 900000,
+      "sortOrder": 1
+    }
+  ]
+}
+```
+
+**Важно:** API возвращает только сырые значения (`value`, `previousValue`, `ytdValue`). Процентные изменения рассчитываются на фронтенде через `calculatePercentChange()`.
+
+## Типы запросов через /api/data
+
+Через единый endpoint `/api/data` можно запросить любые данные, для которых есть конфигурация в таблице `config.component_queries`. 
+
+### Доступные query_id
+
+Все доступные `query_id` определяются конфигами в таблице `config.component_queries`. Основные типы:
+
+1. **Layout структура** - `query_id = "layout"`
+   - Возвращает структуру дашборда с секциями и компонентами
+   - Параметры: `layout_id` (опционально)
+
+2. **KPI метрики** - `query_id = "kpis"`
+   - Возвращает массив KPI метрик
+   - Параметры: `category` (опционально), `periodDate` (опционально)
+
+3. **Даты периодов** - `query_id = "header_dates"`
+   - Возвращает даты периодов для header
+   - Без параметров
+
+4. **Табличные данные** - любые `query_id` из конфигов (например, `assets_table`, `liabilities_table`)
+   - Возвращает табличные данные
+   - Параметры зависят от конфига
+
+### Как узнать доступные query_id
+
+Все доступные `query_id` хранятся в таблице `config.component_queries`:
+
+```sql
+SELECT query_id, component_id, description
+FROM config.component_queries
+WHERE is_active = TRUE
+ORDER BY query_id;
+```
+
+Каждый компонент в `config.components` может иметь `data_source_key`, который соответствует `query_id` в `config.component_queries`. Это позволяет динамически определять, какие данные нужны для каждого компонента.
 
 ## Контракт SQL Builder
 
@@ -698,7 +833,8 @@ const layoutData = await fetchTableData('layout', 'layout', {
 
 ## См. также
 
+- [Схема работы /api/data](/api/get-data-schema) - краткая схема работы endpoint'а со ссылками на сервисы
 - [SQL Builder](/reference/sql-builder) - описание SQL Builder и wrapJson
 - [Component Queries](/reference/component-queries) - описание конфигов запросов
-- [Layout API](/api/layout-api) - получение layout с dataSourceKey
 - [Endpoints](/api/endpoints) - список всех API endpoints
+- [Модели данных](/api/data-models) - структуры данных для KPI и таблиц

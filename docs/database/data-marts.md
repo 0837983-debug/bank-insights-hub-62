@@ -3,7 +3,7 @@ title: Data Marts
 description: Структура Data Mart для агрегированных данных
 related:
   - /database/schemas
-  - /architecture/backend
+  - /architecture/backend/
 ---
 
 # Data Marts
@@ -43,9 +43,9 @@ CREATE TABLE mart.kpi_metrics (
 - Поддержка временных срезов (period_date)
 
 **Использование:**
-- В `kpiService.ts` для получения метрик
-- Расчет изменений (ppChange, ytdChange) на backend
-- Расчет процентов от общего
+- Через `/api/data?query_id=kpis` (SQL Builder использует view `mart.kpis_view`)
+- API возвращает только сырые значения (value, previousValue, ytdValue)
+- Расчет изменений (ppChange, ytdChange) выполняется на фронтенде через `calculatePercentChange()`
 
 ### mart.balance
 
@@ -89,9 +89,10 @@ CREATE TABLE mart.balance (
 - Множественные аналитические разрезы для группировки
 
 **Использование:**
-- В `balanceService.ts` для получения активов и обязательств
-- Расчет метрик (ppChange, ytdChange, percentage) на backend
-- Возврат плоских строк с иерархией
+- Через `/api/data?query_id=assets_table` или `/api/data?query_id=liabilities_table` (SQL Builder)
+- API возвращает только сырые значения (value, previousValue, ytdValue)
+- Расчет метрик (ppChange, ytdChange) выполняется на фронтенде через `calculatePercentChange()`
+- Возврат плоских строк с иерархией (class, section, item, sub_item)
 
 ### mart.financial_results
 
@@ -158,39 +159,79 @@ npm run load-data
 
 ## Использование Data Mart в API
 
+Все данные получаются через единый endpoint `/api/data` с использованием SQL Builder.
+
 ### Пример: Получение KPI метрик
 
-**Backend (`kpiService.ts`):**
+**Frontend:**
 ```typescript
-// Запрос к mart.kpi_metrics
-const query = `
-  SELECT 
-    km.component_id,
-    km.value,
-    km.period_date,
-    c.title,
-    c.description
-  FROM mart.kpi_metrics km
-  JOIN config.components c ON km.component_id = c.id
-  WHERE km.period_date = $1
-`;
-
-// Расчет изменений на backend
-const ppChange = calculateChange(currentValue, previousValue);
-const ytdChange = calculateChange(currentValue, ytdValue);
-const percentage = calculatePercentage(currentValue, total);
+// Запрос к /api/data
+const response = await fetch('/api/data?query_id=kpis&component_Id=kpis&parametrs={}');
+const kpis = await response.json(); // [{ id, periodDate, value, previousValue, ytdValue }]
 ```
 
-**Frontend:**
-- Получает готовые значения с рассчитанными метриками
-- Только форматирует для отображения
-- Не делает расчеты
+**Backend (`dataRoutes.ts`):**
+```typescript
+// SQL Builder загружает конфиг из config.component_queries где query_id='kpis'
+// Строит SQL запрос через view mart.kpis_view
+// Выполняет SQL и трансформирует данные
+// Возвращает только сырые значения (value, previousValue, ytdValue)
+```
+
+**Frontend (расчеты):**
+```typescript
+import { calculatePercentChange } from '@/lib/calculations';
+
+// Расчет изменений на фронтенде
+const kpiWithChanges = kpis.map(kpi => {
+  const changes = calculatePercentChange(kpi.value, kpi.previousValue, kpi.ytdValue);
+  return {
+    ...kpi,
+    ppChange: changes.ppPercent,
+    ppChangeAbsolute: changes.ppDiff,
+    ytdChange: changes.ytdPercent,
+    ytdChangeAbsolute: changes.ytdDiff,
+  };
+});
+```
 
 ### Пример: Получение баланса
 
-**Backend (`balanceService.ts`):**
+**Frontend:**
 ```typescript
-// Запрос к mart.balance
+// Запрос к /api/data
+const response = await fetch('/api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2025-12-31","class":"assets"}');
+const data = await response.json(); // { componentId, type: "table", rows: [...] }
+```
+
+**Backend (`dataRoutes.ts`):**
+```typescript
+// SQL Builder загружает конфиг из config.component_queries где query_id='assets_table'
+// Строит SQL запрос к mart.balance с подстановкой параметров
+// Выполняет SQL и трансформирует данные (добавляет id, sortOrder)
+// Возвращает только сырые значения (value, previousValue, ytdValue)
+```
+
+**Frontend (расчеты):**
+```typescript
+import { calculatePercentChange } from '@/lib/calculations';
+
+// Расчет изменений на фронтенде для каждой строки
+const rowsWithChanges = data.rows.map(row => {
+  const changes = calculatePercentChange(row.value, row.previousValue, row.ytdValue);
+  return {
+    ...row,
+    ppChange: changes.ppPercent,
+    ppChangeAbsolute: changes.ppDiff,
+    ytdChange: changes.ytdPercent,
+    ytdChangeAbsolute: changes.ytdDiff,
+  };
+});
+```
+
+**Backend (SQL Builder):**
+```typescript
+// Запрос к mart.balance (строится из конфига)
 // Расчет метрик на backend
 // Возврат плоских строк с иерархией через поля (class, section, item, sub_item)
 ```
@@ -220,4 +261,4 @@ const percentage = calculatePercentage(currentValue, total);
 
 - [Схемы БД](/database/schemas) - детальное описание всех таблиц
 - [Миграции](/database/migrations) - работа с миграциями
-- [Backend архитектура](/architecture/backend) - использование Data Mart в сервисах
+- [Backend архитектура](/architecture/backend/) - использование Data Mart в сервисах

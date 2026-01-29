@@ -5,15 +5,17 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import { pool } from "../config/database.js";
-import { parseFile, validateFileStructure } from "../services/upload/fileParserService.js";
+import { parseFile, validateFileStructure, getRowValue } from "../services/upload/fileParserService.js";
 import {
   validateData,
   checkDuplicatePeriodsInODS,
   aggregateValidationErrors,
+  getFieldMapping,
 } from "../services/upload/validationService.js";
 import { saveUploadedFile } from "../services/upload/storageService.js";
 import {
   loadToSTG,
+  loadFinResultsToSTG,
   transformSTGToODS,
   transformODSToMART,
   updateUploadStatus,
@@ -22,6 +24,46 @@ import {
 import { rollbackUpload } from "../services/upload/rollbackService.js";
 import { checkFileExtension, getFileType } from "../utils/fileUtils.js";
 import { parseDate, formatDateForSQL } from "../utils/dateUtils.js";
+
+/**
+ * Декодирует имя файла из ISO-8859-1 (Latin-1) в UTF-8
+ * Исправляет mojibake, когда UTF-8 байты были интерпретированы как ISO-8859-1
+ * @param filename - имя файла, возможно с mojibake
+ * @returns декодированное имя файла в UTF-8
+ */
+function decodeFilename(filename: string): string {
+  // Проверяем, содержит ли имя файла типичные mojibake символы кириллицы
+  // (Ð, Ñ, Ðµ, Ð±, Ð° и т.д. - это UTF-8 байты кириллицы, интерпретированные как ISO-8859-1)
+  const mojibakePattern = /[ÐÑÐµÐ±Ð°Ð»Ð°Ð½ÑÐ´ÐµÐºÐ°Ð±Ñ]/;
+  
+  if (!mojibakePattern.test(filename)) {
+    // Если mojibake не обнаружен, возвращаем оригинальное имя
+    return filename;
+  }
+  
+  try {
+    // Создаём Buffer из строки, интерпретируя каждый символ как байт (0-255)
+    // Это работает, потому что mojibake символы - это UTF-8 байты, интерпретированные как Latin-1
+    const bytes: number[] = [];
+    for (let i = 0; i < filename.length; i++) {
+      const charCode = filename.charCodeAt(i);
+      // Если код символа > 255, это уже не mojibake, оставляем как есть
+      if (charCode > 255) {
+        // Если встретили не-mojibake символ, возможно строка уже правильная
+        return filename;
+      }
+      bytes.push(charCode);
+    }
+    
+    // Создаём Buffer из байтов и декодируем как UTF-8
+    const buffer = Buffer.from(bytes);
+    return buffer.toString('utf8');
+  } catch (error) {
+    // Если декодирование не удалось, возвращаем оригинальное имя
+    console.warn(`Failed to decode filename "${filename}":`, error);
+    return filename;
+  }
+}
 
 const router = Router();
 
@@ -190,7 +232,7 @@ router.post("/", (req: Request, res: Response, next: any) => {
     }
 
     // Проверяем поддерживаемую таблицу
-    const supportedTables = ["balance"];
+    const supportedTables = ["balance", "fin_results"];
     if (!supportedTables.includes(targetTable)) {
       return res.status(400).json({
         error: `Неподдерживаемая таблица: ${targetTable}. Поддерживаются: ${supportedTables.join(", ")}`,
@@ -198,7 +240,8 @@ router.post("/", (req: Request, res: Response, next: any) => {
     }
 
     const fileBuffer = req.file.buffer;
-    const originalFilename = req.file.originalname;
+    // Декодируем имя файла из ISO-8859-1 в UTF-8 (исправляем mojibake)
+    const originalFilename = decodeFilename(req.file.originalname);
     const fileType = getFileType(originalFilename);
 
     if (!fileType) {
@@ -229,6 +272,10 @@ router.post("/", (req: Request, res: Response, next: any) => {
 
       uploadId = uploadResult.rows[0].id;
 
+      if (!uploadId) {
+        throw new Error("Failed to create upload record");
+      }
+
       // 3. Парсим файл
       await updateUploadStatus(uploadId, "processing");
       console.log("Parsing file:", originalFilename);
@@ -255,9 +302,11 @@ router.post("/", (req: Request, res: Response, next: any) => {
       }
 
       // 4. Валидация структуры файла
-      const requiredHeaders = targetTable === "balance" 
-        ? ["month", "class", "amount"] 
-        : [];
+      // Получаем обязательные заголовки из mapping
+      const fieldMapping = await getFieldMapping(targetTable);
+      const requiredHeaders = fieldMapping
+        .filter((m) => m.isRequired)
+        .map((m) => m.sourceField);
       
       const structureValidation = validateFileStructure(parseResult.headers, requiredHeaders);
       if (!structureValidation.valid) {
@@ -301,56 +350,80 @@ router.post("/", (req: Request, res: Response, next: any) => {
       }
 
       // 6. Проверка дубликатов периодов в ODS (опционально - можно предупредить пользователя)
-      const periodDates = parseResult.rows
-        .map((row) => {
-          const dateValue = row.month;
-          const date = typeof dateValue === "string" ? parseDate(dateValue) : null;
-          return date;
-        })
-        .filter((d): d is Date => d !== null);
+      // Находим поле period_date в mapping
+      const periodDateField = fieldMapping.find((m) => m.targetField === "period_date");
+      const periodDates = periodDateField
+        ? parseResult.rows
+            .map((row) => {
+              const dateValue = getRowValue(row, periodDateField.sourceField);
+              const date = typeof dateValue === "string" ? parseDate(dateValue) : null;
+              return date;
+            })
+            .filter((d): d is Date => d !== null)
+        : [];
 
       const duplicatePeriods = await checkDuplicatePeriodsInODS(periodDates, targetTable);
       // Не блокируем загрузку, но можно вернуть предупреждение
 
-      // 7. Получаем маппинг полей
-      const mappingResult = await client.query(
-        `SELECT source_field, target_field, field_type
-         FROM dict.upload_mappings
-         WHERE target_table = $1
-         ORDER BY id`,
-        [targetTable]
-      );
-
-      const mapping = mappingResult.rows.map((row: any) => ({
-        sourceField: row.source_field,
-        targetField: row.target_field,
-        fieldType: row.field_type,
+      // 7. Используем уже полученный mapping для загрузки данных
+      const mapping = fieldMapping.map((m) => ({
+        sourceField: m.sourceField,
+        targetField: m.targetField,
+        fieldType: m.fieldType,
       }));
 
-      // 8. Загружаем данные: STG → ODS → MART
-      const rowsLoadedToSTG = await loadToSTG(uploadId, parseResult.rows, mapping);
-      const rowsLoadedToODS = await transformSTGToODS(uploadId);
-      const rowsLoadedToMART = await transformODSToMART(uploadId);
+      // 8. Загружаем данные в зависимости от целевой таблицы
+      let rowsLoadedToSTG: number;
+      let rowsLoadedToODS = 0;
+      let rowsLoadedToMART = 0;
 
-      // 9. Обновляем статус
-      await updateUploadStatus(
-        uploadId,
-        "completed",
-        parseResult.rows.length,
-        rowsLoadedToMART,
-        0
-      );
+      if (targetTable === "fin_results") {
+        // Financial Results: только STG (ODS/MART будут добавлены позже)
+        rowsLoadedToSTG = await loadFinResultsToSTG(uploadId, parseResult.rows, mapping);
+        
+        // 9. Обновляем статус
+        await updateUploadStatus(
+          uploadId,
+          "completed",
+          parseResult.rows.length,
+          rowsLoadedToSTG,
+          0
+        );
 
-      return res.json({
-        uploadId,
-        status: "completed",
-        rowsProcessed: parseResult.rows.length,
-        rowsSuccessful: rowsLoadedToMART,
-        rowsFailed: 0,
-        duplicatePeriodsWarning: duplicatePeriods.length > 0 
-          ? `Найдено ${duplicatePeriods.length} дубликатов периодов в ODS. Данные будут перезаписаны.`
-          : undefined,
-      });
+        return res.json({
+          uploadId,
+          status: "completed",
+          rowsProcessed: parseResult.rows.length,
+          rowsSuccessful: rowsLoadedToSTG,
+          rowsFailed: 0,
+          message: "Данные успешно загружены в STG",
+        });
+      } else {
+        // Balance: полный pipeline STG → ODS → MART
+        rowsLoadedToSTG = await loadToSTG(uploadId, parseResult.rows, mapping);
+        rowsLoadedToODS = await transformSTGToODS(uploadId);
+        rowsLoadedToMART = await transformODSToMART(uploadId);
+
+        // 9. Обновляем статус
+        await updateUploadStatus(
+          uploadId,
+          "completed",
+          parseResult.rows.length,
+          rowsLoadedToMART,
+          0
+        );
+
+        return res.json({
+          uploadId,
+          status: "completed",
+          rowsProcessed: parseResult.rows.length,
+          rowsSuccessful: rowsLoadedToMART,
+          rowsFailed: 0,
+          duplicatePeriodsWarning: duplicatePeriods.length > 0 
+            ? `Найдено ${duplicatePeriods.length} дубликатов периодов в ODS. Данные будут перезаписаны.`
+            : undefined,
+        });
+      }
     } catch (error: any) {
       console.error("Error processing upload:", error);
       
@@ -417,8 +490,8 @@ router.get("/", async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
       let query = `SELECT id, filename, original_filename, file_type, target_table, status,
-                          rows_processed, rows_successful, rows_failed, created_at, updated_at,
-                          rolled_back_at, rolled_back_by
+                          rows_processed, rows_successful, rows_failed, validation_errors,
+                          created_at, updated_at, rolled_back_at, rolled_back_by
                    FROM ing.uploads`;
       const conditions: string[] = [];
       const values: any[] = [];
@@ -456,6 +529,7 @@ router.get("/", async (req: Request, res: Response) => {
           rowsProcessed: row.rows_processed,
           rowsSuccessful: row.rows_successful,
           rowsFailed: row.rows_failed,
+          validationErrors: row.validation_errors,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
           rolledBackAt: row.rolled_back_at,

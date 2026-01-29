@@ -35,9 +35,9 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
 
     test("should return data for assets_table query with all parameters", async ({ request }) => {
       const parametrs = JSON.stringify({
-        p1: "2025-12-31",
-        p2: "2025-11-30",
-        p3: "2024-12-31",
+        p1: "2025-12-01",
+        p2: "2025-11-01",
+        p3: "2024-12-01",
       });
 
       const response = await request.get(
