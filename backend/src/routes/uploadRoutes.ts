@@ -18,12 +18,15 @@ import {
   loadFinResultsToSTG,
   transformSTGToODS,
   transformODSToMART,
+  transformFinResultsSTGToODS,
+  transformFinResultsODSToMART,
   updateUploadStatus,
   saveValidationErrors,
 } from "../services/upload/ingestionService.js";
 import { rollbackUpload } from "../services/upload/rollbackService.js";
 import { checkFileExtension, getFileType } from "../utils/fileUtils.js";
 import { parseDate, formatDateForSQL } from "../utils/dateUtils.js";
+import { progressService, UPLOAD_STAGES } from '../services/progress/index.js';
 
 /**
  * Декодирует имя файла из ISO-8859-1 (Latin-1) в UTF-8
@@ -81,6 +84,101 @@ const upload = multer({
       cb(new Error("Неподдерживаемый формат файла. Поддерживаются: CSV, XLSX"));
     }
   },
+});
+
+/**
+ * Helper для SSE write с принудительным flush
+ * Решает проблему буферизации в Node.js
+ */
+function sseWrite(res: Response, data: string): void {
+  res.write(data);
+  // Принудительно отправляем данные клиенту
+  try {
+    if (typeof (res as any).flush === 'function') {
+      (res as any).flush();
+    }
+  } catch {
+    // ignore flush errors
+  }
+}
+
+/**
+ * Тестовый SSE endpoint для диагностики
+ * GET /api/upload/test-sse
+ */
+router.get('/test-sse', (req: Request, res: Response) => {
+  console.log('[SSE-TEST] Client connecting');
+  
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  
+  let count = 0;
+  const interval = setInterval(() => {
+    count++;
+    const msg = `data: ${JSON.stringify({ type: 'tick', count, time: new Date().toISOString() })}\n\n`;
+    console.log('[SSE-TEST] Sending:', msg.trim());
+    sseWrite(res, msg);
+    
+    if (count >= 5) {
+      clearInterval(interval);
+      sseWrite(res, `data: ${JSON.stringify({ type: 'done' })}\n\n`);
+      res.end();
+    }
+  }, 1000);
+  
+  req.on('close', () => {
+    console.log('[SSE-TEST] Client disconnected');
+    clearInterval(interval);
+  });
+});
+
+/**
+ * SSE endpoint для отслеживания прогресса загрузки
+ * GET /api/upload/progress/:sessionId
+ */
+router.get('/progress/:sessionId', (req: Request, res: Response) => {
+  const { sessionId } = req.params;
+  console.log(`[SSE] Client connecting to session: ${sessionId}`);
+  
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('X-Accel-Buffering', 'no'); // Отключаем buffering в nginx
+  res.flushHeaders(); // Отправляем headers сразу
+  
+  // Отправить heartbeat сразу чтобы подтвердить соединение
+  sseWrite(res, `data: ${JSON.stringify({ type: 'connected', sessionId })}\n\n`);
+  
+  // Отправить текущий статус если session уже существует
+  const current = progressService.getProgress(sessionId);
+  if (current) {
+    console.log(`[SSE] Sending init for session: ${sessionId}`);
+    sseWrite(res, `data: ${JSON.stringify({ type: 'init', sessionId: current.id, stages: current.stages })}\n\n`);
+  }
+  
+  // Подписаться на обновления
+  const unsubscribe = progressService.subscribe(sessionId, (event) => {
+    console.log(`[SSE] Sending event to ${sessionId}:`, event.type);
+    sseWrite(res, `data: ${JSON.stringify(event)}\n\n`);
+  });
+  
+  // Heartbeat каждые 15 секунд чтобы соединение не закрылось
+  const heartbeat = setInterval(() => {
+    sseWrite(res, `: heartbeat\n\n`);
+  }, 15000);
+  
+  // При закрытии соединения - отписаться
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+    console.log(`[SSE] Client disconnected from session: ${sessionId}`);
+  });
 });
 
 /**
@@ -219,12 +317,13 @@ router.post("/", (req: Request, res: Response, next: any) => {
       return res.status(400).json({ error: "Файл пустой" });
     }
 
-    const { targetTable, sheetName } = req.body;
+    const { targetTable, sheetName, sessionId: clientSessionId } = req.body;
     console.log("Upload request:", { 
       filename: req.file.originalname, 
       size: req.file.size, 
       targetTable,
-      sheetName 
+      sheetName,
+      clientSessionId
     });
 
     if (!targetTable) {
@@ -276,6 +375,14 @@ router.post("/", (req: Request, res: Response, next: any) => {
         throw new Error("Failed to create upload record");
       }
 
+      // Инициализируем отслеживание прогресса
+      // Используем sessionId от клиента если передан, иначе fallback на uploadId
+      const sessionId = clientSessionId || uploadId.toString();
+      progressService.createSession(sessionId, 'upload', UPLOAD_STAGES);
+      progressService.startStage(sessionId, 'file_received');
+      progressService.completeStage(sessionId, 'file_received');
+      progressService.startStage(sessionId, 'file_parsed');
+
       // 3. Парсим файл
       await updateUploadStatus(uploadId, "processing");
       console.log("Parsing file:", originalFilename);
@@ -288,6 +395,7 @@ router.post("/", (req: Request, res: Response, next: any) => {
         });
       } catch (parseError: any) {
         console.error("Parse error:", parseError);
+        progressService.failStage(sessionId, 'file_parsed', parseError.message || "Ошибка парсинга файла");
         await saveValidationErrors(uploadId, aggregateValidationErrors([{
           fieldName: "file_parsing",
           errorType: "parse_error",
@@ -301,6 +409,10 @@ router.post("/", (req: Request, res: Response, next: any) => {
         });
       }
 
+      // Парсинг успешен
+      progressService.completeStage(sessionId, 'file_parsed', { rowsProcessed: parseResult.rows.length });
+      progressService.startStage(sessionId, 'validation_passed');
+
       // 4. Валидация структуры файла
       // Получаем обязательные заголовки из mapping
       const fieldMapping = await getFieldMapping(targetTable);
@@ -310,11 +422,14 @@ router.post("/", (req: Request, res: Response, next: any) => {
       
       const structureValidation = validateFileStructure(parseResult.headers, requiredHeaders);
       if (!structureValidation.valid) {
+        const errorMsg = `Отсутствуют обязательные заголовки: ${structureValidation.missing.join(", ")}`;
+        progressService.failStage(sessionId, 'validation_passed', errorMsg);
+        
         const errors = aggregateValidationErrors([
           {
             fieldName: "file_structure",
             errorType: "missing_headers",
-            errorMessage: `Отсутствуют обязательные заголовки: ${structureValidation.missing.join(", ")}`,
+            errorMessage: errorMsg,
           },
         ]);
 
@@ -332,6 +447,8 @@ router.post("/", (req: Request, res: Response, next: any) => {
       const validationResult = await validateData(parseResult.rows, targetTable);
 
       if (!validationResult.valid) {
+        progressService.failStage(sessionId, 'validation_passed', `Найдено ${validationResult.errorCount} ошибок валидации`);
+        
         const aggregatedErrors = aggregateValidationErrors(validationResult.errors);
         await saveValidationErrors(uploadId, aggregatedErrors);
         await updateUploadStatus(
@@ -365,6 +482,10 @@ router.post("/", (req: Request, res: Response, next: any) => {
       const duplicatePeriods = await checkDuplicatePeriodsInODS(periodDates, targetTable);
       // Не блокируем загрузку, но можно вернуть предупреждение
 
+      // Валидация успешна
+      progressService.completeStage(sessionId, 'validation_passed');
+      progressService.startStage(sessionId, 'loaded_to_stg');
+
       // 7. Используем уже полученный mapping для загрузки данных
       const mapping = fieldMapping.map((m) => ({
         sourceField: m.sourceField,
@@ -378,15 +499,25 @@ router.post("/", (req: Request, res: Response, next: any) => {
       let rowsLoadedToMART = 0;
 
       if (targetTable === "fin_results") {
-        // Financial Results: только STG (ODS/MART будут добавлены позже)
+        // Financial Results: полный pipeline STG → ODS → MART
         rowsLoadedToSTG = await loadFinResultsToSTG(uploadId, parseResult.rows, mapping);
+        progressService.completeStage(sessionId, 'loaded_to_stg', { rowsProcessed: rowsLoadedToSTG });
+        progressService.startStage(sessionId, 'loaded_to_ods');
+        
+        rowsLoadedToODS = await transformFinResultsSTGToODS(uploadId);
+        progressService.completeStage(sessionId, 'loaded_to_ods', { rowsProcessed: rowsLoadedToODS });
+        progressService.startStage(sessionId, 'loaded_to_mart');
+        
+        rowsLoadedToMART = await transformFinResultsODSToMART(uploadId);
+        progressService.completeStage(sessionId, 'loaded_to_mart', { rowsProcessed: rowsLoadedToMART });
+        progressService.completeSession(sessionId);
         
         // 9. Обновляем статус
         await updateUploadStatus(
           uploadId,
           "completed",
           parseResult.rows.length,
-          rowsLoadedToSTG,
+          rowsLoadedToMART,
           0
         );
 
@@ -394,15 +525,23 @@ router.post("/", (req: Request, res: Response, next: any) => {
           uploadId,
           status: "completed",
           rowsProcessed: parseResult.rows.length,
-          rowsSuccessful: rowsLoadedToSTG,
+          rowsSuccessful: rowsLoadedToMART,
           rowsFailed: 0,
-          message: "Данные успешно загружены в STG",
+          message: "Данные успешно загружены (STG → ODS → MART)",
         });
       } else {
         // Balance: полный pipeline STG → ODS → MART
         rowsLoadedToSTG = await loadToSTG(uploadId, parseResult.rows, mapping);
+        progressService.completeStage(sessionId, 'loaded_to_stg', { rowsProcessed: rowsLoadedToSTG });
+        progressService.startStage(sessionId, 'loaded_to_ods');
+        
         rowsLoadedToODS = await transformSTGToODS(uploadId);
+        progressService.completeStage(sessionId, 'loaded_to_ods', { rowsProcessed: rowsLoadedToODS });
+        progressService.startStage(sessionId, 'loaded_to_mart');
+        
         rowsLoadedToMART = await transformODSToMART(uploadId);
+        progressService.completeStage(sessionId, 'loaded_to_mart', { rowsProcessed: rowsLoadedToMART });
+        progressService.completeSession(sessionId);
 
         // 9. Обновляем статус
         await updateUploadStatus(
@@ -427,6 +566,17 @@ router.post("/", (req: Request, res: Response, next: any) => {
     } catch (error: any) {
       console.error("Error processing upload:", error);
       
+      // Отмечаем ошибку в прогрессе
+      const errorSessionId = clientSessionId || (uploadId ? uploadId.toString() : null);
+      if (errorSessionId) {
+        const session = progressService.getProgress(errorSessionId);
+        if (session) {
+          const currentStage = session.stages.find(s => s.status === 'in_progress');
+          if (currentStage) {
+            progressService.failStage(errorSessionId, currentStage.code, error.message || "Ошибка обработки загрузки");
+          }
+        }
+      }
       if (uploadId) {
         await updateUploadStatus(uploadId, "failed");
       }

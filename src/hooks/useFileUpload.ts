@@ -12,6 +12,11 @@ import {
   type UploadHistoryResponse,
 } from "@/lib/api";
 
+// Генерация уникального sessionId
+export function generateSessionId(): string {
+  return `upload_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
 interface UseFileUploadOptions {
   targetTable?: string;
   onSuccess?: (response: UploadResponse) => void;
@@ -30,13 +35,16 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
       file,
       targetTable,
       sheetName,
+      sessionId,
     }: {
       file: File;
       targetTable: string;
       sheetName?: string;
+      sessionId?: string;
     }) => {
       setUploadProgress(0);
-      const response = await uploadFile(file, targetTable, sheetName);
+      // Передаём sessionId на backend
+      const response = await uploadFile(file, targetTable, sheetName, sessionId);
       setUploadProgress(100);
       return response;
     },
@@ -52,9 +60,9 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
   });
 
   const upload = useCallback(
-    async (file: File, sheetName?: string) => {
+    async (file: File, sheetName?: string, sessionId?: string) => {
       const targetTable = options.targetTable || "balance";
-      return uploadMutation.mutateAsync({ file, targetTable, sheetName });
+      return uploadMutation.mutateAsync({ file, targetTable, sheetName, sessionId });
     },
     [uploadMutation, options.targetTable]
   );

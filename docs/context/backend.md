@@ -1,6 +1,6 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-01-29 (добавлена загрузка fin_results)  
+> **Последнее обновление**: 2026-01-30 (добавлен pipeline fin_results STG→ODS→MART)  
 > **Обновляет**: Backend Agent после каждого изменения
 
 ## Текущая архитектура
@@ -59,7 +59,7 @@ backend/src/
 | Period Service | `services/mart/base/periodService.ts` | Работа с периодами |
 | Upload | `routes/uploadRoutes.ts` | Загрузка файлов (balance, fin_results) |
 | Validation | `services/upload/validationService.ts` | Валидация данных |
-| Ingestion | `services/upload/ingestionService.ts` | Загрузка в STG (`loadToSTG`, `loadFinResultsToSTG`) |
+| Ingestion | `services/upload/ingestionService.ts` | Загрузка в STG и трансформации (`loadToSTG`, `loadFinResultsToSTG`, `transformFinResultsSTGToODS`, `transformFinResultsODSToMART`) |
 
 ## API Endpoints
 
@@ -149,12 +149,11 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ SQL Builder с поддержкой JSON-конфигов
 - ✅ Универсальный getData API
 - ✅ Загрузка Balance (XLSX с Excel-датами) — STG → ODS → MART
-- ✅ Загрузка Financial Results в STG (`stg.fin_results_upload`)
+- ✅ Загрузка Financial Results — полный pipeline STG → ODS → MART с soft-delete
 - ✅ Unit-тесты (108 тестов, все проходят)
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)
-- 🔄 Financial Results: ODS/MART трансформация (следующий этап)
 
 ### Известные проблемы:
 - ⚠️ periodService генерирует даты от текущей даты, а не из БД (задача J.1)

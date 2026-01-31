@@ -1,7 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, request } from "@playwright/test";
 import { join } from "path";
+import * as fs from "fs";
 
 const TEST_DATA_DIR = join(process.cwd(), "test-data", "uploads");
+const API_BASE_URL = "http://localhost:3001/api";
 
 test.describe("File Upload E2E Tests", () => {
   test.beforeEach(async ({ page }) => {
@@ -311,5 +313,54 @@ test.describe("File Upload E2E Tests", () => {
     // Check target shows Финрез
     targetInfo = page.locator('text=/Загрузка в:.*Финрез/');
     await expect(targetInfo).toBeVisible();
+  });
+});
+
+test.describe("Financial Results Pipeline API Tests", () => {
+  test("should load fin_results data through STG → ODS → MART pipeline", async ({ request }) => {
+    // Upload fin_results file via API
+    const testFile = join(TEST_DATA_DIR, "fin_results_2025-01.csv");
+    const fileBuffer = fs.readFileSync(testFile);
+    
+    const formData = new FormData();
+    formData.append("file", new Blob([fileBuffer], { type: "text/csv" }), "fin_results_2025-01.csv");
+    formData.append("targetTable", "fin_results");
+    formData.append("periodDate", "2025-01-31");
+    
+    const response = await request.post(`${API_BASE_URL}/upload`, {
+      multipart: {
+        file: {
+          name: "fin_results_2025-01.csv",
+          mimeType: "text/csv",
+          buffer: fileBuffer,
+        },
+        targetTable: "fin_results",
+        periodDate: "2025-01-31",
+      },
+    });
+    
+    expect(response.ok()).toBeTruthy();
+    
+    const result = await response.json();
+    expect(result.status).toBe("completed");
+    expect(result.rowsProcessed).toBeGreaterThan(0);
+    expect(result.rowsFailed).toBe(0);
+    expect(result.message).toContain("STG → ODS → MART");
+  });
+
+  test("should return upload history including fin_results uploads", async ({ request }) => {
+    const response = await request.get(`${API_BASE_URL}/upload?limit=10`);
+    
+    expect(response.ok()).toBeTruthy();
+    
+    const result = await response.json();
+    expect(result.uploads).toBeDefined();
+    expect(Array.isArray(result.uploads)).toBeTruthy();
+    
+    // Check that there's at least one fin_results upload
+    const finResultsUploads = result.uploads.filter(
+      (u: any) => u.targetTable === "fin_results"
+    );
+    expect(finResultsUploads.length).toBeGreaterThan(0);
   });
 });

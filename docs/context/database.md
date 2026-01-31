@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-01-29 (добавлена stg.fin_results_upload)  
+> **Последнее обновление**: 2026-01-30 (добавлены ods.fin_results, mart.fin_results)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -38,12 +38,14 @@
 | Таблица | Назначение |
 |---------|------------|
 | `balance` | Данные Balance с аудит-полями |
+| `fin_results` | Данные Financial Results с аудит-полями |
 
 ### mart — Data Mart
 
 | Таблица | Назначение |
 |---------|------------|
 | `balance` | Финальные данные для дашборда |
+| `fin_results` | Финальные данные Financial Results для дашборда |
 
 ### ing — Ingestion
 
@@ -73,6 +75,7 @@
 | `header_dates` | Даты для Header |
 | `assets_table` | Таблица активов |
 | `liabilities_table` | Таблица пассивов |
+| `fin_results_table` | Таблица финансовых результатов |
 
 ## Миграции
 

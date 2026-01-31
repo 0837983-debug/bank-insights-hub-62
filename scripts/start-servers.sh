@@ -124,7 +124,7 @@ check_port() {
 
 # Функция для проверки health endpoint backend
 check_backend_health() {
-    local max_attempts=6
+    local max_attempts=15
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do

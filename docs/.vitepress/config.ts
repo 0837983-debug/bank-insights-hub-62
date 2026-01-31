@@ -25,7 +25,12 @@ function getMarkdownFiles(dir: string, basePath: string): Array<{ text: string; 
   }
 }
 
-// Функция для автоматического обнаружения всех подпапок в plans/ и создания структуры навигации
+// Порядок подпапок в plans/: сначала текущие и отчёты, archive — в конце
+const PLANS_SUBDIRS_ORDER = ['current', 'reports', 'templates', 'archive'] as const
+// Папка archive по умолчанию свёрнута
+const PLANS_SUBDIR_COLLAPSED: Record<string, boolean> = { archive: true }
+
+// Функция для автоматического обнаружения подпапок в plans/ и создания структуры навигации
 function getPlansSidebar() {
   const plansDir = join(__dirname, '../plans')
   const items: any[] = [
@@ -34,28 +39,21 @@ function getPlansSidebar() {
     { text: 'Статус', link: '/plans/STATUS' }
   ]
 
-  try {
-    const entries = readdirSync(plansDir, { withFileTypes: true })
-    const subdirs = entries
-      .filter(entry => entry.isDirectory())
-      .sort((a, b) => a.name.localeCompare(b.name))
-
-    for (const subdir of subdirs) {
-      const subdirPath = join(plansDir, subdir.name)
-      const files = getMarkdownFiles(subdirPath, `/plans/${subdir.name}`)
-      
+  for (const subdirName of PLANS_SUBDIRS_ORDER) {
+    const subdirPath = join(plansDir, subdirName)
+    try {
+      const files = getMarkdownFiles(subdirPath, `/plans/${subdirName}`)
       if (files.length > 0) {
-        // Преобразуем имя папки в читаемый формат
-        const displayName = subdir.name.replace(/_/g, ' ')
+        const displayName = subdirName.replace(/_/g, ' ')
         items.push({
           text: displayName,
-          collapsed: false,
+          collapsed: PLANS_SUBDIR_COLLAPSED[subdirName] ?? false,
           items: files
         })
       }
+    } catch {
+      // Папка не существует или недоступна (например, в .gitignore) — пропускаем
     }
-  } catch (error) {
-    console.warn(`Не удалось прочитать директорию plans:`, error)
   }
 
   return items

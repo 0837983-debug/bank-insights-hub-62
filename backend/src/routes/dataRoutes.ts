@@ -160,9 +160,10 @@ router.get("/", async (req: Request, res: Response) => {
       try {
         const result = await client.query(sql);
         
-        // При wrapJson=true результат должен быть массивом с одним элементом и jsonb_agg
-        if (result.rows.length === 1 && result.rows[0].jsonb_agg) {
-          const data = result.rows[0].jsonb_agg;
+        // При wrapJson=true результат должен быть массивом с одним элементом
+        if (result.rows.length === 1) {
+          // jsonb_agg возвращает null когда нет совпадающих данных
+          const data = result.rows[0].jsonb_agg ?? [];
           
           // Парсим параметры для получения periodDate
           const params = JSON.parse(paramsJson);
@@ -178,7 +179,7 @@ router.get("/", async (req: Request, res: Response) => {
         // Если структура неожиданная, возвращаем ошибку
         return res.status(500).json({ 
           error: "Unexpected result format",
-          details: "Expected jsonb_agg result with wrapJson=true"
+          details: "Expected single row with jsonb_agg result"
         });
       } catch (error: any) {
         console.error(`[getData] SQL execution error:`, error);
@@ -217,13 +218,14 @@ router.get("/", async (req: Request, res: Response) => {
       try {
         const result = await client.query(sql);
         
-        // При wrapJson=true результат должен быть массивом с одним элементом и jsonb_agg
-        if (result.rows.length === 1 && result.rows[0].jsonb_agg) {
-          const data = result.rows[0].jsonb_agg;
+        // При wrapJson=true результат должен быть массивом с одним элементом
+        if (result.rows.length === 1) {
+          // jsonb_agg возвращает null когда нет совпадающих данных
+          const data = result.rows[0].jsonb_agg ?? [];
           
           // Для layout view теперь возвращает отдельные строки для каждого section_id
           // jsonb_agg собирает их в массив объектов с полем section
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             // Извлекаем section из каждого элемента массива
             const sections = data
               .map((row: any) => row.section)
@@ -276,9 +278,10 @@ router.get("/", async (req: Request, res: Response) => {
     try {
       const result = await client.query(sql);
       
-      // При wrapJson=true результат должен быть массивом с одним элементом и jsonb_agg
-      if (result.rows.length === 1 && result.rows[0].jsonb_agg) {
-        const data = result.rows[0].jsonb_agg;
+      // При wrapJson=true результат должен быть массивом с одним элементом
+      if (result.rows.length === 1) {
+        // jsonb_agg возвращает null когда нет совпадающих данных
+        const data = result.rows[0].jsonb_agg ?? [];
         
         // Трансформируем данные для таблиц
         const transformedData = transformTableData(data);
@@ -294,7 +297,7 @@ router.get("/", async (req: Request, res: Response) => {
       // Если структура неожиданная, возвращаем ошибку
       return res.status(500).json({ 
         error: "Unexpected result format",
-        details: "Expected jsonb_agg result with wrapJson=true"
+        details: "Expected single row with jsonb_agg result"
       });
     } catch (error: any) {
       console.error(`[getData] SQL execution error:`, error);

@@ -406,6 +406,121 @@ export async function loadFinResultsToSTG(
 }
 
 /**
+ * Трансформация данных Financial Results из STG в ODS
+ * Реализует soft-delete по бизнес-ключу и периоду
+ * @param uploadId - ID загрузки
+ * @returns количество обработанных строк
+ */
+export async function transformFinResultsSTGToODS(uploadId: number): Promise<number> {
+  const client = await pool.connect();
+  try {
+    // 1. Soft-delete старых записей в ODS по бизнес-ключу из STG
+    // Помечаем удалёнными все записи, которые совпадают по бизнес-ключу с загружаемыми
+    await client.query(
+      `UPDATE ods.fin_results ods
+       SET deleted_at = NOW(), deleted_by = 'system'
+       FROM stg.fin_results_upload stg
+       WHERE stg.upload_id = $1
+         AND ods.deleted_at IS NULL
+         AND ods.period_date = stg.period_date
+         AND ods.class = stg.class
+         AND ods.category = stg.category
+         AND COALESCE(ods.item, '') = COALESCE(stg.item, '')
+         AND COALESCE(ods.subitem, '') = COALESCE(stg.subitem, '')
+         AND COALESCE(ods.client_type, '') = COALESCE(stg.client_type, '')
+         AND COALESCE(ods.currency_code, '') = COALESCE(stg.currency_code, '')
+         AND COALESCE(ods.data_source, '') = COALESCE(stg.data_source, '')`,
+      [uploadId]
+    );
+
+    // 2. INSERT новых записей из STG в ODS
+    const insertResult = await client.query(
+      `INSERT INTO ods.fin_results (
+        class, category, item, subitem, details,
+        client_type, currency_code, data_source,
+        value, period_date, upload_id, created_by
+      )
+      SELECT 
+        class, category, item, subitem, details,
+        client_type, currency_code, data_source,
+        value, period_date, upload_id, 'system'
+      FROM stg.fin_results_upload
+      WHERE upload_id = $1
+      RETURNING id`,
+      [uploadId]
+    );
+
+    return insertResult.rowCount || 0;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Трансформация данных Financial Results из ODS в MART
+ * @param uploadId - ID загрузки
+ * @returns количество обработанных строк
+ */
+export async function transformFinResultsODSToMART(uploadId: number): Promise<number> {
+  const client = await pool.connect();
+  try {
+    // 1. Получить уникальные периоды из ODS для этой загрузки (только активные записи)
+    const periodsResult = await client.query(
+      `SELECT DISTINCT period_date
+       FROM ods.fin_results
+       WHERE deleted_at IS NULL AND upload_id = $1`,
+      [uploadId]
+    );
+
+    const periodDates = periodsResult.rows.map(r => r.period_date);
+
+    if (periodDates.length === 0) {
+      return 0;
+    }
+
+    // 2. DELETE из MART по периодам
+    await client.query(
+      `DELETE FROM mart.fin_results WHERE period_date = ANY($1)`,
+      [periodDates]
+    );
+
+    // 3. INSERT из ODS в MART с агрегацией по бизнес-ключу (SUM для дубликатов)
+    const insertResult = await client.query(
+      `INSERT INTO mart.fin_results (
+        class, category, item, subitem, details,
+        client_type, currency_code, data_source,
+        value, period_date, row_code, table_component_id
+      )
+      SELECT 
+        class, category, item, subitem, 
+        MAX(details) as details,
+        client_type, currency_code, data_source,
+        SUM(value) as value, 
+        period_date,
+        CONCAT(class, '|', category, '|', COALESCE(item, ''), '|', COALESCE(subitem, '')),
+        'fin_results_table'
+      FROM ods.fin_results
+      WHERE deleted_at IS NULL AND upload_id = $1
+      GROUP BY class, category, item, subitem, client_type, currency_code, data_source, period_date
+      ON CONFLICT (
+        period_date, class, category,
+        COALESCE(item, ''), COALESCE(subitem, ''),
+        COALESCE(client_type, ''), COALESCE(currency_code, ''), COALESCE(data_source, '')
+      ) DO UPDATE SET
+        value = EXCLUDED.value,
+        details = EXCLUDED.details,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING id`,
+      [uploadId]
+    );
+
+    return insertResult.rowCount || 0;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Сохранение ошибок валидации в ing.uploads
  * @param uploadId - ID загрузки
  * @param validationErrors - агрегированные ошибки валидации

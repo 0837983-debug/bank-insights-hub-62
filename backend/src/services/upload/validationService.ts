@@ -358,44 +358,63 @@ export async function checkDuplicatePeriodsInODS(
 }
 
 /**
- * Агрегация ошибок валидации (1-2 примера + общее количество)
+ * Агрегация ошибок валидации (до 3 примеров + детали по строкам)
  * @param errors - массив ошибок
- * @returns агрегированный объект с ошибками
+ * @returns агрегированный объект с ошибками, включая номера строк и примеры значений
  */
 export function aggregateValidationErrors(errors: ValidationError[]): {
   examples: Array<{
     type: string;
     message: string;
     field?: string;
+    rowNumbers: number[];     // Первые 5 строк с этой ошибкой
+    sampleValue?: string;     // Пример значения
+    totalAffected: number;    // Всего ошибок этого типа
   }>;
   totalCount: number;
   byType: Record<string, number>;
 } {
   const byType: Record<string, number> = {};
+  const rowsByType: Record<string, number[]> = {};
+  const sampleByType: Record<string, { message: string; field?: string; value?: string }> = {};
   
   for (const error of errors) {
-    byType[error.errorType] = (byType[error.errorType] || 0) + 1;
-  }
-
-  // Берем первые 2 примера разных типов ошибок
-  const examples: Array<{ type: string; message: string; field?: string }> = [];
-  const seenTypes = new Set<string>();
-
-  for (const error of errors) {
-    if (examples.length >= 2) break;
-    if (!seenTypes.has(error.errorType)) {
-      seenTypes.add(error.errorType);
-      examples.push({
-        type: error.errorType,
+    const key = error.errorType;
+    byType[key] = (byType[key] || 0) + 1;
+    
+    if (!rowsByType[key]) {
+      rowsByType[key] = [];
+      // Корректное преобразование значения в строку
+      let valueStr: string | undefined;
+      if (error.fieldValue != null) {
+        if (typeof error.fieldValue === 'object') {
+          valueStr = JSON.stringify(error.fieldValue);
+        } else {
+          valueStr = String(error.fieldValue);
+        }
+      }
+      sampleByType[key] = {
         message: error.errorMessage,
         field: error.fieldName,
-      });
+        value: valueStr
+      };
+    }
+    
+    // Собираем первые 5 строк
+    if (rowsByType[key].length < 5 && error.rowNumber != null) {
+      rowsByType[key].push(error.rowNumber);
     }
   }
 
-  return {
-    examples,
-    totalCount: errors.length,
-    byType,
-  };
+  // Берем первые 3 типа ошибок для examples
+  const examples = Object.entries(byType).slice(0, 3).map(([type, count]) => ({
+    type,
+    message: sampleByType[type].message,
+    field: sampleByType[type].field,
+    rowNumbers: rowsByType[type] || [],
+    sampleValue: sampleByType[type].value,
+    totalAffected: count
+  }));
+
+  return { examples, totalCount: errors.length, byType };
 }

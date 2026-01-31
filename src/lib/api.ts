@@ -396,8 +396,11 @@ export interface AggregatedValidationError {
   fieldName?: string;
   errorType: string;
   errorMessage: string;
-  exampleMessages?: string[];
-  totalCount: number;
+  exampleMessages?: string[];  // для обратной совместимости
+  rowNumbers?: number[];       // Новое: первые 5 строк с ошибкой
+  sampleValue?: string;        // Новое: пример значения
+  totalAffected?: number;      // Новое: всего ошибок этого типа
+  totalCount: number;          // Оставляем для совместимости
 }
 
 export interface UploadStatus {
@@ -438,7 +441,8 @@ export interface UploadHistoryResponse {
 export async function uploadFile(
   file: File,
   targetTable: string,
-  sheetName?: string
+  sheetName?: string,
+  sessionId?: string
 ): Promise<UploadResponse> {
   // Проверка размера файла
   if (file.size === 0) {
@@ -452,6 +456,7 @@ export async function uploadFile(
     type: file.type,
     targetTable,
     sheetName,
+    sessionId,
   });
 
   const formData = new FormData();
@@ -462,6 +467,10 @@ export async function uploadFile(
   formData.append("originalFilename", file.name);
   if (sheetName) {
     formData.append("sheetName", sheetName);
+  }
+  // Передаём sessionId для отслеживания прогресса через SSE
+  if (sessionId) {
+    formData.append("sessionId", sessionId);
   }
 
   const url = `${API_BASE_URL}/upload`;
