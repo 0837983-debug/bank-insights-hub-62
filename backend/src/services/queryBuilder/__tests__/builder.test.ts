@@ -554,11 +554,11 @@ describe("SQL Builder v1", () => {
 
       expect(sql).toContain("SELECT");
       expect(sql).toContain("FROM \"mart\".\"balance\"");
-      expect(sql).not.toContain("jsonb_agg");
+      expect(sql).not.toContain("json_agg");
       expect(sql).not.toContain("row_to_json");
     });
 
-    it("должен оборачивать SQL в jsonb_agg при wrapJson=true", () => {
+    it("должен оборачивать SQL в json_agg при wrapJson=true", () => {
       const config: QueryConfig = {
         from: {
           schema: "mart",
@@ -580,8 +580,8 @@ describe("SQL Builder v1", () => {
       const params = { class: "assets" };
       const sql = buildQuery(config, params, true);
 
-      // Проверка оборачивания в jsonb_agg
-      expect(sql).toContain("jsonb_agg");
+      // Проверка оборачивания в json_agg
+      expect(sql).toContain("json_agg");
       expect(sql).toContain("row_to_json");
       expect(sql).toContain("FROM (");
       expect(sql).toContain(") t");
@@ -620,7 +620,7 @@ describe("SQL Builder v1", () => {
       const params = { class: "assets" };
       const sql = buildQuery(config, params, true);
 
-      expect(sql).toContain("jsonb_agg");
+      expect(sql).toContain("json_agg");
       expect(sql).toContain("row_to_json");
       expect(sql).toContain("GROUP BY");
       expect(sql).toContain("ORDER BY");
@@ -640,7 +640,7 @@ describe("SQL Builder v1", () => {
       ).rejects.toThrow("wrap_json=false");
     });
 
-    it("должен создавать валидный SQL с jsonb_agg для исполнения", () => {
+    it("должен создавать валидный SQL с json_agg для исполнения", () => {
       const config: QueryConfig = {
         from: {
           schema: "mart",
@@ -655,8 +655,8 @@ describe("SQL Builder v1", () => {
 
       const sql = buildQuery(config, {}, true);
 
-      // Проверка структуры SQL с jsonb_agg
-      expect(sql).toMatch(/^SELECT jsonb_agg\(row_to_json\(t\)\) FROM \(/);
+      // Проверка структуры SQL с json_agg
+      expect(sql).toMatch(/^SELECT json_agg\(row_to_json\(t\)\) FROM \(/);
       expect(sql).toMatch(/\) t$/);
       
       // Проверка, что внутренний SELECT корректен
@@ -692,12 +692,12 @@ describe("SQL Builder v1", () => {
       const sql = buildQuery(config, params, true);
 
       // SQL должен быть валидным даже для пустого результата
-      expect(sql).toContain("jsonb_agg");
+      expect(sql).toContain("json_agg");
       expect(sql).toContain("row_to_json");
       expect(sql).toContain("'non_existent'");
       
       // Структура должна быть корректной
-      expect(sql).toMatch(/SELECT jsonb_agg\(row_to_json\(t\)\) FROM \(/);
+      expect(sql).toMatch(/SELECT json_agg\(row_to_json\(t\)\) FROM \(/);
     });
   });
 });

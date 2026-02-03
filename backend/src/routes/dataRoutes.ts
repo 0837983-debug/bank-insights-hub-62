@@ -11,46 +11,9 @@
 import { Router, Request, Response } from "express";
 import { buildQueryFromId } from "../services/queryBuilder/builder.js";
 import { pool } from "../config/database.js";
-import { getSortOrder } from "../services/mart/base/rowNameMapper.js";
 import { getPeriodDates, formatDateForSQL } from "../services/mart/base/periodService.js";
 
 const router = Router();
-
-/**
- * Трансформация данных таблицы: добавление id и sortOrder, если их нет
- */
-function transformTableData(rows: any[]): any[] {
-  return rows.map(row => {
-    // Если id уже есть, используем его, иначе формируем
-    if (!row.id) {
-      const idParts = [
-        row.class,
-        row.section,
-        row.item,
-        row.sub_item
-      ].filter(Boolean);
-      row.id = idParts.join('-') || 'unknown';
-    }
-    
-    // Если sortOrder нет, добавляем его
-    if (row.sortOrder === undefined || row.sortOrder === null) {
-      row.sortOrder = getSortOrder(row.id);
-    }
-    
-    // Преобразуем строки в числа для value, previousValue, ytdValue
-    if (typeof row.value === 'string') {
-      row.value = parseFloat(row.value) || 0;
-    }
-    if (typeof row.previousValue === 'string') {
-      row.previousValue = parseFloat(row.previousValue) || 0;
-    }
-    if (typeof row.ytdValue === 'string') {
-      row.ytdValue = parseFloat(row.ytdValue) || 0;
-    }
-    
-    return row;
-  });
-}
 
 /**
  * Трансформация данных KPI: форматирование сырых значений
@@ -162,8 +125,8 @@ router.get("/", async (req: Request, res: Response) => {
         
         // При wrapJson=true результат должен быть массивом с одним элементом
         if (result.rows.length === 1) {
-          // jsonb_agg возвращает null когда нет совпадающих данных
-          const data = result.rows[0].jsonb_agg ?? [];
+          // json_agg возвращает null когда нет совпадающих данных
+          const data = result.rows[0].json_agg ?? [];
           
           // Парсим параметры для получения periodDate
           const params = JSON.parse(paramsJson);
@@ -179,7 +142,7 @@ router.get("/", async (req: Request, res: Response) => {
         // Если структура неожиданная, возвращаем ошибку
         return res.status(500).json({ 
           error: "Unexpected result format",
-          details: "Expected single row with jsonb_agg result"
+          details: "Expected single row with json_agg result"
         });
       } catch (error: any) {
         console.error(`[getData] SQL execution error:`, error);
@@ -220,11 +183,11 @@ router.get("/", async (req: Request, res: Response) => {
         
         // При wrapJson=true результат должен быть массивом с одним элементом
         if (result.rows.length === 1) {
-          // jsonb_agg возвращает null когда нет совпадающих данных
-          const data = result.rows[0].jsonb_agg ?? [];
+          // json_agg возвращает null когда нет совпадающих данных
+          const data = result.rows[0].json_agg ?? [];
           
           // Для layout view теперь возвращает отдельные строки для каждого section_id
-          // jsonb_agg собирает их в массив объектов с полем section
+          // json_agg собирает их в массив объектов с полем section
           if (Array.isArray(data)) {
             // Извлекаем section из каждого элемента массива
             const sections = data
@@ -280,24 +243,21 @@ router.get("/", async (req: Request, res: Response) => {
       
       // При wrapJson=true результат должен быть массивом с одним элементом
       if (result.rows.length === 1) {
-        // jsonb_agg возвращает null когда нет совпадающих данных
-        const data = result.rows[0].jsonb_agg ?? [];
+        // json_agg возвращает null когда нет совпадающих данных
+        const data = result.rows[0].json_agg ?? [];
         
-        // Трансформируем данные для таблиц
-        const transformedData = transformTableData(data);
-        
-        // Возвращаем в формате { componentId, type, rows }
+        // Возвращаем данные напрямую (трансформация происходит на фронтенде)
         return res.json({
           componentId: component_Id,
           type: "table",
-          rows: transformedData,
+          rows: data,
         });
       }
 
       // Если структура неожиданная, возвращаем ошибку
       return res.status(500).json({ 
         error: "Unexpected result format",
-        details: "Expected single row with jsonb_agg result"
+        details: "Expected single row with json_agg result"
       });
     } catch (error: any) {
       console.error(`[getData] SQL execution error:`, error);

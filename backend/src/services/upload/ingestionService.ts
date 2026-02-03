@@ -8,7 +8,13 @@ import type { ParsedRow } from "./fileParserService.js";
 import { getRowValue } from "./fileParserService.js";
 
 /**
- * Загрузка данных в STG
+ * Batch size для unnest INSERT (PostgreSQL лимит ~32767 параметров)
+ * При 7 колонках: 32767 / 7 ≈ 4680, используем 1000 для безопасности
+ */
+const BATCH_SIZE = 1000;
+
+/**
+ * Загрузка данных в STG с использованием batch insert через unnest
  * @param uploadId - ID загрузки
  * @param rows - данные для загрузки
  * @param mapping - маппинг полей
@@ -23,7 +29,9 @@ export async function loadToSTG(
     fieldType: string;
   }>
 ): Promise<number> {
+  const startTime = Date.now();
   const client = await pool.connect();
+  
   try {
     // Находим индексы полей в маппинге
     const periodDateMap = mapping.find((m) => m.targetField === "period_date");
@@ -36,9 +44,15 @@ export async function loadToSTG(
       throw new Error("Отсутствуют обязательные поля в маппинге");
     }
 
-    let insertedCount = 0;
+    // Подготавливаем массивы для batch insert
+    const uploadIds: number[] = [];
+    const periodDates: string[] = [];
+    const classes: string[] = [];
+    const sections: (string | null)[] = [];
+    const items: (string | null)[] = [];
+    const subItems: (string | null)[] = [];
+    const values: number[] = [];
 
-    // Вставляем данные батчами
     for (const row of rows) {
       // Обрабатываем дату периода (может быть строка или число Excel serial date)
       const periodDateValue = getRowValue(row, periodDateMap.sourceField);
@@ -64,15 +78,51 @@ export async function loadToSTG(
         ? valueValue
         : parseFloat(String(valueValue || 0));
 
+      // Добавляем в массивы
+      uploadIds.push(uploadId);
+      periodDates.push(formatDateForSQL(periodDate));
+      classes.push(classValue);
+      sections.push(sectionValue);
+      items.push(itemValue);
+      subItems.push(null);
+      values.push(value);
+    }
+
+    // Batch insert через unnest
+    let insertedCount = 0;
+    const totalRows = uploadIds.length;
+
+    for (let i = 0; i < totalRows; i += BATCH_SIZE) {
+      const end = Math.min(i + BATCH_SIZE, totalRows);
+      
       await client.query(
         `INSERT INTO stg.balance_upload 
-         (upload_id, period_date, class, section, item, sub_item, value)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [uploadId, formatDateForSQL(periodDate), classValue, sectionValue, itemValue, null, value]
+           (upload_id, period_date, class, section, item, sub_item, value)
+         SELECT * FROM unnest(
+           $1::int[],
+           $2::date[],
+           $3::text[],
+           $4::text[],
+           $5::text[],
+           $6::text[],
+           $7::numeric[]
+         )`,
+        [
+          uploadIds.slice(i, end),
+          periodDates.slice(i, end),
+          classes.slice(i, end),
+          sections.slice(i, end),
+          items.slice(i, end),
+          subItems.slice(i, end),
+          values.slice(i, end)
+        ]
       );
 
-      insertedCount++;
+      insertedCount += (end - i);
     }
+
+    const duration = Date.now() - startTime;
+    console.log(`[loadToSTG] Загружено ${insertedCount} строк за ${duration}мс (${Math.ceil(totalRows / BATCH_SIZE)} батчей)`);
 
     return insertedCount;
   } finally {
@@ -292,7 +342,7 @@ export async function updateUploadStatus(
 }
 
 /**
- * Загрузка данных Financial Results в STG
+ * Загрузка данных Financial Results в STG с использованием batch insert через unnest
  * @param uploadId - ID загрузки
  * @param rows - данные для загрузки
  * @param mapping - маппинг полей
@@ -307,7 +357,9 @@ export async function loadFinResultsToSTG(
     fieldType: string;
   }>
 ): Promise<number> {
+  const startTime = Date.now();
   const client = await pool.connect();
+  
   try {
     // Находим маппинги для всех полей
     const classMap = mapping.find((m) => m.targetField === "class");
@@ -325,9 +377,19 @@ export async function loadFinResultsToSTG(
       throw new Error("Отсутствуют обязательные поля в маппинге (class, category, value, period_date)");
     }
 
-    let insertedCount = 0;
+    // Подготавливаем массивы для batch insert (11 колонок)
+    const uploadIds: number[] = [];
+    const classes: string[] = [];
+    const categories: string[] = [];
+    const items: (string | null)[] = [];
+    const subitems: (string | null)[] = [];
+    const details: (string | null)[] = [];
+    const clientTypes: (string | null)[] = [];
+    const currencyCodes: (string | null)[] = [];
+    const dataSources: (string | null)[] = [];
+    const values: number[] = [];
+    const periodDates: string[] = [];
 
-    // Вставляем данные батчами
     for (const row of rows) {
       // Обрабатываем дату периода (может быть строка или число Excel serial date)
       const periodDateValue = getRowValue(row, periodDateMap.sourceField);
@@ -377,27 +439,63 @@ export async function loadFinResultsToSTG(
         ? valueRaw
         : parseFloat(String(valueRaw || 0));
 
+      // Добавляем в массивы
+      uploadIds.push(uploadId);
+      classes.push(classValue);
+      categories.push(categoryValue);
+      items.push(itemValue);
+      subitems.push(subitemValue);
+      details.push(detailsValue);
+      clientTypes.push(clientTypeValue);
+      currencyCodes.push(currencyCodeValue);
+      dataSources.push(dataSourceValue);
+      values.push(value);
+      periodDates.push(formatDateForSQL(periodDate));
+    }
+
+    // Batch insert через unnest
+    let insertedCount = 0;
+    const totalRows = uploadIds.length;
+
+    for (let i = 0; i < totalRows; i += BATCH_SIZE) {
+      const end = Math.min(i + BATCH_SIZE, totalRows);
+      
       await client.query(
         `INSERT INTO stg.fin_results_upload 
-         (upload_id, class, category, item, subitem, details, client_type, currency_code, data_source, value, period_date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+           (upload_id, class, category, item, subitem, details, client_type, currency_code, data_source, value, period_date)
+         SELECT * FROM unnest(
+           $1::int[],
+           $2::text[],
+           $3::text[],
+           $4::text[],
+           $5::text[],
+           $6::text[],
+           $7::text[],
+           $8::varchar(3)[],
+           $9::text[],
+           $10::numeric[],
+           $11::date[]
+         )`,
         [
-          uploadId,
-          classValue,
-          categoryValue,
-          itemValue,
-          subitemValue,
-          detailsValue,
-          clientTypeValue,
-          currencyCodeValue,
-          dataSourceValue,
-          value,
-          formatDateForSQL(periodDate)
+          uploadIds.slice(i, end),
+          classes.slice(i, end),
+          categories.slice(i, end),
+          items.slice(i, end),
+          subitems.slice(i, end),
+          details.slice(i, end),
+          clientTypes.slice(i, end),
+          currencyCodes.slice(i, end),
+          dataSources.slice(i, end),
+          values.slice(i, end),
+          periodDates.slice(i, end)
         ]
       );
 
-      insertedCount++;
+      insertedCount += (end - i);
     }
+
+    const duration = Date.now() - startTime;
+    console.log(`[loadFinResultsToSTG] Загружено ${insertedCount} строк за ${duration}мс (${Math.ceil(totalRows / BATCH_SIZE)} батчей)`);
 
     return insertedCount;
   } finally {

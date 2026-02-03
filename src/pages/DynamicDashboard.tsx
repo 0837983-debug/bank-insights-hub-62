@@ -14,13 +14,49 @@ import {
 } from "@/components/FinancialTable";
 import type { LayoutComponent, TableData, FetchKPIsParams } from "@/lib/api";
 
-// Helper function to transform API table data to FinancialTable format with hierarchy
-// Все текстовые поля до value - это иерархия (class, section, item, sub_item)
-// Поля от value - это числовые значения (value, percentage, ppChange, ytdChange)
-function transformTableData(apiData: TableData): TableRowData[] {
+// Тип для колонки из layout
+interface LayoutColumn {
+  id: string;
+  label?: string;
+  type?: string;
+  format?: string;
+  isDimension?: boolean;
+  isMeasure?: boolean;
+}
+
+// Default hierarchy для обратной совместимости (если columns не передан)
+const DEFAULT_HIERARCHY = ["class", "section", "item", "sub_item"];
+
+/**
+ * Универсальная функция трансформации данных API в формат FinancialTable с иерархией.
+ * 
+ * @param apiData - данные от API
+ * @param columns - колонки из layout с isDimension/isMeasure флагами
+ * @returns массив строк для FinancialTable
+ * 
+ * Иерархия определяется по isDimension колонкам в порядке из layout.
+ * Агрегация выполняется по всем isMeasure колонкам.
+ */
+export function transformTableData(
+  apiData: TableData, 
+  columns?: LayoutColumn[]
+): TableRowData[] {
   const rows = apiData.rows;
-  const hierarchyLevels = ["class", "section", "item", "sub_item"] as const;
-  const rootTotal = rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
+  if (rows.length === 0) return [];
+
+  // Определяем dimension и measure поля из layout columns
+  // Порядок dimension полей определяет иерархию
+  const dimensionFields = columns
+    ?.filter(col => col.isDimension)
+    .map(col => col.id) || DEFAULT_HIERARCHY;
+  
+  const measureFields = columns
+    ?.filter(col => col.isMeasure)
+    .map(col => col.id) || ["value"];
+  
+  // Основной measure для процентов
+  const primaryMeasure = measureFields[0] || "value";
+  const rootTotal = rows.reduce((sum, row) => sum + (Number((row as Record<string, unknown>)[primaryMeasure]) || 0), 0);
 
   type GroupNode = {
     id: string;
@@ -28,9 +64,7 @@ function transformTableData(apiData: TableData): TableRowData[] {
     pathParts: string[];
     parentId?: string;
     order: number;
-    value: number;
-    previousValue: number;
-    ytdValue: number;
+    measures: Record<string, number>; // Динамические measure поля
   };
 
   let orderCounter = 0;
@@ -52,15 +86,20 @@ function transformTableData(apiData: TableData): TableRowData[] {
     const id = pathParts.join("::");
     const existing = groupMap.get(id);
     if (existing) return existing;
+    
+    // Инициализируем все measure поля нулями
+    const measures: Record<string, number> = {};
+    measureFields.forEach(field => {
+      measures[field] = 0;
+    });
+    
     const group: GroupNode = {
       id,
       level,
       pathParts: [...pathParts],
       parentId,
       order: orderCounter++,
-      value: 0,
-      previousValue: 0,
-      ytdValue: 0,
+      measures,
     };
     groupMap.set(id, group);
     return group;
@@ -69,45 +108,27 @@ function transformTableData(apiData: TableData): TableRowData[] {
   rows.forEach((row) => {
     let parentId: string | undefined;
     const pathParts: string[] = [];
+    const rowData = row as Record<string, unknown>;
 
-    // Маппим поля из бэкенда: prev_period -> previousValue, prev_year -> ytdValue
-    const previousValue = (row as any).prev_period ?? (row as any).previousValue;
-    const ytdValue = (row as any).prev_year ?? (row as any).ytdValue;
-
-    hierarchyLevels.forEach((level, idx) => {
-      const levelValue = row[level];
+    // Строим иерархию по dimension полям
+    dimensionFields.forEach((field, idx) => {
+      const levelValue = rowData[field];
       if (!levelValue) return;
       pathParts.push(String(levelValue));
       const group = getOrCreateGroup(pathParts, idx, parentId);
       parentId = group.id;
 
-      group.value += row.value ?? 0;
-      group.previousValue += previousValue ?? 0;
-      group.ytdValue += ytdValue ?? 0;
+      // Агрегируем все measure поля
+      measureFields.forEach(measureField => {
+        const value = Number(rowData[measureField]) || 0;
+        group.measures[measureField] += value;
+      });
     });
 
+    // Создаём leaf row используя spread для передачи всех полей из API
     const leafRow: TableRowData = {
-      class: row.class,
-      section: row.section,
-      item: row.item,
-      sub_item: row.sub_item,
-      value: row.value,
-      percentage: row.percentage,
-      previousValue: previousValue,
-      ytdValue: ytdValue,
-      ppChange: row.ppChange,
-      ppChangeAbsolute: row.ppChangeAbsolute,
-      ytdChange: row.ytdChange,
-      ytdChangeAbsolute: row.ytdChangeAbsolute,
-      client_type: row.client_type,
-      client_segment: row.client_segment,
-      product_code: row.product_code,
-      portfolio_code: row.portfolio_code,
-      currency_code: row.currency_code,
-      id: row.id,
-      period_date: row.period_date,
-      description:
-        typeof row.description === "string" ? row.description : undefined,
+      ...(row as unknown as TableRowData), // Все поля из API как есть
+      id: String(rowData.id || `leaf-${orderCounter}`),
       parentId,
       isGroup: false,
       sortOrder: orderCounter++,
@@ -118,17 +139,29 @@ function transformTableData(apiData: TableData): TableRowData[] {
 
   const groupRows: TableRowData[] = [];
   groupMap.forEach((group) => {
+    // Собираем dimension поля для группы
     const fields: Record<string, string | undefined> = {};
-    hierarchyLevels.forEach((level, idx) => {
+    dimensionFields.forEach((field, idx) => {
       if (idx <= group.level) {
-        fields[level] = group.pathParts[idx];
+        fields[field] = group.pathParts[idx];
       }
     });
 
-    const value = group.value;
-    const previousValue =
-      group.previousValue !== 0 ? group.previousValue : undefined;
-    const ytdValue = group.ytdValue !== 0 ? group.ytdValue : undefined;
+    // Получаем значения measure полей
+    const value = group.measures[primaryMeasure] || 0;
+    
+    // Строим объект с агрегированными measure полями
+    const measureValues: Record<string, number | undefined> = {};
+    measureFields.forEach(field => {
+      const val = group.measures[field];
+      measureValues[field] = val !== 0 ? val : undefined;
+    });
+
+    // Рассчитываем изменения для совместимости со старым форматом
+    // Ищем поля previousValue/ppValue и ytdValue/pyValue
+    const previousValue = measureValues.previousValue ?? measureValues.ppValue ?? measureValues.prev_period;
+    const ytdValue = measureValues.ytdValue ?? measureValues.pyValue ?? measureValues.prev_year;
+    
     const ppChange =
       previousValue !== undefined && previousValue !== 0
         ? (value - previousValue) / previousValue
@@ -141,6 +174,7 @@ function transformTableData(apiData: TableData): TableRowData[] {
     const groupRow: TableRowData = {
       id: group.id,
       ...fields,
+      ...measureValues, // Все агрегированные measure поля
       value,
       previousValue,
       ytdValue,
@@ -166,7 +200,7 @@ function transformTableData(apiData: TableData): TableRowData[] {
       const aOrder = a.sortOrder ?? 0;
       const bOrder = b.sortOrder ?? 0;
       if (aOrder !== bOrder) return aOrder - bOrder;
-      return a.id.localeCompare(b.id);
+      return String(a.id).localeCompare(String(b.id));
     });
   };
 
@@ -310,7 +344,7 @@ function DynamicTable({ component }: DynamicTableProps) {
     );
   }
 
-  const tableRows = transformTableData(transformedData);
+  const tableRows = transformTableData(transformedData, component.columns);
 
   return (
     <div className="mt-6">

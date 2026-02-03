@@ -271,7 +271,7 @@ function buildOrderBy(orderBy: Array<{ field: string; direction: "asc" | "desc" 
  * Построение SQL запроса из конфига с подстановкой значений
  * @param config - конфиг запроса
  * @param params - значения параметров для подстановки
- * @param wrapJson - нужно ли оборачивать результат в jsonb_agg (по умолчанию false)
+ * @param wrapJson - нужно ли оборачивать результат в json_agg (по умолчанию false)
  * @returns готовый SQL запрос с подставленными значениями
  */
 export function buildQuery(
@@ -392,9 +392,9 @@ export function buildQuery(
 
     const baseSql = sqlParts.join(" ");
 
-    // Если wrapJson = true, оборачиваем в jsonb_agg
+    // Если wrapJson = true, оборачиваем в json_agg (сохраняет порядок ключей)
     if (wrapJson) {
-      return `SELECT jsonb_agg(row_to_json(t)) FROM (${baseSql}) t`;
+      return `SELECT json_agg(row_to_json(t)) FROM (${baseSql}) t`;
     }
 
     return baseSql;

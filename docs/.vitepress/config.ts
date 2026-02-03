@@ -82,6 +82,7 @@ export default defineConfig({
       { text: 'API', link: '/api/' },
       { text: 'Разработка', link: '/development/' },
       { text: 'База данных', link: '/database/' },
+      { text: 'ABS БД', link: '/abs-db/' },
       { text: 'Context', link: '/context/' },
       { text: 'Планы', link: '/plans/' },
       { text: 'Деплой', link: '/deployment/' }
@@ -172,6 +173,28 @@ export default defineConfig({
             { text: 'Схемы БД', link: '/database/schemas' },
             { text: 'Миграции', link: '/database/migrations' },
             { text: 'Data Marts', link: '/database/data-marts' }
+          ]
+        }
+      ],
+      
+      '/abs-db/': [
+        {
+          text: 'ABS БД',
+          items: [
+            { text: 'Обзор', link: '/abs-db/' },
+            { text: 'Ключевые данные', link: '/abs-db/key-data' },
+            { text: 'Связи', link: '/abs-db/relationships' },
+            { text: 'Схемы', link: '/abs-db/schemas' },
+            {
+              text: 'FXL_CUST',
+              collapsed: false,
+              items: [
+                { text: 'Обзор', link: '/abs-db/fxl_cust/' },
+                { text: 'Список объектов', link: '/abs-db/fxl_cust/object-list' },
+                { text: 'Кластеры', link: '/abs-db/fxl_cust/clusters' },
+                { text: 'Ключевые сущности', link: '/abs-db/fxl_cust/key-entities' }
+              ]
+            }
           ]
         }
       ],

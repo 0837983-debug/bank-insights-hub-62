@@ -26,7 +26,17 @@ import {
   Plus,
   Hash,
   Code,
+  LayoutTemplate,
+  Heart,
+  Table2,
+  PanelTop,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { fetchLayout, type Layout, type LayoutFormat } from "@/lib/api";
 import { formatValue, initializeFormats } from "@/lib/formatters";
 
@@ -35,23 +45,6 @@ interface ServiceStatus {
   status: "online" | "offline" | "checking";
   url?: string;
   message?: string;
-}
-
-interface APIEndpoint {
-  id: string;
-  name: string;
-  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-  path: string;
-  description: string;
-  pathParams?: { name: string; example: string; description: string }[];
-  queryParams?: { name: string; example: string; description: string }[];
-  bodyExample?: string;
-  responseExample?: string;
-}
-
-interface ParamValue {
-  name: string;
-  value: string;
 }
 
 export default function DevTools() {
@@ -63,148 +56,27 @@ export default function DevTools() {
   ]);
 
 
-  // API Endpoints catalog
-  const apiEndpoints: APIEndpoint[] = [
-    {
-      id: "health",
-      name: "Health Check",
-      method: "GET",
-      path: "/api/health",
-      description: "Проверка статуса backend сервера",
-      responseExample: JSON.stringify({ status: "ok", message: "Backend is running" }, null, 2),
-    },
-    {
-      id: "layout",
-      name: "Get Layout",
-      method: "GET",
-      path: "/api/data?query_id=layout&component_Id=layout&parametrs={\"layout_id\":\"main_dashboard\"}",
-      description: "Получить структуру всего приложения (секции, компоненты, форматы) через универсальный endpoint /api/data",
-      queryParams: [
-        {
-          name: "query_id",
-          example: "layout",
-          description: "ID запроса (обязательно)",
-        },
-        {
-          name: "component_Id",
-          example: "layout",
-          description: "ID компонента (обязательно)",
-        },
-        {
-          name: "parametrs",
-          example: '{"layout_id":"main_dashboard"}',
-          description: "JSON-строка с параметрами (обязательно)",
-        },
-      ],
-      responseExample: JSON.stringify({ formats: {}, sections: [] }, null, 2),
-    },
-    {
-      id: "all-kpis",
-      name: "Get All KPIs",
-      method: "GET",
-      path: "/api/data?query_id=kpis&component_Id=kpis&parametrs={\"layout_id\":\"main_dashboard\",\"p1\":\"2025-12-31\",\"p2\":\"2025-11-30\",\"p3\":\"2024-12-31\"}",
-      description: "Получить все KPI метрики через универсальный endpoint /api/data",
-      queryParams: [
-        {
-          name: "query_id",
-          example: "kpis",
-          description: "ID запроса (обязательно)",
-        },
-        {
-          name: "component_Id",
-          example: "kpis",
-          description: "ID компонента (обязательно)",
-        },
-        {
-          name: "parametrs",
-          example: '{"layout_id":"main_dashboard","p1":"2025-12-31","p2":"2025-11-30","p3":"2024-12-31"}',
-          description: "JSON-строка с параметрами (обязательно)",
-        },
-      ],
-      responseExample: JSON.stringify(
-        [
-          {
-            id: "capital",
-            title: "Капитал",
-            value: 8200000000,
-            change: 5.2,
-          },
-        ],
-        null,
-        2
-      ),
-    },
-    {
-      id: "table-data",
-      name: "Get Table Data",
-      method: "GET",
-      path: "/api/table-data/:tableId",
-      description: "Получить данные таблицы с фильтрами",
-      pathParams: [{ name: "tableId", example: "assets", description: "ID таблицы" }],
-      queryParams: [
-        {
-          name: "dateFrom",
-          example: "2025-01-01",
-          description: "Дата начала (опционально)",
-        },
-        {
-          name: "dateTo",
-          example: "2025-12-31",
-          description: "Дата окончания (опционально)",
-        },
-        {
-          name: "groupBy",
-          example: "region",
-          description: "Группировка (опционально)",
-        },
-      ],
-      responseExample: JSON.stringify(
-        { tableId: "assets", columns: [], rows: [] },
-        null,
-        2
-      ),
-    },
-    {
-      id: "data-get",
-      name: "Get Data",
-      method: "GET",
-      path: "/api/data",
-      description: "Получить данные через SQL Builder. Принимает query_id, component_Id и parametrs (JSON-строка, опционально) в query string",
-      queryParams: [
-        {
-          name: "query_id",
-          example: "assets_table",
-          description: "ID запроса из config.component_queries (обязательно)",
-        },
-        {
-          name: "component_Id",
-          example: "assets_table",
-          description: "Идентификатор компонента (обязательно, обратите внимание на заглавную I)",
-        },
-        {
-          name: "parametrs",
-          example: '{"p1":"2025-12-31","p2":"2025-11-30","p3":"2025-12-31","class":"assets"}',
-          description: "JSON-строка с параметрами (опционально, обратите внимание на опечатку 'parametrs')",
-        },
-      ],
-      responseExample: JSON.stringify(
-        {
-          componentId: "assets_table",
-          type: "table",
-          rows: [{ class: "assets", value: 1000000 }],
-        },
-        null,
-        2
-      ),
-    },
-  ];
+  // API quick-test URLs
+  const API_BASE = "http://localhost:3001";
 
-  const [selectedEndpoint, setSelectedEndpoint] = useState<string>("");
-  const [pathParams, setPathParams] = useState<ParamValue[]>([]);
-  const [queryParams, setQueryParams] = useState<ParamValue[]>([]);
-  const [requestBody, setRequestBody] = useState<string>("");
+  // API quick-test states
   const [apiResponse, setApiResponse] = useState<string>("");
   const [apiStatus, setApiStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  // Data modal states
+  const [dataModalOpen, setDataModalOpen] = useState(false);
+  const [queryIds, setQueryIds] = useState<
+    Array<{
+      id: string;
+      description: string | null;
+      config?: { params?: Record<string, unknown>; paramTypes?: Record<string, string> };
+    }>
+  >([]);
+  const [queryIdsLoading, setQueryIdsLoading] = useState(false);
+  const [selectedQueryId, setSelectedQueryId] = useState<string>("");
+  const [dataModalParams, setDataModalParams] = useState<Record<string, string>>({});
+  const [dataModalResponse, setDataModalResponse] = useState<string>("");
+  const [dataModalStatus, setDataModalStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   // Format testing states
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -388,88 +260,13 @@ export default function DevTools() {
     setSqlBuilderParams(JSON.stringify(example, null, 2));
   };
 
-  // Handle endpoint selection
-  const handleEndpointSelect = (endpointId: string) => {
-    const endpoint = apiEndpoints.find((e) => e.id === endpointId);
-    if (!endpoint) return;
-
-    setSelectedEndpoint(endpointId);
-
-    // Initialize path params
-    if (endpoint.pathParams) {
-      setPathParams(endpoint.pathParams.map((p) => ({ name: p.name, value: p.example })));
-    } else {
-      setPathParams([]);
-    }
-
-    // Initialize query params
-    if (endpoint.queryParams) {
-      setQueryParams(endpoint.queryParams.map((p) => ({ name: p.name, value: p.example })));
-    } else {
-      setQueryParams([]);
-    }
-
-    // Initialize request body
-    if (endpoint.bodyExample) {
-      setRequestBody(endpoint.bodyExample);
-    } else {
-      setRequestBody("");
-    }
-
-    // Clear previous response
-    setApiResponse("");
-    setApiStatus("idle");
-  };
-
-  // Build full URL with params
-  const buildApiUrl = () => {
-    const endpoint = apiEndpoints.find((e) => e.id === selectedEndpoint);
-    if (!endpoint) return "";
-
-    const baseUrl = "http://localhost:3001";
-    let path = endpoint.path;
-
-    // Replace path params
-    pathParams.forEach((param) => {
-      path = path.replace(`:${param.name}`, param.value);
-    });
-
-    // Add query params
-    const activeQueryParams = queryParams.filter((p) => p.value.trim() !== "");
-    if (activeQueryParams.length > 0) {
-      const queryString = activeQueryParams
-        .map((p) => `${p.name}=${encodeURIComponent(p.value)}`)
-        .join("&");
-      path += `?${queryString}`;
-    }
-
-    return baseUrl + path;
-  };
-
-  const testApiEndpoint = async () => {
-    const endpoint = apiEndpoints.find((e) => e.id === selectedEndpoint);
-    if (!endpoint) return;
-
+  // Quick API test handlers
+  const runQuickApiTest = async (url: string) => {
     setApiStatus("loading");
     setApiResponse("");
-
     try {
-      const url = buildApiUrl();
-
-      const options: RequestInit = {
-        method: endpoint.method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      };
-
-      if (endpoint.method !== "GET" && requestBody.trim()) {
-        options.body = requestBody;
-      }
-
-      const response = await fetch(url, options);
+      const response = await fetch(url);
       const data = await response.json();
-
       setApiStatus(response.ok ? "success" : "error");
       setApiResponse(JSON.stringify(data, null, 2));
     } catch (error) {
@@ -478,29 +275,93 @@ export default function DevTools() {
     }
   };
 
-  // Update param value
-  const updatePathParam = (index: number, value: string) => {
-    setPathParams((prev) => {
-      const updated = [...prev];
-      updated[index].value = value;
-      return updated;
-    });
+  const handleLayoutTest = () =>
+    runQuickApiTest(
+      `${API_BASE}/api/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent('{"layout_id":"main_dashboard"}')}`
+    );
+  const handleHeaderTest = () =>
+    runQuickApiTest(
+      `${API_BASE}/api/data?query_id=header_dates&component_Id=header&parametrs=${encodeURIComponent("{}")}`
+    );
+  const handleHealthTest = () => runQuickApiTest(`${API_BASE}/api/health`);
+
+  // Data modal: open and load query IDs
+  const handleOpenDataModal = async () => {
+    setDataModalOpen(true);
+    setSelectedQueryId("");
+    setDataModalParams({});
+    setDataModalConfig(null);
+    setDataModalResponse("");
+    setDataModalStatus("idle");
+    setQueryIdsLoading(true);
+    setQueryIds([]);
+    try {
+      const res = await fetch(`${API_BASE}/api/sql-builder/query-ids`);
+      if (res.ok) {
+        const data = await res.json();
+        setQueryIds(data.queryIds || []);
+      } else {
+        setQueryIds([]);
+      }
+    } catch {
+      setQueryIds([]);
+    } finally {
+      setQueryIdsLoading(false);
+    }
   };
 
-  const updateQueryParam = (index: number, value: string) => {
-    setQueryParams((prev) => {
-      const updated = [...prev];
-      updated[index].value = value;
-      return updated;
-    });
-  };
+  // Data modal: when query_id selected, get params from config (loaded with query-ids)
+  const selectedConfig = queryIds.find((q) => q.id === selectedQueryId)?.config;
+  const paramSpecs = (() => {
+    const types = selectedConfig?.paramTypes && typeof selectedConfig.paramTypes === "object" ? selectedConfig.paramTypes : null;
+    const defs = selectedConfig?.params && typeof selectedConfig.params === "object" ? selectedConfig.params : null;
+    const keys = new Set([...(types ? Object.keys(types) : []), ...(defs ? Object.keys(defs) : [])]);
+    if (keys.size === 0) return [];
+    return Array.from(keys).map((name) => ({
+      name,
+      type: (types && name in types ? types[name] : "string") as string,
+      defaultValue: defs && name in defs ? String(defs[name] ?? "") : "",
+    }));
+  })();
 
-  const addQueryParam = () => {
-    setQueryParams((prev) => [...prev, { name: "", value: "" }]);
-  };
+  useEffect(() => {
+    if (!dataModalOpen || !selectedQueryId) {
+      setDataModalParams({});
+      return;
+    }
+    const cfg = queryIds.find((q) => q.id === selectedQueryId)?.config;
+    const types = cfg?.paramTypes && typeof cfg.paramTypes === "object" ? cfg.paramTypes : null;
+    const defs = cfg?.params && typeof cfg.params === "object" ? cfg.params : null;
+    const keys = new Set([...(types ? Object.keys(types) : []), ...(defs ? Object.keys(defs) : [])]);
+    if (keys.size === 0) {
+      setDataModalParams({});
+      return;
+    }
+    const prefill: Record<string, string> = {};
+    for (const k of keys) {
+      prefill[k] = defs && k in defs ? String(defs[k] ?? "") : "";
+    }
+    setDataModalParams(prefill);
+  }, [dataModalOpen, selectedQueryId, queryIds]);
 
-  const removeQueryParam = (index: number) => {
-    setQueryParams((prev) => prev.filter((_, i) => i !== index));
+  // Data modal: run test
+  const handleDataModalTest = async () => {
+    if (!selectedQueryId) return;
+    setDataModalStatus("loading");
+    setDataModalResponse("");
+    try {
+      const parametrs = JSON.stringify(
+        Object.fromEntries(Object.entries(dataModalParams).filter(([, v]) => v !== ""))
+      );
+      const url = `${API_BASE}/api/data?query_id=${encodeURIComponent(selectedQueryId)}&component_Id=${encodeURIComponent(selectedQueryId)}&parametrs=${encodeURIComponent(parametrs)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      setDataModalStatus(response.ok ? "success" : "error");
+      setDataModalResponse(JSON.stringify(data, null, 2));
+    } catch (error) {
+      setDataModalStatus("error");
+      setDataModalResponse(error instanceof Error ? error.message : "Unknown error");
+    }
   };
 
   const getStatusIcon = (status: ServiceStatus["status"]) => {
@@ -618,192 +479,166 @@ export default function DevTools() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Endpoint Selection */}
-          <div className="space-y-2">
-            <Label>Выберите API Endpoint</Label>
-            <Select value={selectedEndpoint} onValueChange={handleEndpointSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите endpoint для тестирования" />
-              </SelectTrigger>
-              <SelectContent>
-                {apiEndpoints.map((endpoint) => (
-                  <SelectItem key={endpoint.id} value={endpoint.id}>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {endpoint.method}
-                      </Badge>
-                      {endpoint.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedEndpoint && (
-              <p className="text-sm text-muted-foreground">
-                {apiEndpoints.find((e) => e.id === selectedEndpoint)?.description}
-              </p>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLayoutTest}
+              disabled={apiStatus === "loading"}
+              className="gap-1.5"
+            >
+              {apiStatus === "loading" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LayoutTemplate className="h-4 w-4" />
+              )}
+              layout
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleHeaderTest}
+              disabled={apiStatus === "loading"}
+              className="gap-1.5"
+            >
+              {apiStatus === "loading" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <PanelTop className="h-4 w-4" />
+              )}
+              header
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleHealthTest}
+              disabled={apiStatus === "loading"}
+              className="gap-1.5"
+            >
+              {apiStatus === "loading" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Heart className="h-4 w-4" />
+              )}
+              health
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenDataModal}
+              className="gap-1.5"
+            >
+              <Table2 className="h-4 w-4" />
+              data
+            </Button>
           </div>
 
-          {selectedEndpoint && (
-            <>
-              {/* Request URL Preview */}
-              <div className="space-y-2">
-                <Label>Request URL</Label>
-                <div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
-                  <span className="font-semibold text-blue-600">
-                    {apiEndpoints.find((e) => e.id === selectedEndpoint)?.method}
-                  </span>{" "}
-                  {buildApiUrl()}
-                </div>
-              </div>
-
-              {/* Path Parameters */}
-              {pathParams.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Path Parameters</Label>
-                  <div className="space-y-2">
-                    {pathParams.map((param, index) => {
-                      const paramDef = apiEndpoints
-                        .find((e) => e.id === selectedEndpoint)
-                        ?.pathParams?.find((p) => p.name === param.name);
-                      return (
-                        <div key={index} className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-xs">{param.name}</Label>
-                            {paramDef && (
-                              <span className="text-xs text-muted-foreground">
-                                {paramDef.description}
-                              </span>
-                            )}
-                          </div>
-                          <Input
-                            value={param.value}
-                            onChange={(e) => updatePathParam(index, e.target.value)}
-                            placeholder={paramDef?.example}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Query Parameters */}
-              {queryParams.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Query Parameters</Label>
-                    <Button variant="ghost" size="sm" onClick={addQueryParam} className="h-8">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {queryParams.map((param, index) => {
-                      const paramDef = apiEndpoints
-                        .find((e) => e.id === selectedEndpoint)
-                        ?.queryParams?.find((p) => p.name === param.name);
-                      return (
-                        <div key={index} className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-xs">{param.name}</Label>
-                            {paramDef && (
-                              <span className="text-xs text-muted-foreground">
-                                {paramDef.description}
-                              </span>
-                            )}
-                            {index >=
-                              (apiEndpoints.find((e) => e.id === selectedEndpoint)?.queryParams
-                                ?.length || 0) && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeQueryParam(index)}
-                                className="h-6 w-6 p-0 ml-auto"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                          <Input
-                            value={param.value}
-                            onChange={(e) => updateQueryParam(index, e.target.value)}
-                            placeholder={paramDef?.example || "value"}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Request Body */}
-              {apiEndpoints.find((e) => e.id === selectedEndpoint)?.method !== "GET" && (
-                <div className="space-y-2">
-                  <Label>Request Body (JSON)</Label>
-                  <Textarea
-                    value={requestBody}
-                    onChange={(e) => setRequestBody(e.target.value)}
-                    placeholder='{"key": "value"}'
-                    rows={6}
-                    className="font-mono text-sm"
-                  />
-                </div>
-              )}
-
-              {/* Test Button */}
-              <Button
-                onClick={testApiEndpoint}
-                disabled={apiStatus === "loading"}
-                className="w-full"
+          {/* Response */}
+          {apiResponse && (
+            <div className="space-y-2">
+              <Label>Response</Label>
+              <div
+                className={`p-4 rounded-lg border ${
+                  apiStatus === "success"
+                    ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+                    : "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
+                }`}
               >
-                {apiStatus === "loading" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle className="h-4 w-4 mr-2" />
-                    Test Endpoint
-                  </>
-                )}
-              </Button>
-
-              {/* Response */}
-              {apiResponse && (
-                <div className="space-y-2">
-                  <Label>Response</Label>
-                  <div
-                    className={`p-4 rounded-lg border ${
-                      apiStatus === "success"
-                        ? "bg-green-50 border-green-200"
-                        : "bg-red-50 border-red-200"
-                    }`}
-                  >
-                    <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-                      {apiResponse}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Expected Response Example */}
-              {apiEndpoints.find((e) => e.id === selectedEndpoint)?.responseExample && (
-                <div className="space-y-2">
-                  <Label>Expected Response Example</Label>
-                  <div className="p-4 rounded-lg border bg-muted/30">
-                    <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-                      {apiEndpoints.find((e) => e.id === selectedEndpoint)?.responseExample}
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </>
+                <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                  {apiResponse}
+                </pre>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Data modal */}
+      <Dialog open={dataModalOpen} onOpenChange={setDataModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Test /api/data</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>query_id</Label>
+              <select
+                value={selectedQueryId}
+                onChange={(e) => setSelectedQueryId(e.target.value)}
+                disabled={queryIdsLoading}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">
+                  {queryIdsLoading ? "Загрузка..." : "Выберите query_id"}
+                </option>
+                {queryIds.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.description ? `${q.id} — ${q.description}` : q.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedQueryId && paramSpecs.length > 0 && (
+              <div className="space-y-2">
+                <Label>Parameters (paramTypes + params from config)</Label>
+                <div className="space-y-2">
+                  {paramSpecs.map((p) => (
+                    <div key={p.name} className="flex items-center gap-2">
+                      <Label className="text-xs w-24 shrink-0" title={p.type}>
+                        {p.name}
+                      </Label>
+                      <Input
+                        type={p.type === "date" ? "date" : p.type === "number" ? "number" : "text"}
+                        value={dataModalParams[p.name] ?? ""}
+                        onChange={(e) =>
+                          setDataModalParams((prev) => ({ ...prev, [p.name]: e.target.value }))
+                        }
+                        placeholder={p.defaultValue || p.name}
+                        className="font-mono"
+                      />
+                      <span className="text-xs text-muted-foreground shrink-0">{p.type}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Button
+              onClick={handleDataModalTest}
+              disabled={!selectedQueryId || dataModalStatus === "loading"}
+              className="w-full"
+            >
+              {dataModalStatus === "loading" ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="h-4 w-4 mr-2" />
+                  Test
+                </>
+              )}
+            </Button>
+
+            {dataModalResponse && (
+              <div className="space-y-2">
+                <Label>Response</Label>
+                <div
+                  className={`p-4 rounded-lg border max-h-60 overflow-auto ${
+                    dataModalStatus === "success"
+                      ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+                      : "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
+                  }`}
+                >
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{dataModalResponse}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Format Testing */}
       <Card>

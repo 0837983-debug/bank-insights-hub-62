@@ -13,7 +13,7 @@ router.get("/query-ids", async (req, res) => {
   const client = await pool.connect();
   try {
     const result = await client.query(
-      `SELECT query_id, description 
+      `SELECT query_id, title, config_json 
        FROM config.component_queries 
        WHERE is_active = TRUE 
          AND deleted_at IS NULL 
@@ -23,7 +23,8 @@ router.get("/query-ids", async (req, res) => {
     return res.json({
       queryIds: result.rows.map((row) => ({
         id: row.query_id,
-        description: row.description || null,
+        description: row.title || null,
+        config: row.config_json || null,
       })),
     });
   } catch (error: any) {
@@ -31,6 +32,24 @@ router.get("/query-ids", async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch query IDs" });
   } finally {
     client.release();
+  }
+});
+
+/**
+ * GET /api/sql-builder/config/:query_id
+ * Get config_json for a query (for prefilling params in DevTools)
+ */
+router.get("/config/:query_id", async (req, res) => {
+  try {
+    const { query_id } = req.params;
+    const queryConfig = await loadQueryConfig(query_id);
+    if (!queryConfig) {
+      return res.status(404).json({ error: "Query config not found" });
+    }
+    return res.json({ config: queryConfig.config });
+  } catch (error: any) {
+    console.error("Error fetching query config:", error);
+    return res.status(500).json({ error: "Failed to fetch config" });
   }
 });
 

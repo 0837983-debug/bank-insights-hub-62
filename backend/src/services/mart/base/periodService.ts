@@ -210,6 +210,6 @@ export async function getPeriodDates(): Promise<PeriodDates> {
   return {
     current: new Date('2025-12-01'),
     previousMonth: new Date('2025-11-01'),
-    previousYear: new Date('2024-12-01'),
+    previousYear: new Date('2025-01-01'),
   };
 }
