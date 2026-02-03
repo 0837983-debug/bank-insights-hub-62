@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculatePercentChange, calculateRowPercentage } from "./calculations";
+import { calculatePercentChange, calculateRowPercentage, executeCalculation } from "./calculations";
 
 describe("calculatePercentChange", () => {
   it("должен возвращать корректные значения для нормальных данных", () => {
@@ -123,5 +123,111 @@ describe("calculateRowPercentage", () => {
   it("должен обрабатывать отрицательные значения", () => {
     const result = calculateRowPercentage(-50, 200);
     expect(result).toBe(-25); // -50 составляет -25% от 200
+  });
+});
+
+describe("executeCalculation", () => {
+  describe("percent_change", () => {
+    it("должен корректно рассчитывать процентное изменение", () => {
+      const result = executeCalculation(
+        { type: "percent_change", current: "value", base: "ppValue" },
+        { value: 1100, ppValue: 1000 }
+      );
+      expect(result).toBe(0.1); // (1100 - 1000) / 1000 = 0.1 (10%)
+    });
+
+    it("должен возвращать 0 при делении на ноль", () => {
+      const result = executeCalculation(
+        { type: "percent_change", current: "value", base: "ppValue" },
+        { value: 100, ppValue: 0 }
+      );
+      expect(result).toBe(0);
+    });
+
+    it("должен обрабатывать отрицательные изменения", () => {
+      const result = executeCalculation(
+        { type: "percent_change", current: "value", base: "ppValue" },
+        { value: 900, ppValue: 1000 }
+      );
+      expect(result).toBe(-0.1); // (900 - 1000) / 1000 = -0.1 (-10%)
+    });
+
+    it("должен округлять до 4 знаков после запятой", () => {
+      const result = executeCalculation(
+        { type: "percent_change", current: "value", base: "ppValue" },
+        { value: 1000, ppValue: 300 }
+      );
+      expect(result).toBe(2.3333); // (1000 - 300) / 300 ≈ 2.3333
+    });
+  });
+
+  describe("diff", () => {
+    it("должен корректно рассчитывать разницу", () => {
+      const result = executeCalculation(
+        { type: "diff", minuend: "value", subtrahend: "ppValue" },
+        { value: 1100, ppValue: 1000 }
+      );
+      expect(result).toBe(100); // 1100 - 1000
+    });
+
+    it("должен обрабатывать отрицательную разницу", () => {
+      const result = executeCalculation(
+        { type: "diff", minuend: "value", subtrahend: "ppValue" },
+        { value: 900, ppValue: 1000 }
+      );
+      expect(result).toBe(-100); // 900 - 1000
+    });
+
+    it("должен обрабатывать отсутствующие поля", () => {
+      const result = executeCalculation(
+        { type: "diff", minuend: "value", subtrahend: "nonexistent" },
+        { value: 100 }
+      );
+      expect(result).toBe(100); // 100 - 0
+    });
+  });
+
+  describe("ratio", () => {
+    it("должен корректно рассчитывать отношение", () => {
+      const result = executeCalculation(
+        { type: "ratio", numerator: "value", denominator: "total" },
+        { value: 25, total: 100 }
+      );
+      expect(result).toBe(0.25);
+    });
+
+    it("должен возвращать 0 при делении на ноль", () => {
+      const result = executeCalculation(
+        { type: "ratio", numerator: "value", denominator: "total" },
+        { value: 100, total: 0 }
+      );
+      expect(result).toBe(0);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("должен возвращать undefined для неизвестного типа", () => {
+      const result = executeCalculation(
+        { type: "unknown" as any },
+        { value: 100 }
+      );
+      expect(result).toBeUndefined();
+    });
+
+    it("должен обрабатывать строковые числа", () => {
+      const result = executeCalculation(
+        { type: "diff", minuend: "value", subtrahend: "ppValue" },
+        { value: "100", ppValue: "50" }
+      );
+      expect(result).toBe(50);
+    });
+
+    it("должен обрабатывать null/undefined значения как 0", () => {
+      const result = executeCalculation(
+        { type: "diff", minuend: "value", subtrahend: "ppValue" },
+        { value: 100, ppValue: null }
+      );
+      expect(result).toBe(100); // 100 - 0
+    });
   });
 });

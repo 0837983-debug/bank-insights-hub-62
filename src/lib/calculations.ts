@@ -2,6 +2,58 @@
  * Утилиты для расчёта процентных изменений и других вычислений
  */
 
+import type { CalculationConfig } from './api';
+
+/**
+ * Выполняет расчёт на основе конфигурации из layout
+ * Универсальная функция для вычисления calculated полей
+ * 
+ * @param config - Конфигурация расчёта из layout (calculationConfig)
+ * @param rowData - Данные строки для расчёта
+ * @returns Результат расчёта или undefined при ошибке
+ * 
+ * @example
+ * // percent_change: ((current - base) / base)
+ * executeCalculation({ type: 'percent_change', current: 'value', base: 'ppValue' }, row)
+ * 
+ * @example
+ * // diff: minuend - subtrahend
+ * executeCalculation({ type: 'diff', minuend: 'value', subtrahend: 'ppValue' }, row)
+ * 
+ * @example
+ * // ratio: numerator / denominator
+ * executeCalculation({ type: 'ratio', numerator: 'value', denominator: 'total' }, row)
+ */
+export function executeCalculation(
+  config: CalculationConfig,
+  rowData: Record<string, unknown>
+): number | undefined {
+  const getValue = (field?: string): number => {
+    if (!field) return 0;
+    const val = rowData[field];
+    return typeof val === 'number' ? val : Number(val) || 0;
+  };
+
+  switch (config.type) {
+    case 'percent_change': {
+      const current = getValue(config.current);
+      const base = getValue(config.base);
+      if (base === 0) return 0;
+      return Math.round(((current - base) / base) * 10000) / 10000;
+    }
+    case 'diff': {
+      return getValue(config.minuend) - getValue(config.subtrahend);
+    }
+    case 'ratio': {
+      const denom = getValue(config.denominator);
+      if (denom === 0) return 0;
+      return getValue(config.numerator) / denom;
+    }
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Результат расчёта процентных изменений
  */

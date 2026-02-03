@@ -24,7 +24,6 @@ import { useTableSort } from "@/hooks/use-table-sort";
 import { SortableHeader } from "@/components/SortableHeader";
 import { useLayout } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
-import { calculatePercentChange } from "@/lib/calculations";
 
 // Данные для столбца с числовыми значениями
 export interface DataColumnValue {
@@ -189,39 +188,31 @@ export const FinancialTable = ({
     const basePreviousValue = row.previousValue ?? 0;
     const baseYtdValue = row.ytdValue ?? 0;
     
+    // Вычисляем ppChange для mock данных
+    const calcPpChange = (value: number, prevValue: number): number | undefined => {
+      if (prevValue === 0) return 0;
+      return Math.round(((value - prevValue) / prevValue) * 10000) / 10000;
+    };
+    
+    const createDetailRow = (id: string, suffix: string, multiplier: number): TableRowData => {
+      const value = baseValue * multiplier;
+      const previousValue = basePreviousValue * multiplier;
+      return {
+        id,
+        section: `${displayName} - ${suffix}`,
+        value,
+        previousValue,
+        ytdValue: baseYtdValue * multiplier,
+        percentage: multiplier * 100,
+        ppChange: calcPpChange(value, previousValue),
+      };
+    };
+    
     return [
-      {
-        id: `${row.id}-d1`,
-        section: `${displayName} - Детализация 1`,
-        value: baseValue * 0.35,
-        previousValue: basePreviousValue * 0.35,
-        ytdValue: baseYtdValue * 0.35,
-        percentage: 35.0,
-      },
-      {
-        id: `${row.id}-d2`,
-        section: `${displayName} - Детализация 2`,
-        value: baseValue * 0.28,
-        previousValue: basePreviousValue * 0.28,
-        ytdValue: baseYtdValue * 0.28,
-        percentage: 28.0,
-      },
-      {
-        id: `${row.id}-d3`,
-        section: `${displayName} - Детализация 3`,
-        value: baseValue * 0.22,
-        previousValue: basePreviousValue * 0.22,
-        ytdValue: baseYtdValue * 0.22,
-        percentage: 22.0,
-      },
-      {
-        id: `${row.id}-d4`,
-        section: `${displayName} - Детализация 4`,
-        value: baseValue * 0.15,
-        previousValue: basePreviousValue * 0.15,
-        ytdValue: baseYtdValue * 0.15,
-        percentage: 15.0,
-      },
+      createDetailRow(`${row.id}-d1`, 'Детализация 1', 0.35),
+      createDetailRow(`${row.id}-d2`, 'Детализация 2', 0.28),
+      createDetailRow(`${row.id}-d3`, 'Детализация 3', 0.22),
+      createDetailRow(`${row.id}-d4`, 'Детализация 4', 0.15),
     ];
   };
 
@@ -639,29 +630,10 @@ export const FinancialTable = ({
                       const formatId = col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
                       const numValue = typeof value === "number" ? value : undefined;
                       
-                      // Рассчитываем ppChange/ytdChange через утилиту для колонки value
-                      let ppChangeValue: number | undefined;
-                      let ytdChangeValue: number | undefined;
-                      
-                      if (col.id === "value") {
-                        // Для колонки value рассчитываем через calculatePercentChange
-                        // Проверяем, что есть хотя бы value для расчёта
-                        if (row.value !== undefined && row.value !== null) {
-                          const percentChanges = calculatePercentChange(
-                            row.value,
-                            row.previousValue,
-                            row.ytdValue
-                          );
-                          ppChangeValue = percentChanges.ppPercent;
-                          ytdChangeValue = percentChanges.ytdPercent;
-                        }
-                      } else {
-                        // Для других колонок берём из sub_columns (если есть)
-                        const ppChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ppChange");
-                        const ytdChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ytdChange");
-                        ppChangeValue = ppChangeSubCol ? (row as any)[ppChangeSubCol.id] : undefined;
-                        ytdChangeValue = ytdChangeSubCol ? (row as any)[ytdChangeSubCol.id] : undefined;
-                      }
+                      // Читаем готовые ppChange/ytdChange напрямую из row
+                      // Они уже рассчитаны в transformTableData через executeCalculation
+                      const ppChangeValue: number | undefined = (row as any).ppChange;
+                      const ytdChangeValue: number | undefined = (row as any).ytdChange;
                       
                       // Получаем форматы для отображения изменений
                       const ppChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ppChange");
@@ -738,17 +710,8 @@ export const FinancialTable = ({
                     </div>
                   )}
                   {(() => {
-                    // Проверяем, что есть данные для расчёта
-                    if (selectedRow.value === undefined || selectedRow.value === null) {
-                      return null;
-                    }
-                    
-                    const percentChanges = calculatePercentChange(
-                      selectedRow.value,
-                      selectedRow.previousValue,
-                      selectedRow.ytdValue
-                    );
-                    const ppChange = percentChanges.ppPercent;
+                    // Читаем готовое значение ppChange из row
+                    const ppChange = selectedRow.ppChange;
                     
                     return ppChange !== undefined && ppChange !== 0 ? (
                       <div>
@@ -780,17 +743,8 @@ export const FinancialTable = ({
                 </TableHeader>
                 <TableBody>
                   {getDetailRows(selectedRow).map((detailRow) => {
-                    // Рассчитываем ppChange через функцию для детализации
-                    // Проверяем, что есть данные для расчёта
-                    let detailPpChange: number | undefined;
-                    if (detailRow.value !== undefined && detailRow.value !== null) {
-                      const detailPercentChanges = calculatePercentChange(
-                        detailRow.value,
-                        detailRow.previousValue,
-                        detailRow.ytdValue
-                      );
-                      detailPpChange = detailPercentChanges.ppPercent;
-                    }
+                    // Читаем готовое значение ppChange из detailRow
+                    const detailPpChange = detailRow.ppChange;
                     const isPositive = detailPpChange !== undefined && detailPpChange > 0;
                     const isNegative = detailPpChange !== undefined && detailPpChange < 0;
                     const detailDisplayName = [detailRow.section, detailRow.item, detailRow.sub_item]

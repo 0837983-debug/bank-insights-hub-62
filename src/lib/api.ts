@@ -60,6 +60,32 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
 // Layout API
 // ============================================================================
 
+// Field types для определения роли колонки
+export type FieldType = 'dimension' | 'measure' | 'calculated' | 'attribute';
+export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
+export type CalculationType = 'percent_change' | 'diff' | 'ratio';
+
+export interface CalculationConfig {
+  type: CalculationType;
+  current?: string;
+  base?: string;
+  numerator?: string;
+  denominator?: string;
+  minuend?: string;
+  subtrahend?: string;
+}
+
+export interface LayoutColumn {
+  id: string;
+  type: string;
+  label: string;
+  format?: string | null;
+  fieldType: FieldType;
+  aggregation?: AggregationType;
+  calculationConfig?: CalculationConfig;
+  sub_columns?: LayoutColumn[];
+}
+
 export interface LayoutFormat {
   kind: string;
   pattern?: string;
@@ -98,6 +124,10 @@ export interface LayoutComponent {
     type: string;
     format?: string; // formatId для основного поля
     description?: string;
+    fieldType?: FieldType;
+    aggregation?: AggregationType;
+    calculationConfig?: CalculationConfig;
+    // Deprecated: используйте fieldType вместо isDimension/isMeasure
     isDimension?: boolean;
     isMeasure?: boolean;
     sub_columns?: Array<{
@@ -106,6 +136,8 @@ export interface LayoutComponent {
       type: string;
       format?: string; // formatId для sub_column
       description?: string;
+      fieldType?: FieldType;
+      calculationConfig?: CalculationConfig;
     }>;
   }>;
   groupableFields?: string[]; // Deprecated: используйте buttons вместо этого

@@ -7,21 +7,23 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { initializeFormats } from "@/lib/formatters";
+import { executeCalculation } from "@/lib/calculations";
 import {
   FinancialTable,
   type TableRowData,
   type GroupingOption,
 } from "@/components/FinancialTable";
-import type { LayoutComponent, TableData, FetchKPIsParams } from "@/lib/api";
+import type { LayoutComponent, TableData, FetchKPIsParams, FieldType, CalculationConfig } from "@/lib/api";
 
-// Тип для колонки из layout
+// Тип для колонки из layout с поддержкой fieldType
 interface LayoutColumn {
   id: string;
   label?: string;
   type?: string;
   format?: string;
-  isDimension?: boolean;
-  isMeasure?: boolean;
+  fieldType?: FieldType;
+  calculationConfig?: CalculationConfig;
+  sub_columns?: LayoutColumn[];
 }
 
 // Default hierarchy для обратной совместимости (если columns не передан)
@@ -31,11 +33,12 @@ const DEFAULT_HIERARCHY = ["class", "section", "item", "sub_item"];
  * Универсальная функция трансформации данных API в формат FinancialTable с иерархией.
  * 
  * @param apiData - данные от API
- * @param columns - колонки из layout с isDimension/isMeasure флагами
+ * @param columns - колонки из layout с fieldType
  * @returns массив строк для FinancialTable
  * 
- * Иерархия определяется по isDimension колонкам в порядке из layout.
- * Агрегация выполняется по всем isMeasure колонкам.
+ * Иерархия определяется по fieldType='dimension' колонкам в порядке из layout.
+ * Агрегация выполняется по всем fieldType='measure' колонкам.
+ * Calculated поля вычисляются через executeCalculation.
  */
 export function transformTableData(
   apiData: TableData, 
@@ -44,15 +47,21 @@ export function transformTableData(
   const rows = apiData.rows;
   if (rows.length === 0) return [];
 
-  // Определяем dimension и measure поля из layout columns
+  // Определяем dimension и measure поля из layout columns по fieldType
   // Порядок dimension полей определяет иерархию
   const dimensionFields = columns
-    ?.filter(col => col.isDimension)
+    ?.filter(col => col.fieldType === 'dimension')
     .map(col => col.id) || DEFAULT_HIERARCHY;
   
   const measureFields = columns
-    ?.filter(col => col.isMeasure)
+    ?.filter(col => col.fieldType === 'measure')
     .map(col => col.id) || ["value"];
+  
+  // Собираем все calculated поля из columns и sub_columns
+  const calculatedFields = [
+    ...(columns?.filter(c => c.fieldType === 'calculated') || []),
+    ...(columns?.flatMap(c => c.sub_columns || []).filter(c => c.fieldType === 'calculated') || [])
+  ];
   
   // Основной measure для процентов
   const primaryMeasure = measureFields[0] || "value";
@@ -133,6 +142,16 @@ export function transformTableData(
       isGroup: false,
       sortOrder: orderCounter++,
     };
+    
+    // Вычисляем calculated значения для leaf row
+    calculatedFields.forEach(calcField => {
+      if (calcField.calculationConfig) {
+        (leafRow as Record<string, unknown>)[calcField.id] = executeCalculation(
+          calcField.calculationConfig,
+          rowData
+        );
+      }
+    });
 
     addChild(parentId, leafRow);
   });
@@ -157,38 +176,26 @@ export function transformTableData(
       measureValues[field] = val !== 0 ? val : undefined;
     });
 
-    // Рассчитываем изменения для совместимости со старым форматом
-    // Ищем поля previousValue/ppValue и ytdValue/pyValue
-    const previousValue = measureValues.previousValue ?? measureValues.ppValue ?? measureValues.prev_period;
-    const ytdValue = measureValues.ytdValue ?? measureValues.pyValue ?? measureValues.prev_year;
-    
-    const ppChange =
-      previousValue !== undefined && previousValue !== 0
-        ? (value - previousValue) / previousValue
-        : undefined;
-    const ytdChange =
-      ytdValue !== undefined && ytdValue !== 0
-        ? (value - ytdValue) / ytdValue
-        : undefined;
-
     const groupRow: TableRowData = {
       id: group.id,
       ...fields,
       ...measureValues, // Все агрегированные measure поля
       value,
-      previousValue,
-      ytdValue,
       percentage: rootTotal ? value / rootTotal : undefined,
-      ppChange,
-      ppChangeAbsolute:
-        previousValue !== undefined ? value - previousValue : undefined,
-      ytdChange,
-      ytdChangeAbsolute:
-        ytdValue !== undefined ? value - ytdValue : undefined,
       parentId: group.parentId,
       isGroup: true,
       sortOrder: group.order,
     };
+    
+    // Вычисляем calculated значения для group row
+    calculatedFields.forEach(calcField => {
+      if (calcField.calculationConfig) {
+        (groupRow as Record<string, unknown>)[calcField.id] = executeCalculation(
+          calcField.calculationConfig,
+          { ...measureValues, value }
+        );
+      }
+    });
 
     groupRows.push(groupRow);
     addChild(group.parentId, groupRow);

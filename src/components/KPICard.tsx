@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import {
   ArrowUpIcon,
@@ -20,8 +20,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { useLayout, useAllKPIs } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
-import { calculatePercentChange } from "@/lib/calculations";
-import type { KPIMetric } from "@/lib/api";
+import { executeCalculation } from "@/lib/calculations";
+import type { KPIMetric, CalculationConfig } from "@/lib/api";
 
 // Icon mapping for dynamic icon rendering from layout
 const iconMap: Record<string, LucideIcon> = {
@@ -103,21 +103,54 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   const ytdChangeSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChange");
   const ytdChangeAbsoluteSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChangeAbsolute");
 
-  // Рассчитываем процентные изменения через утилиту
-  // Используем value, previousValue, previousYearValue (или ytdValue) из kpi
-  const percentChanges = calculatePercentChange(
-    kpi.value,
-    kpi.previousValue,
-    kpi.ytdValue // или previousYearValue, если будет в API
-  );
+  // Собираем все calculated поля из layout (columns и sub_columns)
+  const calculatedColumns = useMemo(() => {
+    if (!component?.columns) return [];
+    return [
+      ...component.columns.filter((c: any) => c.fieldType === 'calculated'),
+      ...component.columns.flatMap((c: any) => c.sub_columns || []).filter((c: any) => c.fieldType === 'calculated')
+    ];
+  }, [component?.columns]);
+
+  // Вычисляем все calculated значения через executeCalculation
+  const calculatedValues = useMemo(() => {
+    const result: Record<string, number | undefined> = {};
+    
+    // Если есть calculated поля из layout - используем их конфигурацию
+    calculatedColumns.forEach((col: any) => {
+      if (col.calculationConfig) {
+        result[col.id] = executeCalculation(col.calculationConfig, kpi as Record<string, unknown>);
+      }
+    });
+    
+    // Если нет calculated полей из layout - используем дефолтную конфигурацию
+    if (calculatedColumns.length === 0) {
+      // ppChange: процентное изменение к предыдущему периоду
+      const ppChangeConfig: CalculationConfig = { type: 'percent_change', current: 'value', base: 'previousValue' };
+      result.ppChange = executeCalculation(ppChangeConfig, kpi as Record<string, unknown>);
+      
+      // ytdChange: процентное изменение к прошлому году
+      const ytdChangeConfig: CalculationConfig = { type: 'percent_change', current: 'value', base: 'ytdValue' };
+      result.ytdChange = executeCalculation(ytdChangeConfig, kpi as Record<string, unknown>);
+      
+      // Абсолютные изменения
+      const ppDiffConfig: CalculationConfig = { type: 'diff', minuend: 'value', subtrahend: 'previousValue' };
+      result.ppChangeAbsolute = executeCalculation(ppDiffConfig, kpi as Record<string, unknown>);
+      
+      const ytdDiffConfig: CalculationConfig = { type: 'diff', minuend: 'value', subtrahend: 'ytdValue' };
+      result.ytdChangeAbsolute = executeCalculation(ytdDiffConfig, kpi as Record<string, unknown>);
+    }
+    
+    return result;
+  }, [calculatedColumns, kpi]);
 
   // Используем рассчитанные значения: процентные по умолчанию, абсолютные при клике
   const ppChange = showAbsolute 
-    ? percentChanges.ppDiff
-    : percentChanges.ppPercent;
+    ? calculatedValues.ppChangeAbsolute
+    : calculatedValues.ppChange;
   const ytdChange = showAbsolute 
-    ? percentChanges.ytdDiff
-    : percentChanges.ytdPercent;
+    ? calculatedValues.ytdChangeAbsolute
+    : calculatedValues.ytdChange;
   
   // Извлекаем formatId из sub_columns (format может быть строкой)
   const getFormatId = (subColumn: any): string | undefined => {

@@ -198,12 +198,12 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
           // Используем сырой SQL для прямого доступа к базе данных
           const cardFieldsResult = await pool.query(
             `SELECT 
-              id, component_id as "componentId", field_id as "fieldId", field_type as "fieldType",
+              id, component_id as "componentId", field_id as "fieldId", 
+              data_type as "dataType", field_type as "fieldType",
               label, description, format_id as "formatId",
               parent_field_id as "parentFieldId", is_visible as "isVisible",
               settings, display_order as "displayOrder", is_active as "isActive",
-              is_dimension as "isDimension", is_measure as "isMeasure",
-              compact_display as "compactDisplay", is_groupable as "isGroupable"
+              calculation_config as "calculationConfig", aggregation
             FROM config.component_fields
             WHERE component_id = $1
               AND deleted_at IS NULL
@@ -224,7 +224,8 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
               const column: any = {
                 id: f.fieldId,
                 label: f.label ?? f.fieldId,
-                type: f.fieldType,
+                type: f.dataType,  // тип данных (number, string, etc)
+                fieldType: f.fieldType,  // тип поля (dimension, measure, calculated, attribute)
               };
 
               // Добавляем формат, если есть
@@ -237,6 +238,16 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
                 column.description = f.description;
               }
 
+              // Добавляем calculationConfig для calculated полей
+              if (f.calculationConfig) {
+                column.calculationConfig = f.calculationConfig;
+              }
+
+              // Добавляем aggregation для measure полей
+              if (f.aggregation) {
+                column.aggregation = f.aggregation;
+              }
+
               // Находим дочерние поля для этого основного поля
               const subColumns = childFields
                 .filter((cf: any) => cf.parentFieldId === f.fieldId)
@@ -244,7 +255,8 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
                   const subCol: any = {
                     id: childField.fieldId,
                     label: childField.label ?? childField.fieldId,
-                    type: childField.fieldType,
+                    type: childField.dataType,  // тип данных
+                    fieldType: childField.fieldType,  // тип поля
                   };
 
                   if (childField.formatId) {
@@ -253,6 +265,16 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
 
                   if (childField.description) {
                     subCol.description = childField.description;
+                  }
+
+                  // Добавляем calculationConfig для calculated sub_columns
+                  if (childField.calculationConfig) {
+                    subCol.calculationConfig = childField.calculationConfig;
+                  }
+
+                  // Добавляем aggregation для measure sub_columns
+                  if (childField.aggregation) {
+                    subCol.aggregation = childField.aggregation;
                   }
 
                   return subCol;
@@ -285,12 +307,12 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
           // Используем сырой SQL для прямого доступа к базе данных
           const fieldsResult = await pool.query(
             `SELECT 
-              id, component_id as "componentId", field_id as "fieldId", field_type as "fieldType",
+              id, component_id as "componentId", field_id as "fieldId", 
+              data_type as "dataType", field_type as "fieldType",
               label, description, format_id as "formatId",
               parent_field_id as "parentFieldId", is_visible as "isVisible",
               settings, display_order as "displayOrder", is_active as "isActive",
-              is_dimension as "isDimension", is_measure as "isMeasure",
-              compact_display as "compactDisplay", is_groupable as "isGroupable"
+              calculation_config as "calculationConfig", aggregation
             FROM config.component_fields
             WHERE component_id = $1
               AND deleted_at IS NULL
@@ -311,16 +333,9 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
               const column: any = {
                 id: f.fieldId,
                 label: f.label ?? f.fieldId,
-                type: f.fieldType,
+                type: f.dataType,  // тип данных (number, string, etc)
+                fieldType: f.fieldType,  // тип поля (dimension, measure, calculated, attribute)
               };
-
-              // Добавляем isDimension и isMeasure для определения типа колонки
-              if (f.isDimension !== undefined) {
-                column.isDimension = f.isDimension;
-              }
-              if (f.isMeasure !== undefined) {
-                column.isMeasure = f.isMeasure;
-              }
 
               // Добавляем формат, если есть
               if (f.formatId) {
@@ -332,6 +347,16 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
                 column.description = f.description;
               }
 
+              // Добавляем calculationConfig для calculated полей
+              if (f.calculationConfig) {
+                column.calculationConfig = f.calculationConfig;
+              }
+
+              // Добавляем aggregation для measure полей
+              if (f.aggregation) {
+                column.aggregation = f.aggregation;
+              }
+
               // Находим дочерние поля для этого основного поля
               const subColumns = childFields
                 .filter((cf: any) => cf.parentFieldId === f.fieldId)
@@ -339,7 +364,8 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
                   const subCol: any = {
                     id: childField.fieldId,
                     label: childField.label ?? childField.fieldId,
-                    type: childField.fieldType,
+                    type: childField.dataType,  // тип данных
+                    fieldType: childField.fieldType,  // тип поля
                   };
 
                   if (childField.formatId) {
@@ -348,6 +374,16 @@ export async function buildLayoutFromDB(requestedLayoutId?: string) {
 
                   if (childField.description) {
                     subCol.description = childField.description;
+                  }
+
+                  // Добавляем calculationConfig для calculated sub_columns
+                  if (childField.calculationConfig) {
+                    subCol.calculationConfig = childField.calculationConfig;
+                  }
+
+                  // Добавляем aggregation
+                  if (childField.aggregation) {
+                    subCol.aggregation = childField.aggregation;
                   }
 
                   return subCol;

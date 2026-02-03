@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { transformTableData } from "../DynamicDashboard";
-import type { TableData } from "@/lib/api";
+import type { TableData, FieldType, CalculationConfig } from "@/lib/api";
+
+// Helper type for test columns
+interface TestColumn {
+  id: string;
+  fieldType?: FieldType;
+  calculationConfig?: CalculationConfig;
+  sub_columns?: TestColumn[];
+}
 
 describe("transformTableData", () => {
   describe("с columns из layout (универсальный режим)", () => {
@@ -14,14 +22,14 @@ describe("transformTableData", () => {
         columns: [],
       };
 
-      const columns = [
-        { id: "class", isDimension: true },
-        { id: "section", isDimension: true },
-        { id: "item", isDimension: true },
-        { id: "sub_item", isDimension: true },
-        { id: "value", isMeasure: true },
-        { id: "previousValue", isMeasure: true },
-        { id: "ytdValue", isMeasure: true },
+      const columns: TestColumn[] = [
+        { id: "class", fieldType: 'dimension' },
+        { id: "section", fieldType: 'dimension' },
+        { id: "item", fieldType: 'dimension' },
+        { id: "sub_item", fieldType: 'dimension' },
+        { id: "value", fieldType: 'measure' },
+        { id: "previousValue", fieldType: 'measure' },
+        { id: "ytdValue", fieldType: 'measure' },
       ];
 
       const result = transformTableData(apiData, columns);
@@ -37,8 +45,8 @@ describe("transformTableData", () => {
       const aktivyGroup = groups.find(g => g.class === "Активы" && !g.section);
       expect(aktivyGroup).toBeDefined();
       expect(aktivyGroup?.value).toBe(8000); // 1000 + 2000 + 5000
-      expect(aktivyGroup?.previousValue).toBe(7200); // 900 + 1800 + 4500
-      expect(aktivyGroup?.ytdValue).toBe(6400); // 800 + 1600 + 4000
+      expect((aktivyGroup as any)?.previousValue).toBe(7200); // 900 + 1800 + 4500
+      expect((aktivyGroup as any)?.ytdValue).toBe(6400); // 800 + 1600 + 4000
 
       // Проверяем агрегацию для группы "Денежные средства"
       const cashGroup = groups.find(g => g.section === "Денежные средства" && !g.item);
@@ -56,14 +64,14 @@ describe("transformTableData", () => {
         columns: [],
       };
 
-      const columns = [
-        { id: "class", isDimension: true },
-        { id: "category", isDimension: true },
-        { id: "item", isDimension: true },
-        { id: "subitem", isDimension: true },
-        { id: "value", isMeasure: true },
-        { id: "ppValue", isMeasure: true },
-        { id: "pyValue", isMeasure: true },
+      const columns: TestColumn[] = [
+        { id: "class", fieldType: 'dimension' },
+        { id: "category", fieldType: 'dimension' },
+        { id: "item", fieldType: 'dimension' },
+        { id: "subitem", fieldType: 'dimension' },
+        { id: "value", fieldType: 'measure' },
+        { id: "ppValue", fieldType: 'measure' },
+        { id: "pyValue", fieldType: 'measure' },
       ];
 
       const result = transformTableData(apiData, columns);
@@ -74,12 +82,12 @@ describe("transformTableData", () => {
       expect(leaves).toHaveLength(3);
 
       // Проверяем агрегацию для группы "Доходы"
-      const incomeGroup = groups.find(g => g.class === "Доходы" && !g.category);
+      const incomeGroup = groups.find(g => g.class === "Доходы" && !(g as any).category);
       expect(incomeGroup).toBeDefined();
       expect(incomeGroup?.value).toBe(1300); // 500 + 800
 
       // Проверяем агрегацию для группы "Процентные"
-      const interestGroup = groups.find(g => g.category === "Процентные" && !g.item);
+      const interestGroup = groups.find(g => (g as any).category === "Процентные" && !g.item);
       expect(interestGroup).toBeDefined();
       expect(interestGroup?.value).toBe(1300);
     });
@@ -124,11 +132,11 @@ describe("transformTableData", () => {
         columns: [],
       };
 
-      const columns = [
-        { id: "class", isDimension: true },
-        { id: "section", isDimension: true },
-        { id: "item", isDimension: true },
-        { id: "value", isMeasure: true },
+      const columns: TestColumn[] = [
+        { id: "class", fieldType: 'dimension' },
+        { id: "section", fieldType: 'dimension' },
+        { id: "item", fieldType: 'dimension' },
+        { id: "value", fieldType: 'measure' },
       ];
 
       const result = transformTableData(apiData, columns);
@@ -145,11 +153,22 @@ describe("transformTableData", () => {
         columns: [],
       };
 
-      const columns = [
-        { id: "class", isDimension: true },
-        { id: "value", isMeasure: true },
-        { id: "previousValue", isMeasure: true },
-        { id: "ytdValue", isMeasure: true },
+      const columns: TestColumn[] = [
+        { id: "class", fieldType: 'dimension' },
+        { id: "value", fieldType: 'measure' },
+        { id: "previousValue", fieldType: 'measure' },
+        { id: "ytdValue", fieldType: 'measure' },
+        // Добавляем calculated поля с calculationConfig
+        {
+          id: "ppChange",
+          fieldType: 'calculated',
+          calculationConfig: { type: 'percent_change', current: 'value', base: 'previousValue' }
+        },
+        {
+          id: "ytdChange",
+          fieldType: 'calculated',
+          calculationConfig: { type: 'percent_change', current: 'value', base: 'ytdValue' }
+        },
       ];
 
       const result = transformTableData(apiData, columns);

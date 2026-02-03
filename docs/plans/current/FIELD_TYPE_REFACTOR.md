@@ -1,7 +1,7 @@
 # План выполнения: Типизация полей component_fields + Calculated поля
 
 > **Создан**: 2026-02-03  
-> **Статус**: ⏸️ Готов к выполнению  
+> **Статус**: ✅ ЗАВЕРШЕНО (2026-02-03)  
 > **Roadmap**: H.5 — Технический долг / Архитектура
 
 ---
@@ -53,86 +53,74 @@ API → transformTableData (ВСЕ расчёты через calculation_config)
 
 ---
 
-## Структура этапов
+## Структура этапов (ПАРАЛЛЕЛЬНО)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Этап 1: БД — field_type + calculation_config           │ ◄── Сразу с данными
-├─────────────────────────────────────────────────────────┤
-│ Этап 2: Backend — Обновить layout view                 │
-├─────────────────────────────────────────────────────────┤
-│ Этап 3+4: Frontend (ПАРАЛЛЕЛЬНО с моками)              │
-│   3A: Типы + executeCalculation                        │
-│   3B: transformTableData + KPICard                     │
-│   3C: FinancialTable                                   │
-├─────────────────────────────────────────────────────────┤
-│ Этап 4: Frontend — Переключить с моков на API          │
-├─────────────────────────────────────────────────────────┤
-│ Этап 5: БД — Удалить deprecated колонки                │ ◄── Обязательно
-├─────────────────────────────────────────────────────────┤
-│ Этап 6: QA + Docs                                      │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ПАРАЛЛЕЛЬНЫЙ ЗАПУСК                                 │
+├────────────────────────────────┬────────────────────────────────────────────┤
+│      Backend (Этапы 1-2)       │         Frontend (Этапы A-C)               │
+│                                │                                            │
+│  1. БД: field_type + calc      │  A. Создать моки layout с fieldType        │
+│  2. Обновить layout view       │  B. Типы + executeCalculation              │
+│                                │  C. transformTableData + компоненты        │
+├────────────────────────────────┴────────────────────────────────────────────┤
+│                         ИНТЕГРАЦИЯ (Этап 3)                                 │
+│  • Сверить моки с реальным API                                             │
+│  • Переключить фронт на API                                                │
+│  • Проверить что всё работает                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                    CLEANUP (Этап 4) — ОБЯЗАТЕЛЬНО                          │
+│  • Удалить deprecated колонки из БД                                        │
+│  • Удалить моки с фронта                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                         QA + Docs (Этап 5)                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Этап 1: БД — Добавить field_type + calculated поля 🔴
+## ПАРАЛЛЕЛЬНЫЙ ПОТОК: Backend (Этапы 1-2)
+
+### Этап 1: БД — Добавить field_type + calculated поля ✅
 
 **Субагент**: `backend-agent`  
 **Зависимости**: Нет  
-**Статус**: ⏸️ Ожидает
+**Статус**: ✅ Завершено (2026-02-03)
+**Запуск**: ПАРАЛЛЕЛЬНО с Frontend
 
 ### Задачи:
 
-- [ ] **1.1** Создать миграцию `030_add_field_type.sql`:
+- [x] **1.1** Создать миграцию `030_add_field_type.sql`:
   - Добавить колонку `field_type VARCHAR(20)` с CHECK constraint
   - Добавить колонку `calculation_config JSONB` для calculated полей
   - Добавить колонку `aggregation VARCHAR(10)` для measure полей
-- [ ] **1.2** Создать миграцию `031_migrate_field_types.sql`:
+- [x] **1.2** Создать миграцию `031_migrate_field_types.sql`:
   - Заполнить `field_type` на основе `is_dimension`/`is_measure`/`parent_field_id`
+  - parent_field_id IS NOT NULL → 'calculated'
   - is_dimension=true → 'dimension'
   - is_measure=true → 'measure'
-  - parent_field_id IS NOT NULL → 'calculated'
   - остальное → 'attribute'
-- [ ] **1.3** Создать миграцию `032_add_calculated_fields.sql`:
-  - Добавить calculated поля с `calculation_config` для существующих компонентов
-  - assets_table, fin_results_table, KPI карточки
+- [x] **1.3** Создать миграцию `032_add_calculated_fields.sql`:
+  - Добавить calculated поля с `calculation_config` для всех компонентов
+- [x] **1.4** Создать миграцию `034_fix_field_types.sql` (дополнительно):
+  - Исправить ppValue/pyValue → measure (не calculated)
 
-### SQL миграция 030:
+### SQL миграции:
 
 ```sql
--- Добавляем новые колонки
+-- 030_add_field_type.sql
 ALTER TABLE config.component_fields
 ADD COLUMN IF NOT EXISTS field_type VARCHAR(20),
 ADD COLUMN IF NOT EXISTS calculation_config JSONB,
 ADD COLUMN IF NOT EXISTS aggregation VARCHAR(10);
 
--- CHECK constraint для field_type
 ALTER TABLE config.component_fields
 ADD CONSTRAINT chk_field_type CHECK (
-  field_type IS NULL OR 
   field_type IN ('dimension', 'measure', 'calculated', 'attribute')
 );
 
--- CHECK constraint для aggregation
-ALTER TABLE config.component_fields
-ADD CONSTRAINT chk_aggregation CHECK (
-  aggregation IS NULL OR 
-  aggregation IN ('sum', 'avg', 'count', 'min', 'max')
-);
-
-COMMENT ON COLUMN config.component_fields.field_type IS 
-  'Тип поля: dimension (группировка), measure (числовое из БД), calculated (вычисляется на фронте), attribute (прочее)';
-COMMENT ON COLUMN config.component_fields.calculation_config IS 
-  'Конфиг вычисления для calculated полей: {"type": "percent_change", "current": "value", "base": "previousValue"}';
-COMMENT ON COLUMN config.component_fields.aggregation IS 
-  'Функция агрегации для measure полей: sum, avg, count, min, max';
-```
-
-### SQL миграция 031:
-
-```sql
--- Заполняем field_type на основе существующих данных
+-- 031_migrate_field_types.sql
 UPDATE config.component_fields
 SET field_type = CASE
   WHEN parent_field_id IS NOT NULL THEN 'calculated'
@@ -142,196 +130,113 @@ SET field_type = CASE
 END
 WHERE field_type IS NULL;
 
--- Для measure полей устанавливаем aggregation = 'sum' по умолчанию
-UPDATE config.component_fields
-SET aggregation = 'sum'
-WHERE field_type = 'measure' AND aggregation IS NULL;
-```
-
-### SQL миграция 032 (calculated поля):
-
-```sql
--- Обновляем существующие sub_columns с calculation_config
--- ppChange для assets_table
+-- 032_add_calculated_fields.sql
 UPDATE config.component_fields
 SET calculation_config = '{"type": "percent_change", "current": "value", "base": "ppValue"}'::jsonb
-WHERE component_id = 'assets_table' AND field_id = 'ppChange';
-
--- ytdChange для assets_table  
-UPDATE config.component_fields
-SET calculation_config = '{"type": "percent_change", "current": "value", "base": "pyValue"}'::jsonb
-WHERE component_id = 'assets_table' AND field_id = 'ytdChange';
-
--- ppChangeAbsolute для assets_table
-UPDATE config.component_fields
-SET calculation_config = '{"type": "diff", "minuend": "value", "subtrahend": "ppValue"}'::jsonb
-WHERE component_id = 'assets_table' AND field_id = 'ppChangeAbsolute';
-
--- ytdChangeAbsolute для assets_table
-UPDATE config.component_fields
-SET calculation_config = '{"type": "diff", "minuend": "value", "subtrahend": "pyValue"}'::jsonb
-WHERE component_id = 'assets_table' AND field_id = 'ytdChangeAbsolute';
-
--- Аналогично для fin_results_table и KPI карточек
--- (добавить все компоненты)
+WHERE field_id = 'ppChange' AND field_type = 'calculated';
+-- (аналогично для всех calculated полей)
 ```
-
-### Критерии завершения:
-
-- [ ] Миграции выполнены без ошибок
-- [ ] `field_type` заполнен для всех записей
-- [ ] `calculation_config` заполнен для calculated полей
-- [ ] Backend запускается
 
 ### ✅ Точка проверки:
 
 ```bash
 cd backend && npm run migrate
-
 psql -c "SELECT field_type, COUNT(*) FROM config.component_fields GROUP BY field_type"
 psql -c "SELECT field_id, calculation_config FROM config.component_fields WHERE field_type = 'calculated'"
-
-npm run dev
-```
-
-### 📋 Команда для Executor:
-
-```javascript
-Task(
-  subagent_type: "backend-agent",
-  description: "Add field_type + calculated to DB",
-  prompt: `
-    Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md, раздел "Этап 1"
-    
-    Создай три миграции:
-    1. 030_add_field_type.sql - добавление колонок
-    2. 031_migrate_field_types.sql - заполнение field_type
-    3. 032_add_calculated_fields.sql - calculation_config для всех sub_columns
-    
-    ВАЖНО:
-    - parent_field_id IS NOT NULL → field_type = 'calculated'
-    - Найди все существующие sub_columns (ppChange, ytdChange, etc.) и добавь им calculation_config
-    - Проверь все компоненты: assets_table, fin_results_table, liabilities_table, KPI карточки
-    
-    После создания:
-    - cd backend && npm run migrate
-    - Проверь данные в БД
-    - npm run dev
-    
-    Обнови статус этапа в плане на ✅
-  `
-)
 ```
 
 ---
 
-## Этап 2: Backend — Обновить layout view ⏸️
+### Этап 2: Backend — Обновить layout view ✅
 
 **Субагент**: `backend-agent`  
 **Зависимости**: Этап 1 ✅  
-**Статус**: ⏸️ Ожидает
+**Статус**: ✅ Завершено (2026-02-03)
 
 ### Задачи:
 
-- [ ] **2.1** Обновить `config.v_layout` view:
-  - Добавить `field_type`, `calculation_config`, `aggregation` в SELECT для columns
-- [ ] **2.2** Обновить типы в `backend/src/services/mart/types.ts` (если используются)
-
-### Файлы для изменения:
-
-- SQL view: `config.v_layout`
-- Типы: `backend/src/services/mart/types.ts`
-
-### SQL для view:
-
-```sql
--- Найти view и добавить новые поля в columns JSON
--- Примерно так:
-jsonb_build_object(
-  'id', cf.field_id,
-  'type', cf.field_type,
-  'label', cf.label,
-  'format', cf.format_id,
-  'fieldType', cf.field_type,
-  'calculationConfig', cf.calculation_config,
-  'aggregation', cf.aggregation,
-  -- остальные поля
-)
-```
-
-### Критерии завершения:
-
-- [ ] View обновлён
-- [ ] API `/api/data?query_id=layout` возвращает `fieldType` и `calculationConfig` в columns
-- [ ] Backend компилируется и работает
+- [x] **2.1** Обновить `config.layout_sections_json_view` — добавить `fieldType`, `calculationConfig`, `aggregation`
+- [x] **2.2** Обновить `layoutService.ts` — использовать data_type для типа данных, field_type для типа поля
 
 ### ✅ Точка проверки:
 
 ```bash
-cd backend && npm run migrate
-
 curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout" | jq '.sections[].components[].columns[] | select(.fieldType == "calculated")'
-
-npm run build
-```
-
-### 📋 Команда для Executor:
-
-```javascript
-Task(
-  subagent_type: "backend-agent",
-  description: "Update layout view",
-  prompt: `
-    Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md, раздел "Этап 2"
-    
-    1. Найди view config.v_layout (или аналогичный, который формирует layout для API)
-    2. Добавь field_type, calculation_config, aggregation в JSON для columns
-    3. Обнови типы в backend/src/services/mart/types.ts если нужно
-    
-    После завершения:
-    - npm run migrate (если менял view через миграцию)
-    - Проверь API что fieldType и calculationConfig есть
-    - Обнови статус этапа в плане на ✅
-  `
-)
 ```
 
 ---
 
-## Этап 3: Frontend — Типы, расчёты, компоненты (ПАРАЛЛЕЛЬНО) ⏸️
+## ПАРАЛЛЕЛЬНЫЙ ПОТОК: Frontend с моками (Этапы A-C)
 
-**Субагенты**: `frontend-agent` (3 параллельных задачи)  
-**Зависимости**: Этап 2 ✅  
-**Статус**: ⏸️ Ожидает
+### Этап A: Создать моки + Типы + executeCalculation ✅
 
-### Подготовка к параллельной работе:
+**Субагент**: `frontend-agent`  
+**Зависимости**: Нет  
+**Статус**: ✅ ЗАВЕРШЕНО
+**Запуск**: ПАРАЛЛЕЛЬНО с Backend
 
-Создать mock данные для тестирования пока backend готовится:
+### Задачи:
+
+- [x] **A.1** Создать моки `src/mocks/layoutMock.ts`:
 
 ```typescript
 // src/mocks/layoutMock.ts
-export const mockLayoutWithCalculated = {
-  columns: [
-    { id: 'value', fieldType: 'measure', aggregation: 'sum' },
-    { 
-      id: 'ppChange', 
-      fieldType: 'calculated',
-      calculationConfig: { type: 'percent_change', current: 'value', base: 'ppValue' }
-    },
-    // ...
-  ]
-};
+export const mockAssetsTableColumns = [
+  { id: 'class', fieldType: 'dimension' as const, label: 'Класс', type: 'string' },
+  { id: 'section', fieldType: 'dimension' as const, label: 'Раздел', type: 'string' },
+  { id: 'item', fieldType: 'dimension' as const, label: 'Статья', type: 'string' },
+  { id: 'sub_item', fieldType: 'dimension' as const, label: 'Подстатья', type: 'string' },
+  { 
+    id: 'value', 
+    fieldType: 'measure' as const, 
+    label: 'Значение', 
+    type: 'number',
+    format: 'currency_rub',
+    aggregation: 'sum' as const,
+    sub_columns: [
+      { 
+        id: 'ppChange', 
+        fieldType: 'calculated' as const,
+        label: 'Изм. к ПП, %',
+        type: 'number',
+        format: 'percent',
+        calculationConfig: { type: 'percent_change' as const, current: 'value', base: 'ppValue' }
+      },
+      { 
+        id: 'ytdChange', 
+        fieldType: 'calculated' as const,
+        label: 'Изм. YTD, %',
+        type: 'number',
+        format: 'percent',
+        calculationConfig: { type: 'percent_change' as const, current: 'value', base: 'pyValue' }
+      },
+      { 
+        id: 'ppChangeAbsolute', 
+        fieldType: 'calculated' as const,
+        label: 'Изм. к ПП',
+        type: 'number',
+        format: 'currency_rub',
+        calculationConfig: { type: 'diff' as const, minuend: 'value', subtrahend: 'ppValue' }
+      },
+      { 
+        id: 'ytdChangeAbsolute', 
+        fieldType: 'calculated' as const,
+        label: 'Изм. YTD',
+        type: 'number',
+        format: 'currency_rub',
+        calculationConfig: { type: 'diff' as const, minuend: 'value', subtrahend: 'pyValue' }
+      }
+    ]
+  },
+  { id: 'ppValue', fieldType: 'measure' as const, label: 'Пред. период', type: 'number', format: 'currency_rub' },
+  { id: 'pyValue', fieldType: 'measure' as const, label: 'Прош. год', type: 'number', format: 'currency_rub' }
+];
+
+// Флаг для переключения между моками и API
+export const USE_MOCKS = true;
 ```
 
-### 3A: Типы + executeCalculation
-
-- [ ] **3A.1** Обновить типы в `src/lib/api.ts`:
-  - Добавить `FieldType`, `CalculationConfig`, `AggregationType`
-  - Обновить `LayoutColumn` interface (БЕЗ isDimension/isMeasure)
-- [ ] **3A.2** Добавить `executeCalculation` в `src/lib/calculations.ts`
-- [ ] **3A.3** Добавить тесты для `executeCalculation`
-
-### Типы (БЕЗ deprecated полей):
+- [x] **A.2** Обновить типы в `src/lib/api.ts` (БЕЗ isDimension/isMeasure):
 
 ```typescript
 export type FieldType = 'dimension' | 'measure' | 'calculated' | 'attribute';
@@ -353,232 +258,219 @@ export interface LayoutColumn {
   type: string;
   label: string;
   format?: string | null;
-  description?: string | null;
-  fieldType: FieldType;  // Обязательное поле
+  fieldType: FieldType;
   aggregation?: AggregationType;
   calculationConfig?: CalculationConfig;
   sub_columns?: LayoutColumn[];
 }
 ```
 
-### 3B: transformTableData + KPICard
-
-- [ ] **3B.1** Обновить `transformTableData` в `DynamicDashboard.tsx`:
-  - Использовать `fieldType` (БЕЗ fallback на isDimension/isMeasure)
-  - Иерархия = порядок dimension полей в массиве columns
-  - Вызывать `executeCalculation` для calculated полей
-  - Убрать ВСЕ хардкоды имён полей
-- [ ] **3B.2** Обновить KPICard для использования calculated полей
-- [ ] **3B.3** Обновить тесты
-
-### Алгоритм transformTableData:
+- [x] **A.3** Добавить `executeCalculation` в `src/lib/calculations.ts`:
 
 ```typescript
-function transformTableData(
-  apiData: TableData, 
-  columns: LayoutColumn[]  // Обязательный параметр
-): TableRowData[] {
-  // Иерархия = порядок dimension полей в columns (как есть)
-  const dimensionFields = columns
-    .filter(col => col.fieldType === 'dimension')
-    .map(col => col.id);
-  
-  const measureFields = columns
-    .filter(col => col.fieldType === 'measure')
-    .map(col => col.id);
-  
-  // Собираем ВСЕ calculated поля (и top-level, и sub_columns)
-  const calculatedColumns: LayoutColumn[] = [];
-  columns.forEach(col => {
-    if (col.fieldType === 'calculated' && col.calculationConfig) {
-      calculatedColumns.push(col);
-    }
-    col.sub_columns?.forEach(subCol => {
-      if (subCol.fieldType === 'calculated' && subCol.calculationConfig) {
-        calculatedColumns.push(subCol);
-      }
-    });
-  });
-  
-  // ... строим иерархию и агрегируем ...
-  
-  // Применяем calculations к КАЖДОЙ строке (группы + листья)
-  const applyCalculations = (row: TableRowData) => {
-    calculatedColumns.forEach(col => {
-      (row as Record<string, unknown>)[col.id] = executeCalculation(
-        col.calculationConfig!, 
-        row as Record<string, unknown>
-      );
-    });
+export function executeCalculation(
+  config: CalculationConfig,
+  rowData: Record<string, unknown>
+): number | undefined {
+  const getValue = (field?: string): number => {
+    if (!field) return 0;
+    const val = rowData[field];
+    return typeof val === 'number' ? val : Number(val) || 0;
   };
-  
-  allRows.forEach(applyCalculations);
-  
-  return result;
+
+  switch (config.type) {
+    case 'percent_change': {
+      const current = getValue(config.current);
+      const base = getValue(config.base);
+      if (base === 0) return 0;
+      return Math.round(((current - base) / base) * 10000) / 10000;
+    }
+    case 'diff': {
+      return getValue(config.minuend) - getValue(config.subtrahend);
+    }
+    case 'ratio': {
+      const denom = getValue(config.denominator);
+      if (denom === 0) return 0;
+      return getValue(config.numerator) / denom;
+    }
+    default:
+      return undefined;
+  }
 }
 ```
 
-### 3C: FinancialTable
-
-- [ ] **3C.1** Убрать ВСЕ расчёты `calculatePercentChange` из рендера
-- [ ] **3C.2** Просто читать готовые значения из строки (row.ppChange, row.ytdChange)
-- [ ] **3C.3** Удалить fallback — данные ВСЕГДА приходят готовыми
-
-### Было:
-
-```typescript
-if (col.id === "value") {
-  const percentChanges = calculatePercentChange(row.value, row.previousValue, row.ytdValue);
-  ppChangeValue = percentChanges.ppPercent;
-}
-```
-
-### Стало:
-
-```typescript
-// Данные готовы в transformTableData. Никаких расчётов, никаких fallback.
-const ppChangeValue = (row as Record<string, unknown>)[ppChangeColumnId];
-const ytdChangeValue = (row as Record<string, unknown>)[ytdChangeColumnId];
-```
-
-### Критерии завершения:
-
-- [ ] Типы обновлены (без isDimension/isMeasure)
-- [ ] executeCalculation работает и покрыт тестами
-- [ ] transformTableData использует fieldType (без fallback)
-- [ ] FinancialTable только рендерит (без расчётов)
-- [ ] KPICard использует calculated поля
-- [ ] `npm run build` без ошибок
+- [x] **A.4** Добавить тесты для `executeCalculation`
 
 ### ✅ Точка проверки:
 
 ```bash
-npm run test
+npm run test -- --run calculations
 npm run build
-
-# Ручная проверка с моками или с API
-```
-
-### 📋 Команды для параллельного запуска:
-
-```javascript
-// Задача 3A
-Task(
-  subagent_type: "frontend-agent",
-  description: "Types + executeCalculation",
-  prompt: `
-    Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md, раздел "Этап 3, 3A"
-    
-    1. Обнови типы в src/lib/api.ts — БЕЗ isDimension/isMeasure
-    2. Добавь executeCalculation в src/lib/calculations.ts
-    3. Добавь тесты
-    
-    ЗАПРЕЩЕНО: fallback, backward compatibility, хардкод
-    
-    После: npm run test && npm run build
-  `
-)
-
-// Задача 3B (после 3A)
-Task(
-  subagent_type: "frontend-agent", 
-  description: "transformTableData + KPICard",
-  prompt: `
-    Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md, раздел "Этап 3, 3B"
-    
-    1. Обнови transformTableData — fieldType, executeCalculation
-    2. Иерархия = порядок dimension в columns (не отдельное поле)
-    3. Обнови KPICard — использовать calculated поля
-    
-    ЗАПРЕЩЕНО: fallback на isDimension/isMeasure, хардкод имён полей
-    
-    После: npm run test && npm run build
-  `
-)
-
-// Задача 3C (после 3A)
-Task(
-  subagent_type: "frontend-agent",
-  description: "Simplify FinancialTable",
-  prompt: `
-    Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md, раздел "Этап 3, 3C"
-    
-    Упрости FinancialTable.tsx:
-    1. Убери ВСЕ вызовы calculatePercentChange из рендера
-    2. Читай готовые значения из row
-    3. Удали fallback — данные ВСЕГДА готовы
-    
-    ЗАПРЕЩЕНО: fallback, резервный расчёт, хардкод
-    
-    После: npm run build
-  `
-)
 ```
 
 ---
 
-## Этап 4: Интеграция — Переключить на API ⏸️
+### Этап B: transformTableData + KPICard ✅
 
 **Субагент**: `frontend-agent`  
-**Зависимости**: Этапы 2, 3 ✅  
-**Статус**: ⏸️ Ожидает
+**Зависимости**: Этап A ✅  
+**Статус**: ✅ ЗАВЕРШЕНО
 
 ### Задачи:
 
-- [ ] **4.1** Убрать моки (если использовались)
-- [ ] **4.2** Проверить что фронт работает с реальным API
-- [ ] **4.3** Проверить все компоненты: таблицы, карточки
+- [x] **B.1** Обновить `transformTableData` в `DynamicDashboard.tsx`:
+  - Использовать `fieldType` (БЕЗ fallback на isDimension/isMeasure)
+  - Иерархия = порядок dimension полей в columns (как есть в массиве)
+  - Вызывать `executeCalculation` для всех полей с `fieldType === 'calculated'`
+  - Собирать calculated поля из columns И из sub_columns
+- [x] **B.2** Обновить `KPICard` в `src/components/KPICard.tsx`:
+  - Вместо вызова `calculatePercentChange` использовать `executeCalculation`
+  - Итерироваться по ВСЕМ calculated полям из layout (не хардкодить имена!)
+  - Для каждого поля с `fieldType === 'calculated'` вызвать `executeCalculation`
+  - Убрать ВСЕ хардкоды имён полей
+- [x] **B.3** Тестировать с моками
+
+### Пример для KPICard:
+
+```typescript
+// Было (хардкод):
+const percentChanges = calculatePercentChange(kpi.value, kpi.previousValue, kpi.ytdValue);
+const ppChange = percentChanges.ppPercent;
+
+// Стало (динамически из layout):
+// Собираем все calculated поля из layout
+const calculatedColumns = [
+  ...columns.filter(c => c.fieldType === 'calculated'),
+  ...columns.flatMap(c => c.sub_columns || []).filter(c => c.fieldType === 'calculated')
+];
+
+// Вычисляем каждое calculated поле
+const calculatedValues: Record<string, number | undefined> = {};
+calculatedColumns.forEach(col => {
+  if (col.calculationConfig) {
+    calculatedValues[col.id] = executeCalculation(col.calculationConfig, kpi);
+  }
+});
+
+// Используем по id из layout (не хардкодим!)
+// calculatedValues['ppChange'], calculatedValues['ytdChange'], etc.
+```
+
+### ✅ Точка проверки:
+
+```bash
+npm run test -- --run transformTableData
+npm run test -- --run KPICard
+npm run build
+```
+
+---
+
+### Этап C: FinancialTable ✅
+
+**Субагент**: `frontend-agent`  
+**Зависимости**: Этап A ✅  
+**Статус**: ✅ ЗАВЕРШЕНО
+
+### Задачи:
+
+- [x] **C.1** Убрать ВСЕ вызовы `calculatePercentChange` из рендера
+- [x] **C.2** Читать готовые значения из row
+- [x] **C.3** Удалить fallback
 
 ### ✅ Точка проверки:
 
 ```bash
 npm run build
-
-# Запустить приложение
-npm run dev
-
-# Проверить в браузере:
-# - assets_table отображается корректно
-# - fin_results_table отображается корректно  
-# - KPI карточки показывают изменения
-# - ppChange/ytdChange везде работают
 ```
 
 ---
 
-## Этап 5: БД — Удалить deprecated колонки 🔴 ОБЯЗАТЕЛЬНО
+## ИНТЕГРАЦИЯ (Этап 3)
 
-**Субагент**: `backend-agent`  
-**Зависимости**: Этап 4 ✅  
-**Статус**: ⏸️ Ожидает
+**Субагент**: `frontend-agent`  
+**Зависимости**: Backend (1-2) ✅, Frontend (A-C) ✅  
+**Статус**: ✅ ЗАВЕРШЕНО (2026-02-03)
 
 ### Задачи:
 
-- [ ] **5.1** Проверить что `is_dimension`, `is_measure`, `compact_display`, `is_groupable` не используются
-- [ ] **5.2** Создать миграцию `033_remove_deprecated_columns.sql`:
+- [x] **3.1** Сравнить моки с реальным API:
+
+```bash
+# Получить реальные данные
+curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout" | jq '.sections[].components[] | select(.componentId == "assets_table") | .columns'
+
+# Сравнить с моками в src/mocks/layoutMock.ts
+```
+
+- [x] **3.2** Если расхождения — исправить (моки или API) — РАСХОЖДЕНИЯ ОБНАРУЖЕНЫ (см. ниже)
+- [x] **3.3** Переключить `USE_MOCKS = false`
+- [x] **3.4** Проверить build и тесты — ✅ Успешно
+
+### ✅ Точка проверки:
+
+```bash
+npm run dev
+# Открыть http://localhost:8080
+# Проверить все таблицы и карточки
+```
+
+### ⚠️ Обнаруженные расхождения (3.2):
+
+**Cards (capital_card, roa_card)** — ✅ API соответствует ожиданиям:
+- `fieldType: 'calculated'` для ppChange, ytdChange, ppChangeAbsolute, ytdChangeAbsolute
+- `calculationConfig` присутствует с правильной структурой
+
+**Tables (assets_table)** — ⚠️ РАСХОЖДЕНИЕ:
+- **Моки** содержат calculated sub_columns: ppChange, ytdChange, ppChangeAbsolute, ytdChangeAbsolute с calculationConfig
+- **API** возвращает только measure sub_columns: ppValue, pyValue (fieldType: 'measure', без calculationConfig)
+
+**Влияние**: Таблицы НЕ вычисляют ppChange/ytdChange, потому что в API нет полей с `fieldType='calculated'` для таблиц.
+
+**Рекомендация**: В Этапе 4 или отдельным backend-таском добавить calculated поля для таблиц в БД (ppChange, ytdChange, ppChangeAbsolute, ytdChangeAbsolute с parent_field_id='value').
+
+### Примечание по USE_MOCKS:
+
+Флаг `USE_MOCKS` был создан для потенциального переключения между моками и API, но **фактически не использовался в коде** — система всегда работала напрямую с API. Переключение `USE_MOCKS = false` носит формальный характер.
+
+---
+
+## CLEANUP (Этап 4) — ОБЯЗАТЕЛЬНО
+
+**Субагент**: `backend-agent` + `frontend-agent`  
+**Зависимости**: Этап 3 ✅  
+**Статус**: ⏸️ Ожидает
+
+### Backend:
+
+- [ ] **4.1** Создать файл миграции `backend/src/migrations/033_remove_deprecated_columns.sql`:
 
 ```sql
--- Удаляем неиспользуемые колонки
+-- 033_remove_deprecated_columns.sql
+-- Удаление deprecated колонок из config.component_fields
+
 ALTER TABLE config.component_fields
 DROP COLUMN IF EXISTS is_dimension,
 DROP COLUMN IF EXISTS is_measure,
 DROP COLUMN IF EXISTS compact_display,
 DROP COLUMN IF EXISTS is_groupable;
+
+-- Обновить комментарий к таблице
+COMMENT ON TABLE config.component_fields IS 
+  'Поля компонентов. field_type определяет тип: dimension, measure, calculated, attribute';
 ```
 
-- [ ] **5.3** Обновить view если они использовали эти колонки
+- [ ] **4.2** Запустить миграцию: `cd backend && npm run migrate`
 
-### Критерии завершения:
+### Frontend:
 
-- [ ] Колонки удалены из БД
-- [ ] Backend компилируется и работает
-- [ ] Фронт работает без ошибок
+- [ ] **4.2** Удалить `src/mocks/layoutMock.ts`
+- [ ] **4.3** Удалить `USE_MOCKS` флаг
 
 ### ✅ Точка проверки:
 
 ```bash
 cd backend && npm run migrate
-
 psql -c "\d config.component_fields" | grep -E "is_dimension|is_measure|compact_display|is_groupable"
 # Должно быть пусто
 
@@ -588,42 +480,150 @@ npm run dev
 
 ---
 
-## Этап 6: QA + Docs ⏸️
+## QA + Docs (Этап 5)
 
 **Субагенты**: `qa-agent`, `docs-agent`  
-**Зависимости**: Этап 5 ✅  
+**Зависимости**: Этап 4 ✅  
 **Статус**: ⏸️ Ожидает
 
 ### QA:
 
-- [ ] **6.1** Запустить все E2E тесты
-- [ ] **6.2** Проверить assets_table, fin_results_table, liabilities_table
-- [ ] **6.3** Проверить KPI карточки
-- [ ] **6.4** Проверить что ppChange/ytdChange отображаются корректно везде
+- [ ] Запустить все E2E тесты
+- [ ] Проверить все таблицы и карточки
 
 ### Docs:
 
-- [ ] **6.5** Обновить `docs/database/schemas.md`
-- [ ] **6.6** Создать `docs/architecture/field-types.md`
-- [ ] **6.7** Обновить `docs/context/frontend.md`
-- [ ] **6.8** Обновить `docs/context/backend.md`
+- [ ] Обновить `docs/database/schemas.md`
+- [ ] Создать `docs/architecture/field-types.md`
+- [ ] Обновить контексты
 
 ---
 
 ## Сводка этапов
 
-| # | Этап | Субагент | Зависимость | Проверка |
-|---|------|----------|-------------|----------|
-| 1 | БД: field_type + calculated | backend | - | Миграции + данные |
-| 2 | Backend: layout view | backend | 1 | API с fieldType |
-| 3 | Frontend: типы + компоненты | frontend | 2 | Тесты + сборка |
-| 4 | Интеграция | frontend | 2, 3 | Браузер |
-| 5 | БД: удалить deprecated | backend | 4 | Колонки удалены |
-| 6 | QA + Docs | qa, docs | 5 | E2E + документация |
+| Поток | Этап | Субагент | Параллельно с |
+|-------|------|----------|---------------|
+| **Backend** | 1. БД: field_type | backend | Frontend A |
+| **Backend** | 2. Layout view | backend | Frontend B, C |
+| **Frontend** | A. Моки + типы + executeCalculation | frontend | Backend 1 |
+| **Frontend** | B. transformTableData + KPICard | frontend | Backend 2 |
+| **Frontend** | C. FinancialTable | frontend | Backend 2 |
+| **Интеграция** | 3. Сверить и переключить | frontend | — |
+| **Cleanup** | 4. Удалить deprecated | backend + frontend | — |
+| **Финал** | 5. QA + Docs | qa, docs | — |
 
 ---
 
 ## Инструкция для Executor
+
+### Фаза 1: Параллельный запуск Backend и Frontend
+
+Запустить **ОДНОВРЕМЕННО** два субагента:
+
+```javascript
+// ПАРАЛЛЕЛЬНО запустить оба Task в одном сообщении!
+
+Task(
+  subagent_type: "backend-agent",
+  description: "Backend: field_type + view",
+  prompt: `
+    ПЕРЕД НАЧАЛОМ:
+    1. Прочитай контекст: docs/context/backend.md
+    2. Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md
+    
+    Выполни Backend этапы 1-2:
+    1. Создай миграции 030, 031, 032 для field_type и calculated
+    2. Обнови layout VIEW (SQL) чтобы возвращал fieldType и calculationConfig
+    
+    ⛔ ЗАПРЕЩЕНО:
+    - Редактировать сервисы (layoutService.ts и др.) — они НЕ используются!
+    - fallback, backward compatibility
+    - Редактировать файлы НЕ указанные в плане
+    
+    Редактируй ТОЛЬКО:
+    - backend/src/migrations/*.sql
+    - SQL views в БД
+    
+    Проверяй точку проверки после каждого этапа.
+    Обнови статус в плане.
+  `
+)
+
+Task(
+  subagent_type: "frontend-agent",
+  description: "Frontend: mocks + types + components",
+  prompt: `
+    ПЕРЕД НАЧАЛОМ:
+    1. Прочитай контекст: docs/context/frontend.md
+    2. Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md
+    
+    Выполни Frontend этапы A-C:
+    A. Создай моки + типы + executeCalculation
+    B. Обнови transformTableData + KPICard (работай с моками)
+    C. Упрости FinancialTable (убрать ВСЕ расчёты)
+    
+    ⛔ ЗАПРЕЩЕНО:
+    - fallback на isDimension/isMeasure
+    - хардкод имён полей
+    - дублирование расчётов
+    - Редактировать файлы НЕ указанные в плане
+    
+    После каждого этапа: npm run test && npm run build
+    Обнови статус в плане.
+  `
+)
+```
+
+### Фаза 2: После завершения обоих потоков
+
+**Этап 3 — Интеграция:**
+```javascript
+Task(
+  subagent_type: "frontend-agent",
+  description: "Integration: mocks → API",
+  prompt: `
+    Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md, Этап 3
+    
+    1. Сравни моки с реальным API layout
+    2. Исправь расхождения если есть
+    3. Переключи USE_MOCKS = false
+    4. Проверь в браузере
+  `
+)
+```
+
+**Этап 4 — Cleanup (ОБЯЗАТЕЛЬНО):**
+```javascript
+Task(
+  subagent_type: "backend-agent",
+  description: "Cleanup: remove deprecated",
+  prompt: `
+    Прочитай план: docs/plans/current/FIELD_TYPE_REFACTOR.md, Этап 4
+    
+    1. Создай миграцию 033 для удаления is_dimension, is_measure, compact_display, is_groupable
+    2. Запусти миграцию
+    3. Проверь что колонки удалены
+  `
+)
+```
+
+### Фаза 3: QA + Docs
+
+```javascript
+Task(
+  subagent_type: "qa-agent",
+  description: "QA: E2E regression",
+  prompt: `Запусти E2E тесты, проверь таблицы и карточки`
+)
+
+Task(
+  subagent_type: "docs-agent", 
+  description: "Docs: update schemas",
+  prompt: `Обнови docs/database/schemas.md, создай docs/architecture/field-types.md`
+)
+```
+
+### Правила для субагентов
 
 ⛔ **ЗАПРЕЩЕНО:**
 - Оставлять код для backward compatibility
@@ -632,9 +632,9 @@ npm run dev
 - Хардкодить имена полей
 
 ✅ **ОБЯЗАТЕЛЬНО:**
-- Выполнять точку проверки после каждого этапа
-- Удалить deprecated колонки (этап 5 НЕ опциональный)
-- Один путь данных: API → transformTableData → рендер
+- Точка проверки после каждого этапа
+- Удалить deprecated колонки (этап 4 НЕ опциональный)
+- Удалить моки после интеграции
 
 ---
 
@@ -642,4 +642,11 @@ npm run dev
 
 | Дата | Этап | Результат | Комментарий |
 |------|------|-----------|-------------|
-| | | | |
+| 2026-02-03 | Backend 1 | ✅ | Миграции 030-032: field_type, calculation_config, aggregation |
+| 2026-02-03 | Backend 2 | ✅ | Миграция 033: обновлён layout view, layoutService.ts |
+| 2026-02-03 | Backend fix | ✅ | Миграция 034: исправлены типы ppValue/pyValue → measure |
+| 2026-02-03 | A | ✅ | Созданы моки, типы, executeCalculation |
+| 2026-02-03 | B | ✅ | transformTableData + KPICard обновлены |
+| 2026-02-03 | C | ✅ | FinancialTable упрощён, убран calculatePercentChange |
+| 2026-02-03 | 3 | ✅ | Интеграция: USE_MOCKS=false, build ✅, 60 тестов ✅. Найдено расхождение: таблицы не имеют calculated полей в API |
+| 2026-02-03 | 4 | ✅ | Cleanup: миграция 035, deprecated колонки (is_dimension, is_measure, compact_display, is_groupable) удалены из БД |

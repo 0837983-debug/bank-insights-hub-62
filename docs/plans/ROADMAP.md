@@ -429,15 +429,15 @@
 - **План:** `docs/plans/current/FIELD_TYPE_REFACTOR.md`
 - Проверка: нет дублирования расчётов, типизация строгая, таблицы работают.
 
-### H.6 — Удалить неиспользуемые сервисы ⏸️
+### H.6 — Удалить неиспользуемый код ⏸️
 **Смысл:** убрать мёртвый код, актуализировать архитектуру.
-- **Проблема:** layoutService, kpiService и другие сервисы не используются — всё идёт через api/data + SQL Builder.
-- **Задачи:**
-  - Проверить какие сервисы в backend/src/services/* реально используются
-  - Удалить неиспользуемые (layoutService.ts, kpiService.ts, etc.)
-  - Обновить импорты
-  - Актуализировать `docs/context/backend.md`
-  - Актуализировать `docs/context/frontend.md`
+- **Проблема:** После перехода на `/api/data` + SQL Builder остались legacy сервисы и endpoints.
+- **Удалить:**
+  - Legacy endpoint `/api/table-data` + `tableDataRoutes.ts`
+  - Сервисы: `layoutService`, `balanceService`, `kpiService`, `componentService`, `calculationService`, `rowNameMapper`
+  - Frontend: `useTableData`, `fetchTableData`, fallback в DynamicDashboard
+  - 60+ debug/test скриптов в `backend/src/scripts/`
+- **План:** `docs/plans/current/CLEANUP_UNUSED_CODE.md`
 - **Зависимость:** H.5 завершён
 - Проверка: нет неиспользуемого кода, документация актуальна.
 
