@@ -150,7 +150,23 @@ export const FinancialTable = ({
   const percentageFormatId = "percent";
   
   // Calculated форматы берутся динамически из sub_columns при рендеринге
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  // Initial state: все группы свёрнуты по умолчанию
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    // Вычисляем childrenByParent для определения групп
+    const childMap = new Map<string, TableRowData[]>();
+    rows.forEach((row) => {
+      if (row.parentId) {
+        const list = childMap.get(row.parentId) ?? [];
+        list.push(row);
+        childMap.set(row.parentId, list);
+      }
+    });
+    // Собираем ID всех групп (строки с детьми, кроме итогов)
+    const groupIds = rows
+      .filter(r => (childMap.get(r.id)?.length ?? 0) > 0 && !r.isTotal)
+      .map(r => r.id);
+    return new Set(groupIds);
+  });
   // Deprecated: для обратной совместимости
   const [internalActiveGrouping, setInternalActiveGrouping] = useState<string | null>(null);
   const activeGrouping =
@@ -440,6 +456,13 @@ export const FinancialTable = ({
     }
   };
 
+  // Вспомогательная функция: собрать все ID групп для сворачивания
+  const getAllGroupIds = useCallback(() => {
+    return rows
+      .filter(r => (childrenByParent.get(r.id)?.length ?? 0) > 0 && !r.isTotal)
+      .map(r => r.id);
+  }, [rows, childrenByParent]);
+
   // Deprecated: для обратной совместимости
   const handleGroupingClick = (groupId: string) => {
     const newGrouping = activeGrouping === groupId ? null : groupId;
@@ -447,7 +470,8 @@ export const FinancialTable = ({
     if (externalActiveGrouping === undefined) {
       setInternalActiveGrouping(newGrouping);
     }
-    setCollapsedGroups(new Set());
+    // Сворачиваем все группы при смене группировки
+    setCollapsedGroups(new Set(getAllGroupIds()));
     onGroupingChange?.(newGrouping);
   };
 
@@ -461,7 +485,8 @@ export const FinancialTable = ({
     if (onButtonClick) {
       onButtonClick(newButtonId);
     }
-    setCollapsedGroups(new Set());
+    // Сворачиваем все группы при смене группировки
+    setCollapsedGroups(new Set(getAllGroupIds()));
   };
 
   const visibleRows = sortedRows.filter(isRowVisible);

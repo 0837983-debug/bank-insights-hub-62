@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-02-04 (добавлены display_group, is_default для calculated полей)  
+> **Последнее обновление**: 2026-02-05 (добавлены MVs: mv_kpi_balance, mv_kpi_fin_results)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -61,6 +61,19 @@
 |---------|------------|
 | `balance` | Финальные данные для дашборда |
 | `fin_results` | Финальные данные Financial Results для дашборда |
+
+**Materialized Views:**
+
+| View | Назначение |
+|------|------------|
+| `mv_kpi_balance` | Агрегаты баланса для KPI карточек (period_date + kpi_name). Уровни: class, class::section |
+| `mv_kpi_fin_results` | Агрегаты финреза для KPI карточек (period_date + kpi_name). Уровни: class, class::category |
+
+Refresh (пока вручную):
+```sql
+REFRESH MATERIALIZED VIEW mart.mv_kpi_balance;
+REFRESH MATERIALIZED VIEW mart.mv_kpi_fin_results;
+```
 
 ### ing — Ingestion
 
