@@ -1,7 +1,9 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-01-30 (удалена серверная transformTableData, данные возвращаются напрямую)  
+> **Последнее обновление**: 2026-02-04 (архивация неиспользуемого кода)  
 > **Обновляет**: Backend Agent после каждого изменения
+
+> **Архивированный код:** Старые сервисы и скрипты перемещены в `archive/`. См. `archive/ARCHIVED_FILES.md`.
 
 ## Текущая архитектура
 
@@ -24,9 +26,8 @@ backend/src/
 │   │   └── queryLoader.ts
 │   ├── mart/             # Сервисы для данных
 │   │   ├── base/
-│   │   │   ├── periodService.ts
-│   │   │   └── calculationService.ts
-│   │   └── balanceService.ts
+│   │   │   └── periodService.ts
+│   │   └── types.ts
 │   └── upload/           # Загрузка файлов
 │       ├── fileParserService.ts
 │       └── validationService.ts

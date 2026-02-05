@@ -21,7 +21,17 @@ import { cn } from "@/lib/utils";
 import { useLayout, useAllKPIs } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
 import { executeCalculation } from "@/lib/calculations";
-import type { KPIMetric, CalculationConfig } from "@/lib/api";
+import type { KPIMetric, LayoutColumn } from "@/lib/api";
+
+// Тип для calculated поля с вычисленным значением
+interface CalculatedFieldResult {
+  id: string;
+  label: string;
+  format?: string;
+  value: number | undefined;
+  displayGroup?: 'percent' | 'absolute';
+  isDefault?: boolean;
+}
 
 // Icon mapping for dynamic icon rendering from layout
 const iconMap: Record<string, LucideIcon> = {
@@ -70,8 +80,20 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
     .flatMap((section) => section.components)
     .find((c) => c.id === componentId && c.type === "card");
 
-  // Находим соответствующий KPI по componentId
-  const kpi = kpis?.find((k) => k.id === component?.componentId);
+  const resolveComponentKey = (layoutComponentId?: string, componentIdValue?: string) => {
+    if (componentIdValue) return componentIdValue;
+    if (!layoutComponentId) return undefined;
+    const parts = layoutComponentId.split("::");
+    return parts[parts.length - 1] || undefined;
+  };
+
+  const componentKey = resolveComponentKey(component?.id, component?.componentId);
+
+  // Находим соответствующий KPI по componentId (или id) из API
+  const kpi = kpis?.find((k) => {
+    const kpiKey = (k as { componentId?: string; id?: string }).componentId ?? k.id;
+    return kpiKey === componentKey;
+  });
 
   // Если компонент или KPI не найдены, не рендерим карточку
   if (!component || !kpi) {
@@ -80,110 +102,105 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
         componentFound: !!component,
         kpiFound: !!kpi,
         componentId: component?.componentId,
+        componentKey,
       });
     }
     return null;
   }
 
   // Получаем формат для основного значения (value) из columns
-  const valueColumn = component.columns?.[0] as any;
+  const valueColumn = component.columns?.[0] as LayoutColumn | undefined;
   // format может быть строкой в columns или объектом в старом формате component.format
   const valueFormatId = typeof valueColumn?.format === "string" 
     ? valueColumn.format 
-    : (valueColumn?.format?.value || component.format?.value);
+    : (component.format?.value);
 
   // Форматируем значение используя формат из layout.formats
   const formattedValue = valueFormatId
     ? formatValue(valueFormatId, kpi.value)
     : kpi.value.toString();
 
-  // Получаем форматы для изменений из sub_columns
-  const ppChangeSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ppChange");
-  const ppChangeAbsoluteSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ppChangeAbsolute");
-  const ytdChangeSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChange");
-  const ytdChangeAbsoluteSubColumn = (valueColumn?.sub_columns as any[])?.find((col: any) => col.id === "ytdChangeAbsolute");
-
-  // Собираем все calculated поля из layout (columns и sub_columns)
-  const calculatedColumns = useMemo(() => {
+  // Собираем все calculated поля из sub_columns в порядке layout
+  const calculatedFields = useMemo(() => {
     if (!component?.columns) return [];
-    return [
-      ...component.columns.filter((c: any) => c.fieldType === 'calculated'),
-      ...component.columns.flatMap((c: any) => c.sub_columns || []).filter((c: any) => c.fieldType === 'calculated')
-    ];
+    return component.columns.flatMap((col) => 
+      (col.sub_columns || []).filter((sub) => sub.fieldType === 'calculated')
+    );
   }, [component?.columns]);
 
-  // Вычисляем все calculated значения через executeCalculation
-  const calculatedValues = useMemo(() => {
-    const result: Record<string, number | undefined> = {};
+  // Вычисляем значения для каждого calculated поля через executeCalculation
+  // Включаем displayGroup и isDefault из layout для группировки
+  const calculatedResults: CalculatedFieldResult[] = useMemo(() => {
+    return calculatedFields.map((field) => {
+      const value = field.calculationConfig 
+        ? executeCalculation(field.calculationConfig, kpi as Record<string, unknown>)
+        : undefined;
+      return {
+        id: field.id,
+        label: field.label,
+        format: field.format,
+        value,
+        displayGroup: field.displayGroup,
+        isDefault: field.isDefault,
+      };
+    });
+  }, [calculatedFields, kpi]);
+
+  // Группируем calculated поля по displayGroup из layout
+  const groupedFields = useMemo(() => {
+    const groups = new Map<string, CalculatedFieldResult[]>();
     
-    // Если есть calculated поля из layout - используем их конфигурацию
-    calculatedColumns.forEach((col: any) => {
-      if (col.calculationConfig) {
-        result[col.id] = executeCalculation(col.calculationConfig, kpi as Record<string, unknown>);
+    calculatedResults.forEach((result) => {
+      if (result.value === undefined) return;
+      
+      // Используем displayGroup из layout, fallback на 'default'
+      const group = result.displayGroup || 'default';
+      if (!groups.has(group)) {
+        groups.set(group, []);
       }
+      groups.get(group)!.push(result);
     });
     
-    // Если нет calculated полей из layout - используем дефолтную конфигурацию
-    if (calculatedColumns.length === 0) {
-      // ppChange: процентное изменение к предыдущему периоду
-      const ppChangeConfig: CalculationConfig = { type: 'percent_change', current: 'value', base: 'previousValue' };
-      result.ppChange = executeCalculation(ppChangeConfig, kpi as Record<string, unknown>);
-      
-      // ytdChange: процентное изменение к прошлому году
-      const ytdChangeConfig: CalculationConfig = { type: 'percent_change', current: 'value', base: 'ytdValue' };
-      result.ytdChange = executeCalculation(ytdChangeConfig, kpi as Record<string, unknown>);
-      
-      // Абсолютные изменения
-      const ppDiffConfig: CalculationConfig = { type: 'diff', minuend: 'value', subtrahend: 'previousValue' };
-      result.ppChangeAbsolute = executeCalculation(ppDiffConfig, kpi as Record<string, unknown>);
-      
-      const ytdDiffConfig: CalculationConfig = { type: 'diff', minuend: 'value', subtrahend: 'ytdValue' };
-      result.ytdChangeAbsolute = executeCalculation(ytdDiffConfig, kpi as Record<string, unknown>);
+    return groups;
+  }, [calculatedResults]);
+
+  // Определяем группу по умолчанию через isDefault из layout
+  const defaultGroup = useMemo(() => {
+    const fieldWithDefault = calculatedResults.find(f => f.isDefault);
+    return fieldWithDefault?.displayGroup || 'percent';
+  }, [calculatedResults]);
+
+  // Получаем список доступных групп
+  const availableGroups = useMemo(() => {
+    return Array.from(groupedFields.keys());
+  }, [groupedFields]);
+
+  // Показываем toggle только если есть больше одной группы
+  const hasToggle = availableGroups.length > 1;
+
+  // Выбираем активную группу
+  const activeFields = useMemo(() => {
+    if (!hasToggle) {
+      // Если только одна группа - показываем её
+      const firstGroup = availableGroups[0];
+      return firstGroup ? (groupedFields.get(firstGroup) || []) : [];
     }
-    
-    return result;
-  }, [calculatedColumns, kpi]);
-
-  // Используем рассчитанные значения: процентные по умолчанию, абсолютные при клике
-  const ppChange = showAbsolute 
-    ? calculatedValues.ppChangeAbsolute
-    : calculatedValues.ppChange;
-  const ytdChange = showAbsolute 
-    ? calculatedValues.ytdChangeAbsolute
-    : calculatedValues.ytdChange;
-  
-  // Извлекаем formatId из sub_columns (format может быть строкой)
-  const getFormatId = (subColumn: any): string | undefined => {
-    if (!subColumn) return undefined;
-    return typeof subColumn.format === "string" ? subColumn.format : subColumn.format?.value;
-  };
-  
-  const ppChangeFormatId = showAbsolute 
-    ? (getFormatId(ppChangeAbsoluteSubColumn) || valueFormatId)
-    : (getFormatId(ppChangeSubColumn) || "percent");
-  const ytdChangeFormatId = showAbsolute
-    ? (getFormatId(ytdChangeAbsoluteSubColumn) || valueFormatId)
-    : (getFormatId(ytdChangeSubColumn) || "percent");
-
-  // Определяем знак изменений (для ppChange и ytdChange значения в долях)
-  const isPositive = ppChange !== undefined && ppChange > 0;
-  const isYtdPositive = ytdChange !== undefined && ytdChange > 0;
-  const changeColor = isPositive ? "text-success" : "text-destructive";
-  const ytdChangeColor = isYtdPositive ? "text-success" : "text-destructive";
-
-  // Форматируем изменения
-  // formatValue сам применит multiplier из конфигурации формата, поэтому передаем значение как есть
-  const formattedPpChange = ppChange !== undefined 
-    ? formatValue(ppChangeFormatId, Math.abs(ppChange))
-    : undefined;
-  const formattedYtdChange = ytdChange !== undefined
-    ? formatValue(ytdChangeFormatId, Math.abs(ytdChange))
-    : undefined;
+    // Если есть несколько групп - выбираем по toggle
+    // showAbsolute = false → группа по умолчанию (defaultGroup)
+    // showAbsolute = true → другая группа
+    const targetGroup = showAbsolute 
+      ? availableGroups.find(g => g !== defaultGroup) || defaultGroup
+      : defaultGroup;
+    return groupedFields.get(targetGroup) || [];
+  }, [hasToggle, showAbsolute, groupedFields, availableGroups, defaultGroup]);
 
   return (
     <Card 
-      className="p-3 hover:shadow-lg transition-shadow min-w-0 cursor-pointer"
-      onClick={() => setShowAbsolute(!showAbsolute)}
+      className={cn(
+        "p-3 hover:shadow-lg transition-shadow min-w-0",
+        hasToggle && "cursor-pointer"
+      )}
+      onClick={hasToggle ? () => setShowAbsolute(!showAbsolute) : undefined}
       data-testid={`kpi-card-${componentId}`}
     >
       <div className="flex items-start justify-between gap-1.5">
@@ -204,50 +221,55 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
             </TooltipProvider>
           </div>
           <h3 className="text-xl font-bold text-foreground">{formattedValue}</h3>
-          {ppChange !== undefined && (
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-0.5 cursor-help">
-                      {isPositive ? (
-                        <ArrowUpIcon className={cn("w-3 h-3", changeColor)} />
-                      ) : (
-                        <ArrowDownIcon className={cn("w-3 h-3", changeColor)} />
-                      )}
-                      <span className={cn("text-xs font-semibold", changeColor)}>
-                        {formattedPpChange}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-sm">
-                      {showAbsolute 
-                        ? "PPTD — абсолютное изменение к предыдущему периоду" 
-                        : "PPTD — изменение к предыдущему периоду"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              {formattedYtdChange !== undefined && (
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className={cn("text-xs cursor-help", ytdChangeColor)}>
-                        ({isYtdPositive ? "↑" : "↓"}
-                        {formattedYtdChange})
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-sm">
-                        {showAbsolute 
-                          ? "YTD — абсолютное изменение с начала года" 
-                          : "YTD — изменение с начала года"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+          {activeFields.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              {activeFields.map((field, index) => {
+                const isPositive = field.value !== undefined && field.value > 0;
+                const changeColor = isPositive ? "text-success" : "text-destructive";
+                const formattedChange = field.format && field.value !== undefined
+                  ? formatValue(field.format, Math.abs(field.value))
+                  : field.value?.toString() ?? "-";
+                
+                // Первое поле показываем с иконкой, остальные в скобках
+                if (index === 0) {
+                  return (
+                    <TooltipProvider key={field.id} delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-0.5 cursor-help">
+                            {isPositive ? (
+                              <ArrowUpIcon className={cn("w-3 h-3", changeColor)} />
+                            ) : (
+                              <ArrowDownIcon className={cn("w-3 h-3", changeColor)} />
+                            )}
+                            <span className={cn("text-xs font-semibold", changeColor)}>
+                              {formattedChange}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-sm">{field.label}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                }
+                
+                return (
+                  <TooltipProvider key={field.id} delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={cn("text-xs cursor-help", changeColor)}>
+                          ({isPositive ? "↑" : "↓"}{formattedChange})
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-sm">{field.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })}
             </div>
           )}
         </div>

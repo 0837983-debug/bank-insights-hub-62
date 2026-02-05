@@ -1,7 +1,12 @@
 import { Pool } from "pg";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Явно загружаем .env из корня backend (работает при любом текущем каталоге)
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 // Используем те же настройки, что и в database.ts
 const requiresSSL = process.env.DB_HOST?.includes("bankdb.ctogouqa8w5k.eu-north-1.rds.amazonaws.com") ||

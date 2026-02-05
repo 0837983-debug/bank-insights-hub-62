@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { useLayout, useAllKPIs, useTableData, useGetData } from "@/hooks/useAPI";
+import { useLayout, useAllKPIs, useGetData } from "@/hooks/useAPI";
 import { KPICard } from "@/components/KPICard";
 import { Header } from "@/components/Header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,6 +63,26 @@ export function transformTableData(
     ...(columns?.flatMap(c => c.sub_columns || []).filter(c => c.fieldType === 'calculated') || [])
   ];
   
+  // Собираем dependency поля из calculationConfig всех calculated полей
+  // Эти поля нужны для корректного расчёта calculated полей на агрегатах
+  const dependencyFields = new Set<string>();
+  calculatedFields.forEach(field => {
+    const config = field.calculationConfig;
+    if (!config) return;
+    
+    // Добавляем все поля, используемые в calculationConfig
+    if (config.current) dependencyFields.add(config.current);
+    if (config.base) dependencyFields.add(config.base);
+    if (config.minuend) dependencyFields.add(config.minuend);
+    if (config.subtrahend) dependencyFields.add(config.subtrahend);
+    if (config.numerator) dependencyFields.add(config.numerator);
+    if (config.denominator) dependencyFields.add(config.denominator);
+  });
+  
+  // aggregationFields = measureFields ∪ dependencyFields
+  // Это все поля, которые нужно агрегировать для корректных calculated полей
+  const aggregationFields = [...new Set([...measureFields, ...dependencyFields])];
+  
   // Основной measure для процентов
   const primaryMeasure = measureFields[0] || "value";
   const rootTotal = rows.reduce((sum, row) => sum + (Number((row as Record<string, unknown>)[primaryMeasure]) || 0), 0);
@@ -96,9 +116,10 @@ export function transformTableData(
     const existing = groupMap.get(id);
     if (existing) return existing;
     
-    // Инициализируем все measure поля нулями
+    // Инициализируем все aggregationFields нулями
+    // (measureFields + dependencyFields из calculationConfig)
     const measures: Record<string, number> = {};
-    measureFields.forEach(field => {
+    aggregationFields.forEach(field => {
       measures[field] = 0;
     });
     
@@ -127,10 +148,10 @@ export function transformTableData(
       const group = getOrCreateGroup(pathParts, idx, parentId);
       parentId = group.id;
 
-      // Агрегируем все measure поля
-      measureFields.forEach(measureField => {
-        const value = Number(rowData[measureField]) || 0;
-        group.measures[measureField] += value;
+      // Агрегируем все aggregationFields (measureFields + dependencyFields)
+      aggregationFields.forEach(aggField => {
+        const value = Number(rowData[aggField]) || 0;
+        group.measures[aggField] += value;
       });
     });
 
@@ -169,12 +190,15 @@ export function transformTableData(
     // Получаем значения measure полей
     const value = group.measures[primaryMeasure] || 0;
     
-    // Строим объект с агрегированными measure полями
+    // Строим объект с агрегированными measure полями (для отображения в row)
     const measureValues: Record<string, number | undefined> = {};
     measureFields.forEach(field => {
       const val = group.measures[field];
       measureValues[field] = val !== 0 ? val : undefined;
     });
+    
+    // Все агрегированные значения (включая dependencyFields) для расчётов
+    const aggregatedValues: Record<string, number> = { ...group.measures };
 
     const groupRow: TableRowData = {
       id: group.id,
@@ -188,11 +212,12 @@ export function transformTableData(
     };
     
     // Вычисляем calculated значения для group row
+    // Используем aggregatedValues (measureFields + dependencyFields)
     calculatedFields.forEach(calcField => {
       if (calcField.calculationConfig) {
         (groupRow as Record<string, unknown>)[calcField.id] = executeCalculation(
           calcField.calculationConfig,
-          { ...measureValues, value }
+          aggregatedValues
         );
       }
     });
@@ -250,11 +275,11 @@ function DynamicTable({ component }: DynamicTableProps) {
   // Получаем dates из контекста родительского компонента
   const dates = (component as any).dates; // TODO: типизировать через props
 
-  // Загружаем данные через getData, если есть data_source_key
+  // Загружаем данные через getData
   const { 
-    data: tableDataFromGetData, 
-    isLoading: isLoadingGetData,
-    error: getDataError,
+    data: tableData, 
+    isLoading,
+    error,
   } = useGetData(
     dataSourceKey || null,
     dates ? {
@@ -263,53 +288,37 @@ function DynamicTable({ component }: DynamicTableProps) {
       p3: dates.pyDate,
     } : {},
     { 
-      enabled: !!dataSourceKey && !!dates && !!component.componentId, // Включаем только если есть все обязательные параметры
+      enabled: !!dataSourceKey && !!dates && !!component.componentId,
       componentId: component.componentId,
     }
   );
 
-  // Fallback на старый endpoint, если нет data_source_key
-  const { data: tableDataFromLegacy, isLoading: isLoadingLegacy, error } = useTableData(
-    component.componentId,
-    {
-      periodDate: dates?.periodDate,
-    },
-    { enabled: !dataSourceKey }
-  );
-
-  // Используем данные из getData или из legacy endpoint
-  const isLoading = dataSourceKey ? isLoadingGetData : isLoadingLegacy;
-
-  // Преобразуем данные из getData в формат TableData, если нужно
+  // Преобразуем данные из getData в формат TableData
   const transformedData = useMemo(() => {
-    if (dataSourceKey && tableDataFromGetData) {
-      // Данные из getData приходят в формате { componentId, type, rows }
-      // Используем напрямую, так как формат уже соответствует TableData
+    if (tableData) {
       return {
-        componentId: tableDataFromGetData.componentId,
-        type: tableDataFromGetData.type,
-        rows: (tableDataFromGetData.rows || []) as TableData["rows"],
+        componentId: tableData.componentId,
+        type: tableData.type,
+        rows: (tableData.rows || []) as TableData["rows"],
       };
     }
-    
-    return tableDataFromLegacy;
-  }, [dataSourceKey, tableDataFromGetData, tableDataFromLegacy]);
+    return null;
+  }, [tableData]);
 
   const handleButtonClick = useCallback((buttonId: string | null) => {
     setActiveButtonId(buttonId);
   }, []);
 
   // Обработка ошибок
-  const currentError = dataSourceKey ? getDataError : error;
-  const hasError = currentError && !transformedData;
+  const hasError = error && !transformedData;
   
   if (hasError) {
-    const errorMessage = currentError instanceof Error 
-      ? currentError.message 
-      : String(currentError) || "Unknown error";
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : String(error) || "Unknown error";
     
     // Если нет дат, показываем специальное сообщение
-    const missingDatesError = dataSourceKey && !dates;
+    const missingDatesError = !dates;
     
     return (
       <Alert variant="destructive" className="mt-4">

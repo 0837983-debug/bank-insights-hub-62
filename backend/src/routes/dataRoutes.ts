@@ -15,27 +15,8 @@ import { getPeriodDates, formatDateForSQL } from "../services/mart/base/periodSe
 
 const router = Router();
 
-/**
- * Трансформация данных KPI: форматирование сырых значений
- * Расчёт процентов теперь происходит на фронтенде
- */
-function transformKPIData(rows: any[], periodDate: string): any[] {
-  return rows.map(row => {
-    const currentValue = parseFloat(row.value) || 0;
-    const previousValue = parseFloat(row.prev_period) || 0;
-    const ytdValue = row.prev_year !== null && row.prev_year !== undefined 
-      ? parseFloat(row.prev_year) || 0 
-      : undefined;
-    
-    return {
-      id: row.component_id,
-      periodDate: periodDate,
-      value: currentValue,
-      previousValue: previousValue,
-      ytdValue: ytdValue, // Значение за аналогичный период прошлого года
-    };
-  });
-}
+// transformKPIData удалена — данные возвращаются напрямую из SQL Builder
+// Фронтенд получает поля как они определены в конфиге kpis
 
 /**
  * GET /api/data
@@ -95,9 +76,9 @@ router.get("/", async (req: Request, res: Response) => {
       });
     }
 
-    // Специальная обработка для kpis - трансформируем данные в формат старого endpoint'а
+    // KPIs возвращаются напрямую как массив (без обёртки componentId/type/rows)
+    // Формат определяется конфигом kpis в config.component_queries
     if (query_id === "kpis") {
-      // Построение SQL через builder
       let sql: string;
       try {
         sql = await buildQueryFromId(query_id, paramsJson);
@@ -119,27 +100,15 @@ router.get("/", async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Failed to build query", details: error.message });
       }
 
-      // Выполнение SQL
       try {
         const result = await client.query(sql);
         
-        // При wrapJson=true результат должен быть массивом с одним элементом
         if (result.rows.length === 1) {
-          // json_agg возвращает null когда нет совпадающих данных
           const data = result.rows[0].json_agg ?? [];
-          
-          // Парсим параметры для получения periodDate
-          const params = JSON.parse(paramsJson);
-          const periodDate = params.p1 || formatDateForSQL(new Date());
-          
-          // Трансформируем данные KPI
-          const transformedData = transformKPIData(data, periodDate);
-          
-          // Возвращаем в формате массива KPIMetric[] (как старый /api/kpis)
-          return res.json(transformedData);
+          // Возвращаем данные напрямую — формат определяется конфигом
+          return res.json(data);
         }
 
-        // Если структура неожиданная, возвращаем ошибку
         return res.status(500).json({ 
           error: "Unexpected result format",
           details: "Expected single row with json_agg result"

@@ -37,7 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { fetchLayout, type Layout, type LayoutFormat } from "@/lib/api";
+import { fetchLayout, API_BASE_URL, type Layout, type LayoutFormat } from "@/lib/api";
 import { formatValue, initializeFormats } from "@/lib/formatters";
 
 interface ServiceStatus {
@@ -56,8 +56,8 @@ export default function DevTools() {
   ]);
 
 
-  // API quick-test URLs
-  const API_BASE = "http://localhost:3001";
+  // API base for DevTools (same as app; API_BASE_URL includes /api)
+  const API_BASE = API_BASE_URL.replace(/\/api\/?$/, "");
 
   // API quick-test states
   const [apiResponse, setApiResponse] = useState<string>("");
@@ -73,6 +73,7 @@ export default function DevTools() {
     }>
   >([]);
   const [queryIdsLoading, setQueryIdsLoading] = useState(false);
+  const [queryIdsError, setQueryIdsError] = useState<string>("");
   const [selectedQueryId, setSelectedQueryId] = useState<string>("");
   const [dataModalParams, setDataModalParams] = useState<Record<string, string>>({});
   const [dataModalResponse, setDataModalResponse] = useState<string>("");
@@ -290,21 +291,25 @@ export default function DevTools() {
     setDataModalOpen(true);
     setSelectedQueryId("");
     setDataModalParams({});
-    setDataModalConfig(null);
     setDataModalResponse("");
     setDataModalStatus("idle");
+    setQueryIdsError("");
     setQueryIdsLoading(true);
     setQueryIds([]);
     try {
-      const res = await fetch(`${API_BASE}/api/sql-builder/query-ids`);
-      if (res.ok) {
-        const data = await res.json();
-        setQueryIds(data.queryIds || []);
+      const url = `${API_BASE_URL.replace(/\/$/, "")}/sql-builder/query-ids`;
+      const res = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data?.queryIds)) {
+        setQueryIds(data.queryIds);
+        setQueryIdsError("");
       } else {
         setQueryIds([]);
+        setQueryIdsError(data?.error || `HTTP ${res.status}`);
       }
-    } catch {
+    } catch (err) {
       setQueryIds([]);
+      setQueryIdsError(err instanceof Error ? err.message : "Ошибка загрузки");
     } finally {
       setQueryIdsLoading(false);
     }
@@ -562,6 +567,22 @@ export default function DevTools() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>query_id</Label>
+              {queryIdsError && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+                  {queryIdsError}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="ml-2 h-auto p-0"
+                    onClick={() => {
+                      setQueryIdsError("");
+                      handleOpenDataModal();
+                    }}
+                  >
+                    Повторить
+                  </Button>
+                </div>
+              )}
               <select
                 value={selectedQueryId}
                 onChange={(e) => setSelectedQueryId(e.target.value)}
@@ -569,7 +590,7 @@ export default function DevTools() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">
-                  {queryIdsLoading ? "Загрузка..." : "Выберите query_id"}
+                  {queryIdsLoading ? "Загрузка..." : queryIds.length === 0 && !queryIdsError ? "Нет доступных запросов" : "Выберите query_id"}
                 </option>
                 {queryIds.map((q) => (
                   <option key={q.id} value={q.id}>

@@ -141,6 +141,23 @@ check_database_connection() {
     echo -e "${BLUE}📊 Шаг 1/4: Проверка подключения к базе данных...${NC}"
     echo "-----------------------------------"
     
+    # Проверяем наличие скрипта проверки БД
+    if [ ! -f "$BACKEND_DIR/src/scripts/check-db-connection.ts" ]; then
+        echo -e "${RED}❌ Скрипт проверки БД не найден: backend/src/scripts/check-db-connection.ts${NC}"
+        echo ""
+        return 1
+    fi
+    
+    # Проверяем наличие .env в backend (подсказка при отсутствии)
+    if [ ! -f "$BACKEND_DIR/.env" ]; then
+        echo -e "${YELLOW}⚠️  Файл backend/.env не найден.${NC}"
+        if [ -f "$BACKEND_DIR/.env.example" ]; then
+            echo -e "${YELLOW}   Создайте .env: cp backend/.env.example backend/.env${NC}"
+            echo -e "${YELLOW}   Затем отредактируйте backend/.env (DB_HOST, DB_USER, DB_PASSWORD и т.д.)${NC}"
+        fi
+        echo ""
+    fi
+    
     cd "$BACKEND_DIR"
     
     # Проверяем, установлены ли зависимости
@@ -171,6 +188,9 @@ check_database_connection() {
         local error_msg=$(echo "$result" | grep "ERROR:" | sed 's/ERROR: //' || echo "$result")
         if [ -n "$error_msg" ]; then
             echo -e "${RED}   $error_msg${NC}"
+        fi
+        if [ ! -f "$BACKEND_DIR/.env" ]; then
+            echo -e "${YELLOW}💡 Убедитесь, что создан backend/.env (см. backend/.env.example)${NC}"
         fi
         echo ""
         return 1
@@ -247,14 +267,16 @@ start_backend() {
         npm install
     fi
     
-    # Запускаем backend в фоне
-    nohup npm run dev > "$PROJECT_ROOT/backend.log" 2>&1 &
+    # Запускаем backend в фоне (cwd уже backend — подхватится .env)
+    nohup npm run dev >> "$PROJECT_ROOT/backend.log" 2>&1 &
     local backend_pid=$!
     
     # Сохраняем PID для возможного завершения процесса
     echo $backend_pid > "$PROJECT_ROOT/.backend.pid"
     
     echo -e "${BLUE}⏳ Ожидание запуска backend (PID: $backend_pid)...${NC}"
+    # Пауза перед первой проверкой (backend при ручном запуске стартует за 3–4 сек)
+    sleep 5
     
     # Ждем, пока backend запустится
     if check_backend_health; then

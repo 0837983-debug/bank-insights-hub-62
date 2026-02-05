@@ -429,17 +429,17 @@
 - **План:** `docs/plans/current/FIELD_TYPE_REFACTOR.md`
 - Проверка: нет дублирования расчётов, типизация строгая, таблицы работают.
 
-### H.6 — Удалить неиспользуемый код ⏸️
-**Смысл:** убрать мёртвый код, актуализировать архитектуру.
+### H.6 — Архивация неиспользуемого кода ⏸️
+**Смысл:** убрать мёртвый код в архив, актуализировать архитектуру.
 - **Проблема:** После перехода на `/api/data` + SQL Builder остались legacy сервисы и endpoints.
-- **Удалить:**
+- **Архивировать в `archive/`:**
   - Legacy endpoint `/api/table-data` + `tableDataRoutes.ts`
   - Сервисы: `layoutService`, `balanceService`, `kpiService`, `componentService`, `calculationService`, `rowNameMapper`
-  - Frontend: `useTableData`, `fetchTableData`, fallback в DynamicDashboard
   - 60+ debug/test скриптов в `backend/src/scripts/`
+- **Удалить (frontend):** `useTableData`, `fetchTableData`, fallback в DynamicDashboard
 - **План:** `docs/plans/current/CLEANUP_UNUSED_CODE.md`
 - **Зависимость:** H.5 завершён
-- Проверка: нет неиспользуемого кода, документация актуальна.
+- Проверка: код в архиве с индексом путей, документация актуальна.
 
 ---
 
@@ -468,6 +468,27 @@
 - Pentest.
 - Проверка на OWASP Top 10.
 - Проверка: отчёт без critical уязвимостей.
+
+### I.5 — Конфигуратор layout на фронте ⏸️
+**Смысл:** визуальный редактор для управления структурой дашборда без миграций/кода.
+- **Функциональность:**
+  - Создание/редактирование/удаление секций (containers)
+  - Добавление компонентов в секции (cards, tables)
+  - Drag & drop для изменения порядка
+  - Настройка параметров компонентов (title, icon, data_source_key)
+  - Управление колонками таблиц (добавление, удаление, порядок, форматы)
+  - Привязка кнопок группировки к таблицам
+  - Предпросмотр изменений
+  - Сохранение в БД (config.layouts, config.components, config.layout_component_mapping, config.component_fields)
+- **UI:**
+  - Страница `/admin/layout-editor`
+  - Панель с доступными компонентами
+  - Визуальное отображение текущей структуры
+  - Property panel для настройки выбранного элемента
+- **API:**
+  - CRUD endpoints для layouts, components, fields, mappings
+  - Валидация структуры перед сохранением
+- Проверка: можно добавить новую секцию с карточками через UI без миграций.
 
 ---
 

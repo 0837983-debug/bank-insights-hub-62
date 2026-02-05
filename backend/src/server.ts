@@ -184,20 +184,6 @@ app.get("/api-docs", (_req, res) => {
       <div class="example">curl "http://localhost:3001/api/data?query_id=kpis&component_Id=kpis&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%2C%22p1%22%3A%222025-12-31%22%2C%22p2%22%3A%222025-11-30%22%2C%22p3%22%3A%222024-12-31%22%7D"</div>
     </div>
 
-    <h2>Table Data Endpoints</h2>
-    <div class="endpoint">
-      <span class="method get">GET</span>
-      <span class="path">/api/table-data/:tableId</span>
-      <div class="description">Get table data by table ID. Supports optional grouping. Grouping options are provided via groupableFields in layout.</div>
-      <div class="params">
-        <div class="param"><strong>tableId</strong> (path parameter) - Table identifier (e.g., "income")</div>
-        <div class="param"><strong>groupBy</strong> (query parameter, optional) - Group data by column</div>
-        <div class="param"><strong>dateFrom</strong> (query parameter, optional) - Start date</div>
-        <div class="param"><strong>dateTo</strong> (query parameter, optional) - End date</div>
-      </div>
-      <div class="example">curl "http://localhost:3001/api/table-data/income?groupBy=product_line"</div>
-    </div>
-
     <h2>Layout Endpoint</h2>
     <div class="endpoint">
       <span class="method get">GET</span>

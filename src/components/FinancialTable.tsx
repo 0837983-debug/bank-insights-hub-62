@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -26,13 +26,12 @@ import { useLayout } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
 
 // Данные для столбца с числовыми значениями
+// Calculated поля определяются динамически из layout sub_columns
 export interface DataColumnValue {
   value: number;
   percentage?: number;
-  ppChange?: number;
-  ppChangeAbsolute?: number;
-  ytdChange?: number;
-  ytdChangeAbsolute?: number;
+  // Динамические calculated поля берутся из row[subColumn.id]
+  [key: string]: number | undefined;
 }
 
 // Определение столбца таблицы
@@ -60,10 +59,8 @@ export interface TableRowData {
   percentage?: number;
   previousValue?: number;
   ytdValue?: number;
-  ppChange?: number; // в долях
-  ppChangeAbsolute?: number;
-  ytdChange?: number; // в долях
-  ytdChangeAbsolute?: number;
+  // Calculated поля (динамические) — определяются layout sub_columns
+  // Доступ: row[subColumn.id] где subColumn.fieldType === 'calculated'
   // Поля из mart.balance (аналитика)
   client_type?: string;
   client_segment?: string;
@@ -80,6 +77,8 @@ export interface TableRowData {
   isGroup?: boolean;
   isTotal?: boolean;
   indent?: number;
+  // Расширение для динамических полей
+  [key: string]: string | number | boolean | undefined;
 }
 
 export interface GroupingOption {
@@ -150,16 +149,7 @@ export const FinancialTable = ({
   const valueFormatId = valueColumn?.format || "currency_rub"; // fallback
   const percentageFormatId = "percent";
   
-  // Получаем форматы для изменений из sub_columns
-  const ppChangeSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ppChange");
-  const ppChangeAbsoluteSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ppChangeAbsolute");
-  const ytdChangeSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ytdChange");
-  const ytdChangeAbsoluteSubColumn = valueColumn?.sub_columns?.find((col) => col.id === "ytdChangeAbsolute");
-  
-  const ppChangeFormatId = ppChangeSubColumn?.format || percentageFormatId;
-  const ppChangeAbsoluteFormatId = ppChangeAbsoluteSubColumn?.format || valueFormatId;
-  const ytdChangeFormatId = ytdChangeSubColumn?.format || percentageFormatId;
-  const ytdChangeAbsoluteFormatId = ytdChangeAbsoluteSubColumn?.format || valueFormatId;
+  // Calculated форматы берутся динамически из sub_columns при рендеринге
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   // Deprecated: для обратной совместимости
   const [internalActiveGrouping, setInternalActiveGrouping] = useState<string | null>(null);
@@ -170,6 +160,51 @@ export const FinancialTable = ({
   const activeButtonId = externalActiveButtonId !== undefined ? externalActiveButtonId : internalActiveButtonId;
   const [selectedRow, setSelectedRow] = useState<TableRowData | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  
+  // Собираем все calculated sub_columns со всех числовых колонок
+  const allCalculatedSubColumns = useMemo(() => {
+    if (!component?.columns) return [];
+    return component.columns.flatMap(col => 
+      (col.sub_columns || []).filter(sub => sub.fieldType === 'calculated')
+    );
+  }, [component?.columns]);
+  
+  // Список уникальных групп в порядке появления в layout
+  const displayGroups = useMemo(() => {
+    const groups = allCalculatedSubColumns
+      .map(f => f.displayGroup)
+      .filter((g): g is string => !!g);
+    return [...new Set(groups)];
+  }, [allCalculatedSubColumns]);
+  
+  // Определяем группу по умолчанию через isDefault
+  const defaultDisplayGroup = useMemo(() => {
+    const fieldWithDefault = allCalculatedSubColumns.find(f => f.isDefault);
+    return fieldWithDefault?.displayGroup || displayGroups[0] || 'default';
+  }, [allCalculatedSubColumns, displayGroups]);
+  
+  // Индекс группы по умолчанию
+  const defaultGroupIndex = useMemo(() => {
+    const idx = displayGroups.indexOf(defaultDisplayGroup);
+    return idx >= 0 ? idx : 0;
+  }, [displayGroups, defaultDisplayGroup]);
+  
+  // Состояние: индекс активной группы
+  const [activeGroupIndex, setActiveGroupIndex] = useState(defaultGroupIndex);
+  
+  // Показываем toggle только если есть больше одной группы
+  const hasDisplayGroupToggle = displayGroups.length > 1;
+  
+  // Текущая активная группа
+  const activeDisplayGroup = displayGroups[activeGroupIndex] || defaultDisplayGroup;
+  
+  // Циклическое переключение групп
+  const cycleDisplayGroup = useCallback(() => {
+    setActiveGroupIndex((currentIndex) => {
+      const nextIndex = (currentIndex + 1) % displayGroups.length;
+      return nextIndex;
+    });
+  }, [displayGroups.length]);
 
   const handleRowDoubleClick = (row: TableRowData) => {
     setSelectedRow(row);
@@ -177,6 +212,7 @@ export const FinancialTable = ({
   };
 
   // Get detail rows for selected row (children or mock breakdown)
+  // Динамически создаёт calculated поля на основе layout sub_columns
   const getDetailRows = (row: TableRowData): TableRowData[] => {
     // Если нет children, генерируем mock детализацию
     const displayName = [row.section, row.item, row.sub_item]
@@ -188,8 +224,13 @@ export const FinancialTable = ({
     const basePreviousValue = row.previousValue ?? 0;
     const baseYtdValue = row.ytdValue ?? 0;
     
-    // Вычисляем ppChange для mock данных
-    const calcPpChange = (value: number, prevValue: number): number | undefined => {
+    // Динамически собираем calculated sub_columns из layout
+    const calculatedSubColumns = valueColumn?.sub_columns?.filter(
+      (sub) => sub.fieldType === "calculated"
+    ) || [];
+    
+    // Вычисляем calculated значение для mock данных
+    const calcChange = (value: number, prevValue: number): number | undefined => {
       if (prevValue === 0) return 0;
       return Math.round(((value - prevValue) / prevValue) * 10000) / 10000;
     };
@@ -197,15 +238,22 @@ export const FinancialTable = ({
     const createDetailRow = (id: string, suffix: string, multiplier: number): TableRowData => {
       const value = baseValue * multiplier;
       const previousValue = basePreviousValue * multiplier;
-      return {
+      const baseRow: TableRowData = {
         id,
         section: `${displayName} - ${suffix}`,
         value,
         previousValue,
         ytdValue: baseYtdValue * multiplier,
         percentage: multiplier * 100,
-        ppChange: calcPpChange(value, previousValue),
       };
+      
+      // Динамически добавляем calculated поля из layout
+      if (calculatedSubColumns.length > 0) {
+        const firstCalcId = calculatedSubColumns[0].id;
+        baseRow[firstCalcId] = calcChange(value, previousValue);
+      }
+      
+      return baseRow;
     };
     
     return [
@@ -424,8 +472,26 @@ export const FinancialTable = ({
       <CardHeader className="flex flex-col gap-3 pb-2">
         <div className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+          <div className="flex items-center gap-1">
+          {/* Toggle для переключения display groups (одна кнопка, циклическое переключение) */}
+          {hasDisplayGroupToggle && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs px-3"
+                  onClick={cycleDisplayGroup}
+                  data-testid="btn-display-group-toggle"
+                >
+                  {activeDisplayGroup}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Переключить отображение</TooltipContent>
+            </Tooltip>
+          )}
           {hasGroups && (
-            <div className="flex items-center gap-1">
+            <>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -454,8 +520,9 @@ export const FinancialTable = ({
                 </TooltipTrigger>
                 <TooltipContent>Развернуть уровень</TooltipContent>
               </Tooltip>
-            </div>
+            </>
           )}
+        </div>
         </div>
 
         {/* Buttons from layout */}
@@ -477,6 +544,8 @@ export const FinancialTable = ({
             ))}
           </div>
         )}
+        
+        
         {/* Deprecated: Grouping buttons (для обратной совместимости) */}
         {groupingOptions && groupingOptions.length > 0 && !buttons && (
           <div className="flex flex-wrap gap-2">
@@ -626,52 +695,58 @@ export const FinancialTable = ({
                     
                     {/* Числовые колонки */}
                     {numericColumns.map((col) => {
-                      const value = (row as any)[col.id];
+                      const value = row[col.id];
                       const formatId = col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
                       const numValue = typeof value === "number" ? value : undefined;
                       
-                      // Читаем готовые ppChange/ytdChange напрямую из row
-                      // Они уже рассчитаны в transformTableData через executeCalculation
-                      const ppChangeValue: number | undefined = (row as any).ppChange;
-                      const ytdChangeValue: number | undefined = (row as any).ytdChange;
-                      
-                      // Получаем форматы для отображения изменений
-                      const ppChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ppChange");
-                      const ytdChangeSubCol = col.sub_columns?.find((sc) => sc.id === "ytdChange");
-                      const ppChangeFormat = ppChangeSubCol?.format || percentageFormatId;
-                      const ytdChangeFormat = ytdChangeSubCol?.format || percentageFormatId;
+                      // Динамически собираем calculated sub_columns из layout
+                      // Фильтруем по activeDisplayGroup для показа только нужной группы
+                      const calculatedSubColumns = col.sub_columns?.filter(
+                        (sub) => sub.fieldType === "calculated" && 
+                        (sub.displayGroup || 'default') === activeDisplayGroup
+                      ) || [];
                       
                       return (
                         <TableCell key={col.id} className="text-right py-4">
-                      <div className="flex flex-col items-end gap-0.5">
-                        <span className="font-semibold text-foreground">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className="font-semibold text-foreground">
                               {numValue !== undefined ? formatValue(formatId, numValue) : "—"}
-                        </span>
-                            {showChange && ppChangeValue !== undefined && (
-                          <div
-                            className={cn(
-                              "flex items-center gap-1 text-sm",
-                                  ppChangeValue > 0 && "text-green-600",
-                                  ppChangeValue < 0 && "text-red-600",
-                                  ppChangeValue === 0 && "text-muted-foreground"
-                            )}
-                          >
-                                {ppChangeValue > 0 && <TrendingUp className="w-3 h-3" />}
-                                {ppChangeValue < 0 && <TrendingDown className="w-3 h-3" />}
-                            <span>
-                                  {ppChangeValue > 0 ? "+" : ""}
-                                  {formatValue(ppChangeFormat, Math.abs(ppChangeValue))}
-                                  {ytdChangeValue !== undefined && (
-                                <span className="ml-1">
-                                      ({ytdChangeValue > 0 ? "↑" : ytdChangeValue < 0 ? "↓" : ""}
-                                      {formatValue(ytdChangeFormat, Math.abs(ytdChangeValue))})
-                                </span>
-                              )}
                             </span>
+                            {/* Динамический рендеринг calculated полей в порядке layout */}
+                            {showChange && calculatedSubColumns.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1 text-sm">
+                                {calculatedSubColumns.map((subCol, idx) => {
+                                  const subValue = row[subCol.id];
+                                  if (typeof subValue !== "number") return null;
+                                  
+                                  const subFormat = subCol.format || percentageFormatId;
+                                  const isPositive = subValue > 0;
+                                  const isNegative = subValue < 0;
+                                  
+                                  return (
+                                    <span
+                                      key={subCol.id}
+                                      className={cn(
+                                        "flex items-center gap-0.5",
+                                        isPositive && "text-green-600",
+                                        isNegative && "text-red-600",
+                                        !isPositive && !isNegative && "text-muted-foreground"
+                                      )}
+                                      title={subCol.label}
+                                    >
+                                      {idx === 0 && isPositive && <TrendingUp className="w-3 h-3" />}
+                                      {idx === 0 && isNegative && <TrendingDown className="w-3 h-3" />}
+                                      {idx > 0 && "("}
+                                      {isPositive ? "+" : ""}
+                                      {formatValue(subFormat, subValue)}
+                                      {idx > 0 && ")"}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </TableCell>
+                        </TableCell>
                       );
                     })}
                   </TableRow>
@@ -693,104 +768,113 @@ export const FinancialTable = ({
 
           {selectedRow && (
             <div className="mt-4">
-              <div className="mb-4 p-4 bg-muted/30 rounded-lg">
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Значение:</span>
-                    <span className="ml-2 font-semibold">
-                      {selectedRow.value !== undefined ? formatValue(valueFormatId, selectedRow.value) : "—"}
-                    </span>
-                  </div>
-                  {selectedRow.percentage !== undefined && (
-                    <div>
-                      <span className="text-muted-foreground">Доля:</span>
-                      <span className="ml-2 font-semibold">
-                        {formatValue(percentageFormatId, selectedRow.percentage)}
-                      </span>
-                    </div>
-                  )}
-                  {(() => {
-                    // Читаем готовое значение ppChange из row
-                    const ppChange = selectedRow.ppChange;
-                    
-                    return ppChange !== undefined && ppChange !== 0 ? (
-                      <div>
-                        <span className="text-muted-foreground">Изменение:</span>
-                        <span
-                          className={cn(
-                            "ml-2 font-semibold",
-                            ppChange > 0 && "text-green-600",
-                            ppChange < 0 && "text-red-600"
-                          )}
-                        >
-                          {ppChange > 0 ? "+" : ""}
-                          {formatValue(ppChangeFormatId, Math.abs(ppChange))}
-                        </span>
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50%]">Показатель</TableHead>
-                    <TableHead className="text-right">Доля</TableHead>
-                    <TableHead className="text-right">Значение</TableHead>
-                    <TableHead className="text-right">Изм.</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {getDetailRows(selectedRow).map((detailRow) => {
-                    // Читаем готовое значение ppChange из detailRow
-                    const detailPpChange = detailRow.ppChange;
-                    const isPositive = detailPpChange !== undefined && detailPpChange > 0;
-                    const isNegative = detailPpChange !== undefined && detailPpChange < 0;
-                    const detailDisplayName = [detailRow.section, detailRow.item, detailRow.sub_item]
-                      .filter(Boolean)
-                      .join(' - ') || detailRow.id;
-
-                    return (
-                      <TableRow key={detailRow.id} className="border-b border-border/50">
-                        <TableCell className="py-3">
-                          <span className="font-medium">
-                            {detailDisplayName}
+              {/* Динамически собираем calculated поля из layout для детализации */}
+              {(() => {
+                const calculatedSubColumns = valueColumn?.sub_columns?.filter(
+                  (sub) => sub.fieldType === "calculated"
+                ) || [];
+                const firstCalcSubCol = calculatedSubColumns[0];
+                const firstCalcValue = firstCalcSubCol ? selectedRow[firstCalcSubCol.id] : undefined;
+                const firstCalcFormat = firstCalcSubCol?.format || percentageFormatId;
+                
+                return (
+                  <>
+                    <div className="mb-4 p-4 bg-muted/30 rounded-lg">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Значение:</span>
+                          <span className="ml-2 font-semibold">
+                            {selectedRow.value !== undefined ? formatValue(valueFormatId, selectedRow.value) : "—"}
                           </span>
-                        </TableCell>
-                        <TableCell className="text-right py-3">
-                          <span className="text-sm text-muted-foreground">
-                            {detailRow.percentage !== undefined
-                              ? formatValue(percentageFormatId, detailRow.percentage)
-                              : "—"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right py-3 font-semibold">
-                          {detailRow.value !== undefined ? formatValue(valueFormatId, detailRow.value) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right py-3">
-                          {detailPpChange !== undefined && detailPpChange !== 0 && (
-                            <div
+                        </div>
+                        {selectedRow.percentage !== undefined && (
+                          <div>
+                            <span className="text-muted-foreground">Доля:</span>
+                            <span className="ml-2 font-semibold">
+                              {formatValue(percentageFormatId, selectedRow.percentage)}
+                            </span>
+                          </div>
+                        )}
+                        {firstCalcSubCol && typeof firstCalcValue === "number" && firstCalcValue !== 0 && (
+                          <div>
+                            <span className="text-muted-foreground">{firstCalcSubCol.label || "Изменение"}:</span>
+                            <span
                               className={cn(
-                                "flex items-center justify-end gap-1 text-sm",
-                                isPositive && "text-green-600",
-                                isNegative && "text-red-600"
+                                "ml-2 font-semibold",
+                                firstCalcValue > 0 && "text-green-600",
+                                firstCalcValue < 0 && "text-red-600"
                               )}
                             >
-                              {isPositive && <TrendingUp className="w-3 h-3" />}
-                              {isNegative && <TrendingDown className="w-3 h-3" />}
-                              <span>
-                                {detailPpChange > 0 ? "+" : ""}
-                                {formatValue(ppChangeFormatId, Math.abs(detailPpChange))}
-                              </span>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                              {firstCalcValue > 0 ? "+" : ""}
+                              {formatValue(firstCalcFormat, firstCalcValue)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50%]">Показатель</TableHead>
+                          <TableHead className="text-right">Доля</TableHead>
+                          <TableHead className="text-right">Значение</TableHead>
+                          <TableHead className="text-right">Изм.</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getDetailRows(selectedRow).map((detailRow) => {
+                          // Динамически берём первое calculated поле из layout
+                          const detailCalcValue = firstCalcSubCol ? detailRow[firstCalcSubCol.id] : undefined;
+                          const isPositive = typeof detailCalcValue === "number" && detailCalcValue > 0;
+                          const isNegative = typeof detailCalcValue === "number" && detailCalcValue < 0;
+                          const detailDisplayName = [detailRow.section, detailRow.item, detailRow.sub_item]
+                            .filter(Boolean)
+                            .join(' - ') || detailRow.id;
+
+                          return (
+                            <TableRow key={detailRow.id} className="border-b border-border/50">
+                              <TableCell className="py-3">
+                                <span className="font-medium">
+                                  {detailDisplayName}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right py-3">
+                                <span className="text-sm text-muted-foreground">
+                                  {detailRow.percentage !== undefined
+                                    ? formatValue(percentageFormatId, detailRow.percentage)
+                                    : "—"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right py-3 font-semibold">
+                                {detailRow.value !== undefined ? formatValue(valueFormatId, detailRow.value) : "—"}
+                              </TableCell>
+                              <TableCell className="text-right py-3">
+                                {typeof detailCalcValue === "number" && detailCalcValue !== 0 && (
+                                  <div
+                                    className={cn(
+                                      "flex items-center justify-end gap-1 text-sm",
+                                      isPositive && "text-green-600",
+                                      isNegative && "text-red-600"
+                                    )}
+                                  >
+                                    {isPositive && <TrendingUp className="w-3 h-3" />}
+                                    {isNegative && <TrendingDown className="w-3 h-3" />}
+                                    <span>
+                                      {detailCalcValue > 0 ? "+" : ""}
+                                      {formatValue(firstCalcFormat, detailCalcValue)}
+                                    </span>
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </>
+                );
+              })()}
             </div>
           )}
         </DialogContent>

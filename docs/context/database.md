@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-01-30 (добавлены ods.fin_results, mart.fin_results)  
+> **Последнее обновление**: 2026-02-04 (добавлены display_group, is_default для calculated полей)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -15,10 +15,25 @@
 
 | Таблица | Назначение |
 |---------|------------|
+| `layouts` | Layouts дашбордов |
 | `components` | Описание компонентов UI |
+| `component_fields` | Поля компонентов (field_type: dimension/measure/calculated/attribute) |
 | `layout_component_mapping` | Привязка компонентов к layout |
 | `component_queries` | JSON-конфиги для SQL Builder |
 | `formats` | Форматы отображения данных |
+
+**component_fields — ключевые поля:**
+- `field_type` — тип поля: dimension, measure, calculated, attribute
+- `calculation_config` — JSONB конфиг для calculated полей
+- `aggregation` — тип агрегации для measure (sum, avg, etc.)
+- `display_group` — группа отображения для calculated полей: `percent`, `absolute` (миграция 036)
+- `is_default` — группа по умолчанию для отображения (миграция 036)
+- ~~is_dimension, is_measure, compact_display, is_groupable~~ — **УДАЛЕНЫ**
+
+**Display Groups (calculated поля):**
+- `percent` — процентные изменения (p2Change, p3Change, ppChange, ytdChange)
+- `absolute` — абсолютные изменения (p2ChangeAbsolute, p3ChangeAbsolute, ppChangeAbsolute, ytdChangeAbsolute)
+- На фронте отображается одна группа (по умолчанию `is_default=true`), с возможностью переключения
 
 ### dict — Справочники
 
@@ -63,7 +78,7 @@
 
 | View | Схема | Назначение |
 |------|-------|------------|
-| `layout_sections_view` | config | Layout для фронта |
+| `layout_sections_json_view` | config | Layout с sections, components, columns, sub_columns (включая displayGroup, isDefault) |
 | `layout_formats_view` | config | Форматы для фронта |
 
 ## SQL Builder конфиги

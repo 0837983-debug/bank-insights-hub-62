@@ -45,6 +45,7 @@ autoAttach: true
 | **QA** | `qa-agent` | E2E тесты Playwright, регресс, баг-репорты |
 | **Docs** | `docs-agent` | VitePress, документация, навигация, исправление отображения docs |
 | **Git** | `git-agent` | Коммиты, push, откаты, ветки, разрешение конфликтов |
+| **DB** | `db-agent` | Анализ данных, диагностика БД, SELECT/INSERT/UPDATE. **НЕ DDL!** |
 
 ## ⛔ Зоны ответственности
 

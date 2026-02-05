@@ -59,9 +59,12 @@ describe("periodService", () => {
     it("должен возвращать валидные даты", async () => {
       const result = await getPeriodDates();
 
-      expect(result.current.getTime()).not.toBeNaN();
-      expect(result.previousMonth.getTime()).not.toBeNaN();
-      expect(result.previousYear.getTime()).not.toBeNaN();
+      expect(result.current).not.toBeNull();
+      expect(result.previousMonth).not.toBeNull();
+      expect(result.previousYear).not.toBeNull();
+      expect(result.current!.getTime()).not.toBeNaN();
+      expect(result.previousMonth!.getTime()).not.toBeNaN();
+      expect(result.previousYear!.getTime()).not.toBeNaN();
     });
   });
 });

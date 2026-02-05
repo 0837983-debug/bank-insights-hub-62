@@ -83,28 +83,17 @@ interface KPICardProps {
 
 ### FinancialTable
 
-Компонент для отображения табличных данных.
+Компонент для отображения табличных данных с иерархией строк, числовыми колонками и изменениями (PP/YTD).
 
 **Основные возможности:**
-- Сортировка по колонкам
-- Группировка данных
-- Иерархическое отображение (группы, подгруппы)
-- Форматирование значений (валюта, проценты)
-- Индикация изменений
-- Загрузка данных по требованию
+- Колонки и форматы берутся из layout по `componentId` (не передаются явно в props)
+- Иерархическое отображение (группы/подгруппы по dimension-полям из layout)
+- Сортировка по колонкам, сворачивание/разворачивание уровней
+- Форматирование значений по форматам из layout (валюта, проценты)
+- Отображение изменений (ppChange, ytdChange) из расчётных полей или sub_columns
+- Кнопки переключения источника данных (например, «Активы»/«Пассивы») из layout.buttons
 
-**Props:**
-```typescript
-interface FinancialTableProps {
-  title: string;
-  rows: TableRowData[];
-  columns?: TableColumn[];
-  groupingOptions?: GroupingOption[];
-  activeGrouping?: string | null;
-  onGroupingChange?: (groupBy: string | null) => void;
-  isLoading?: boolean;
-}
-```
+**Вход (основное):** `title`, `rows` (результат transformTableData), `componentId`, опционально `buttons`, `activeButtonId`, `onButtonClick`, `isLoading`. Подробнее: [Компоненты фронтенда — FinancialTable](/architecture/frontend-components#financialtable).
 
 ## Управление состоянием
 
@@ -459,6 +448,7 @@ Vite автоматически разбивает код на chunks:
 
 ## См. также
 
-- [Общая архитектура](/architecture/overview) - обзор системы
-- [Поток данных](/architecture/data-flow) - как данные проходят через систему
-- [Руководящие принципы](/development/guidelines) - принципы разработки
+- [Компоненты фронтенда](/architecture/frontend-components) — подробно: FinancialTable, transformTableData, связь с layout и полями
+- [Общая архитектура](/architecture/overview) — обзор системы
+- [Поток данных](/architecture/data-flow) — как данные проходят через систему
+- [Руководящие принципы](/development/guidelines) — принципы разработки

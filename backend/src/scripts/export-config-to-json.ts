@@ -14,7 +14,6 @@ const pool = new Pool({
   user: process.env.DB_USER || "pm",
   password: process.env.DB_PASSWORD || "2Lu125JK$CB#NCJak",
   ssl: {
-    require: true,
     rejectUnauthorized: false,
   },
 });

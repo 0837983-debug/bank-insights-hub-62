@@ -6,12 +6,10 @@ import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 import {
   fetchLayout,
   fetchAllKPIs,
-  fetchTableData,
   fetchHealth,
   getData,
   type Layout,
   type KPIMetric,
-  type TableData,
   type HealthStatus,
   type GetDataParams,
   type GetDataResponse,
@@ -22,8 +20,6 @@ import {
 export const queryKeys = {
   layout: ["layout"] as const,
   allKPIs: ["kpi", "all"] as const,
-  tableData: (tableId: string, params?: Record<string, unknown>) =>
-    ["table", tableId, params] as const,
   health: ["health"] as const,
   getData: (queryId: string, params?: GetDataParams) =>
     ["getData", queryId, params] as const,
@@ -57,28 +53,6 @@ export function useAllKPIs(
     queryFn: () => fetchAllKPIs(params),
     staleTime: isDev ? 0 : 1 * 60 * 1000, // Dev: 0ms, Prod: 1 minute
     enabled: options?.enabled !== undefined ? options.enabled : true,
-    ...options,
-  });
-}
-
-// ============================================================================
-// Table Data Hooks
-// ============================================================================
-
-export function useTableData(
-  tableId: string,
-  params?: {
-    dateFrom?: string;
-    dateTo?: string;
-    groupBy?: string | string[];
-  },
-  options?: Omit<UseQueryOptions<TableData>, "queryKey" | "queryFn">
-) {
-  return useQuery({
-    queryKey: queryKeys.tableData(tableId, params),
-    queryFn: () => fetchTableData(tableId, params),
-    staleTime: 1 * 60 * 1000,
-    enabled: !!tableId,
     ...options,
   });
 }

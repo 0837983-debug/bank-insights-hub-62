@@ -2,7 +2,7 @@
  * API Client for backend communication
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 // API Error class
 export class APIError extends Error {
@@ -83,6 +83,8 @@ export interface LayoutColumn {
   fieldType: FieldType;
   aggregation?: AggregationType;
   calculationConfig?: CalculationConfig;
+  displayGroup?: 'percent' | 'absolute'; // Группа отображения (для calculated полей)
+  isDefault?: boolean; // Группа по умолчанию
   sub_columns?: LayoutColumn[];
 }
 
@@ -138,6 +140,8 @@ export interface LayoutComponent {
       description?: string;
       fieldType?: FieldType;
       calculationConfig?: CalculationConfig;
+      displayGroup?: 'percent' | 'absolute'; // Группа отображения (для calculated полей)
+      isDefault?: boolean; // Группа по умолчанию
     }>;
   }>;
   groupableFields?: string[]; // Deprecated: используйте buttons вместо этого
@@ -319,7 +323,7 @@ export async function fetchAllKPIs(params?: FetchKPIsParams): Promise<KPIMetric[
 }
 
 // ============================================================================
-// Table Data API
+// Table Data Types (для совместимости с getData)
 // ============================================================================
 
 export interface TableRow {
@@ -356,32 +360,6 @@ export interface TableData {
   rows: TableRow[];
   requestedPeriod?: string;
   groupBy?: string[];
-}
-
-export async function fetchTableData(
-  tableId: string,
-  params?: {
-    dateFrom?: string;
-    dateTo?: string;
-    groupBy?: string | string[];
-  }
-): Promise<TableData> {
-  const queryParams = new URLSearchParams();
-
-  if (params?.dateFrom) queryParams.append("dateFrom", params.dateFrom);
-  if (params?.dateTo) queryParams.append("dateTo", params.dateTo);
-  if (params?.groupBy) {
-    if (Array.isArray(params.groupBy)) {
-      params.groupBy.forEach((g) => queryParams.append("groupBy", g));
-    } else {
-      queryParams.append("groupBy", params.groupBy);
-    }
-  }
-
-  const queryString = queryParams.toString();
-  const endpoint = queryString ? `/table-data/${tableId}?${queryString}` : `/table-data/${tableId}`;
-
-  return apiFetch<TableData>(endpoint);
 }
 
 export interface GroupingOption {

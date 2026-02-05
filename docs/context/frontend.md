@@ -1,6 +1,6 @@
 # Frontend Context
 
-> **Последнее обновление**: 2026-01-30 (рефакторинг transformTableData — универсальная агрегация)  
+> **Последнее обновление**: 2026-02-05 (FinancialTable: одна кнопка-toggle для displayGroup)  
 > **Обновляет**: Frontend Agent после каждого изменения
 
 ## Текущая архитектура
@@ -76,10 +76,10 @@ export function MyComponent({ title, value, className }: MyComponentProps) {
 
 ### Работа с API (TanStack Query)
 ```typescript
-import { useLayout, useTableData } from '@/hooks/useAPI';
+import { useGetData } from '@/hooks/useAPI';
 
 function MyPage() {
-  const { data: layout, isLoading, error } = useLayout();
+  const { data, isLoading, error } = useGetData('my-data-source');
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
@@ -125,7 +125,114 @@ calculatePercentChange(current, previous, previousYear)
 
 calculateRowPercentage(value, total)
 // Возвращает: число (процент от total)
+
+executeCalculation(config, rowData)
+// Выполняет расчёт по конфигурации из layout (percent_change, diff, ratio)
 ```
+
+## KPICard — динамические calculated поля
+
+KPICard теперь **полностью управляется layout** — нет хардкода имён полей.
+
+### Как работает:
+
+1. **Сбор calculated полей** из `columns[].sub_columns` по `fieldType === 'calculated'`
+2. **Вычисление значений** через `executeCalculation(calculationConfig, kpiData)`
+3. **Группировка по displayGroup** из layout:
+   - `displayGroup: 'percent'` → процентная группа
+   - `displayGroup: 'absolute'` → абсолютная группа
+   - Без `displayGroup` → группа `'default'`
+4. **Определение группы по умолчанию** через `isDefault: true` в layout
+5. **Toggle %/абс.** — показывается только если есть 2+ группы
+6. **Рендеринг в порядке layout** — поля отображаются в том порядке, в каком идут в layout
+
+### Пример layout для calculated полей:
+
+```json
+{
+  "columns": [{
+    "id": "value",
+    "format": "currency_rub",
+    "sub_columns": [
+      {
+        "id": "p2Change",
+        "label": "PPTD %",
+        "fieldType": "calculated",
+        "format": "percent",
+        "displayGroup": "percent",
+        "isDefault": true,
+        "calculationConfig": { "type": "percent_change", "current": "value", "base": "p2Value" }
+      },
+      {
+        "id": "p2Diff",
+        "label": "PPTD абс.",
+        "fieldType": "calculated",
+        "format": "currency_rub",
+        "displayGroup": "absolute",
+        "calculationConfig": { "type": "diff", "minuend": "value", "subtrahend": "p2Value" }
+      }
+    ]
+  }]
+}
+```
+
+### Важно:
+- ❌ Нет хардкода `ppChange`, `ytdChange` и т.п.
+- ❌ Нет fallback конфигов — только layout
+- ✅ Все calculated поля берутся из `sub_columns`
+- ✅ Группировка через `displayGroup` из layout (не по format.kind)
+- ✅ Группа по умолчанию через `isDefault` из layout
+- ✅ Форматирование через `formatValue(formatId, value)`
+
+## FinancialTable — динамические calculated поля
+
+FinancialTable теперь **полностью управляется layout** — нет хардкода имён полей.
+
+### Как работает:
+
+1. **Сбор calculated полей** для каждой числовой колонки:
+   ```typescript
+   const calculatedSubColumns = col.sub_columns?.filter(
+     (sub) => sub.fieldType === "calculated" && 
+     (sub.displayGroup || 'default') === activeDisplayGroup
+   ) || [];
+   ```
+2. **Группировка по displayGroup** из layout:
+   - `displayGroup: 'percent'` → процентная группа
+   - `displayGroup: 'absolute'` → абсолютная группа
+3. **Одна кнопка-toggle** в правом верхнем углу (рядом с collapse/expand):
+   - Показывается только если есть 2+ группы
+   - Текст кнопки = текущий `displayGroup` (без хардкода)
+   - Клик циклически переключает группы в порядке layout
+4. **Группа по умолчанию** определяется через `isDefault: true` в layout
+5. **Чтение значений из row** — FinancialTable НЕ считает значения, а берёт готовые из `row[subColumn.id]` (рассчитаны в `transformTableData`)
+6. **Форматирование** через `formatValue(subColumn.format, value)`
+7. **Порядок вывода** = порядок sub_columns в layout
+
+### Рендеринг calculated полей:
+
+```typescript
+{calculatedSubColumns.map((subCol, idx) => {
+  const subValue = row[subCol.id];
+  if (typeof subValue !== "number") return null;
+  
+  return (
+    <span key={subCol.id} title={subCol.label}>
+      {formatValue(subCol.format, subValue)}
+    </span>
+  );
+})}
+```
+
+### Важно:
+- ❌ Нет хардкода `ppChange`, `ytdChange`, `p2Change`, `p3Change` и т.п.
+- ❌ Нет вызовов `calculatePercentChange` или `executeCalculation` в рендере
+- ❌ Нет fallback/backward compatibility костылей
+- ✅ Все calculated поля берутся из `sub_columns` с `fieldType === 'calculated'`
+- ✅ Группировка через `displayGroup` из layout
+- ✅ Группа по умолчанию через `isDefault` из layout
+- ✅ Значения уже рассчитаны в `transformTableData`
+- ✅ Форматирование через `formatValue(formatId, value)`
 
 ### formatters.ts
 ```typescript
@@ -171,9 +278,17 @@ export function transformTableData(
 ```
 
 **Как работает:**
-- Иерархия определяется по `isDimension` колонкам в порядке из layout
-- Агрегация выполняется по всем `isMeasure` колонкам
+- Иерархия определяется по `fieldType='dimension'` колонкам в порядке из layout
+- Агрегация выполняется по расширенному списку полей:
+  - **measureFields** — поля с `fieldType='measure'`
+  - **dependencyFields** — поля из `calculationConfig` calculated полей (`current`, `base`, `minuend`, `subtrahend`, `numerator`, `denominator`)
+  - **aggregationFields** = measureFields ∪ dependencyFields
+- Calculated поля вычисляются через `executeCalculation` на агрегированных значениях
 - Без columns использует дефолтную иерархию: `["class", "section", "item", "sub_item"]`
+
+**Важно для calculated полей на группах:**
+- Если `calculationConfig` ссылается на поля вне measureFields (например, `p2Value`, `p3Value`), эти поля автоматически добавляются в aggregationFields
+- Группы агрегируют все aggregationFields, поэтому calculated поля на группах корректны
 
 **Примеры:**
 - Balance: `class → section → item → sub_item`
@@ -185,9 +300,11 @@ export function transformTableData(
 - ✅ Динамический layout из БД
 - ✅ Расчёты на фронте (calculatePercentChange)
 - ✅ Загрузка файлов (XLSX, CSV)
-- ✅ Unit-тесты (48 тестов, все проходят)
+- ✅ Unit-тесты (60 тестов, все проходят)
 - ✅ UI загрузки с двумя кнопками: Баланс и Финрез (2026-01-29)
 - ✅ Универсальный transformTableData с isDimension/isMeasure (2026-01-30)
+- ✅ KPICard + FinancialTable: displayGroup toggle для calculated полей (2026-02-04)
+- ✅ transformTableData: корректная агрегация dependencyFields для calculated полей (2026-02-05)
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)

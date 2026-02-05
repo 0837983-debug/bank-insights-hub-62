@@ -119,34 +119,33 @@ WHERE period_date = $1
 
 ## Детальный поток: Табличные данные
 
+Таблицы на дашборде задаются в layout (type: "table"); для каждой таблицы в layout указаны `componentId`, `dataSourceKey`, `columns`, при необходимости `buttons`. Даты для запроса берутся из header (useGetData по header_dates).
+
+**Подробно:** [Компоненты фронтенда](/architecture/frontend-components) — что получает FinancialTable, как связываются колонки layout с полями строк, transformTableData, DynamicTable.
+
 ### 1. Инициация
 
-**Frontend:**
+**Frontend (DynamicTable):**
+- По layout для каждой таблицы: `dataSourceKey` и при выборе кнопки — dataSourceKey кнопки
+- Даты передаются с дашборда (header): periodDate, ppDate, pyDate
 ```typescript
-const { data } = useTableData('financial_results_income', {
-  groupBy: 'cfo'
-});
+useGetData(dataSourceKey, { p1: periodDate, p2: ppDate, p3: pyDate }, { componentId });
 ```
 
 ### 2. HTTP запрос
 
 ```
-GET /api/table-data/financial_results_income?groupBy=cfo
+GET /api/data?query_id=<dataSourceKey>&component_Id=<componentId>&p1=...&p2=...&p3=...
 ```
 
 ### 3. Backend обработка
 
-**Route:**
-- Определяет tableId
-- Проверяет маппинг legacy IDs
-- Вызывает соответствующий сервис
-
 **Route (`routes/dataRoutes.ts`):**
-- Валидирует параметры (`query_id=assets_table`, `component_Id=assets_table`, `parametrs=...`)
-- Вызывает SQL Builder для построения SQL из конфига `config.component_queries` где `query_id='assets_table'`
-- SQL Builder загружает конфиг и строит SQL запрос с подстановкой параметров
+- Валидирует параметры (`query_id`, `component_Id`, даты)
+- Вызывает SQL Builder для построения SQL из конфига `config.component_queries` по query_id
+- SQL Builder загружает конфиг и строит SQL с подстановкой параметров
 - Выполняет SQL запрос к БД
-- Трансформирует данные через `transformTableData()` (добавляет id, sortOrder, преобразует типы)
+- Возвращает плоские строки (поля из БД; расчётные поля при необходимости добавляются на бэкенде или считаются на фронте)
 
 **SQL запрос (строится SQL Builder из конфига):**
 ```sql
@@ -181,13 +180,17 @@ WHERE period_date = $1 AND class = $2
 
 ### 4. Frontend обработка
 
-**Component (`transformTableData`):**
-- Построение иерархической структуры из плоских данных
-- Агрегация групп: суммирование значений, пересчет метрик для групп
-- Сортировка по иерархии
-- Форматирование через `formatValue()` для отображения
+**DynamicTable:** ответ getData передаётся в `transformTableData(apiData, component.columns)`.
 
-**Важно:** API возвращает только сырые значения (`value`, `previousValue`, `ytdValue`). Расчеты процентных изменений (`ppChange`, `ytdChange`) выполняются на фронтенде через `calculatePercentChange()` из `src/lib/calculations.ts`. Frontend строит UI структуру, форматирует для отображения и пересчитывает метрики для групп при необходимости.
+**transformTableData** (см. [Компоненты фронтенда](/architecture/frontend-components#transformtabledata)):
+- По колонкам layout определяет dimension (иерархия), measure (агрегация), calculated (расчёты)
+- Строит иерархию групп из плоских строк, агрегирует measure по группам
+- Для листовых и групповых строк считает calculated-поля через `executeCalculation` (например ppChange, ytdChange)
+- Возвращает TableRowData[] с parentId, isGroup, sortOrder
+
+**FinancialTable:** получает `rows` и `componentId`; по componentId из layout подтягивает колонки и форматы, рендерит заголовки и ячейки (иерархия → колонка «Показатель», числовые поля и sub_columns → значение и изменения).
+
+**Важно:** Расчётные поля (ppChange, ytdChange и т.п.) могут считаться на бэкенде (в конфиге запроса) или на фронтенде через `executeCalculation` из `lib/calculations.ts`. Форматирование — через `formatValue()` и форматы из layout.
 
 ## Детальный поток: Layout
 
