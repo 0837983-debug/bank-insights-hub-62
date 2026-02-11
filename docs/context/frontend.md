@@ -1,6 +1,6 @@
 # Frontend Context
 
-> **Последнее обновление**: 2026-02-05 (FinancialTable: одна кнопка-toggle для displayGroup)  
+> **Последнее обновление**: 2026-02-09 (J1+J2: UI выбора периодов из header_dates)  
 > **Обновляет**: Frontend Agent после каждого изменения
 
 ## Текущая архитектура
@@ -43,9 +43,10 @@ src/
 | Компонент | Файл | Назначение |
 |-----------|------|------------|
 | DynamicDashboard | `pages/DynamicDashboard.tsx` | Главная страница дашборда |
-| KPICard | `components/KPICard.tsx` | Карточка KPI |
+| DatePicker | `components/DatePicker.tsx` | Выбор периодов (до 3 дат из header_dates API) |
+| KPICard | `components/KPICard.tsx` | Карточка KPI (grid до 7 в строку на 2xl) |
 | FinancialTable | `components/FinancialTable.tsx` | Таблица с данными |
-| Header | `components/Header.tsx` | Шапка с датами |
+| Header | `components/Header.tsx` | Шапка навигации |
 | FileUpload | `pages/FileUpload.tsx` | Загрузка файлов (2 кнопки: Баланс, Финрез) |
 | FileUploader | `components/upload/FileUploader.tsx` | Выбор файла (drag-n-drop, forwardRef) |
 
@@ -78,13 +79,18 @@ export function MyComponent({ title, value, className }: MyComponentProps) {
 ```typescript
 import { useGetData } from '@/hooks/useAPI';
 
-function MyPage() {
-  const { data, isLoading, error } = useGetData('my-data-source');
+function MyTable({ component }: { component: LayoutComponent }) {
+  // queryId берётся из layout компонента
+  const { data, isLoading, error } = useGetData(
+    component.queryId || null, // queryId из layout
+    { p1: '2026-01-01', p2: '2025-12-01', p3: '2025-01-01' }, // параметры
+    { componentId: component.componentId } // обязательный componentId
+  );
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
 
-  return <div>{/* render data */}</div>;
+  return <div>{/* render data.rows */}</div>;
 }
 ```
 
@@ -269,6 +275,106 @@ formatValue(value, format)
 - Конфигурация: `src/lib/api.ts`
 - Хуки: `src/hooks/useAPI.ts`
 
+### queryId vs dataSourceKey
+
+С версии J3 (2026-02-09) разделены понятия:
+
+- **`queryId`** — ID запроса для `getData()`. Приходит из layout (`config.components.query_id`). Используется для загрузки данных таблиц, header, кнопок.
+- **`dataSourceKey`** — ключ для маппинга KPI (tech_kpi_name). НЕ используется для `getData()`.
+
+```typescript
+// LayoutComponent интерфейс
+interface LayoutComponent {
+  queryId?: string;      // для getData запросов
+  dataSourceKey?: string; // для KPI mapping
+  // ...
+}
+```
+
+**Важно:**
+- ❌ Не использовать `dataSourceKey` для загрузки данных
+- ✅ Использовать `queryId` из layout для `useGetData()`
+- ✅ Layout (backend) отвечает за заполнение `queryId`
+
+### KPI загрузка через componentId
+
+С версии J3.4 (2026-02-09) KPI загружаются через `getData(query_id='kpis')` и сопоставляются по `componentId`:
+
+```typescript
+// KPIMetric интерфейс
+interface KPIMetric {
+  id: string;
+  componentId?: string;  // ID компонента для сопоставления с layout
+  value: number;
+  p2Value?: number;      // Значение за предыдущий период
+  p3Value?: number;      // Значение за прошлый год
+}
+```
+
+**Сопоставление в KPICard:**
+```typescript
+// Находим KPI по componentId из API (fallback на id для обратной совместимости)
+const kpi = kpis?.find((k) => (k.componentId ?? k.id) === componentKey);
+```
+
+**Важно:**
+- ✅ Backend возвращает `componentId` через JOIN с `config.components`
+- ✅ Calculated поля (PPTD, YTD) вычисляются на фронте через `executeCalculation`
+- ⚠️ Backend возвращает KPI как массив напрямую (без обёртки `{ rows }`)
+
+## DatePicker — выбор периодов
+
+Компонент для выбора до 3 дат из списка доступных периодов.
+
+### Как работает:
+
+1. **Загрузка дат** через `getData('header_dates')`:
+   - Backend возвращает список `PeriodDate[]` с полями: `periodDate`, `isP1`, `isP2`, `isP3`
+   - Флаги `isP1/isP2/isP3` определяют даты по умолчанию
+
+2. **UI выбора**:
+   - Popover с кликабельным списком дат
+   - Пользователь может выбрать до 3 дат
+   - Повторный клик снимает выбор
+   - Метки P1/P2/P3 показывают даты по умолчанию
+
+3. **Применение**:
+   - Кнопка "Применить" сортирует выбранные даты по убыванию
+   - p1 = самая новая, p2 = вторая, p3 = самая старая
+   - При Apply перезагружаются KPIs и таблицы с новыми параметрами
+
+### Пример использования:
+
+```typescript
+import { DatePicker } from '@/components/DatePicker';
+import type { PeriodDate } from '@/lib/api';
+
+// availableDates из getData('header_dates').rows
+<DatePicker
+  availableDates={availableDates}
+  selectedDates={{ p1, p2, p3 }}
+  onApply={(newDates) => setSelectedDates(newDates)}
+  isLoading={isLoading}
+/>
+```
+
+### Интерфейс PeriodDate:
+
+```typescript
+interface PeriodDate {
+  periodDate: string;  // ISO date (e.g., "2026-01-01")
+  isP1: boolean;       // Флаг "последний период"
+  isP2: boolean;       // Флаг "предыдущий период"
+  isP3: boolean;       // Флаг "прошлый год"
+}
+```
+
+### data-testid:
+
+- `date-picker-trigger` — кнопка открытия
+- `date-option-{periodDate}` — элемент списка дат
+- `date-picker-apply` — кнопка применения
+
 ## Ключевые функции
 
 ### transformTableData (DynamicDashboard.tsx)
@@ -311,13 +417,16 @@ export function transformTableData(
 - ✅ KPICard + FinancialTable: displayGroup toggle для calculated полей (2026-02-04)
 - ✅ transformTableData: корректная агрегация dependencyFields для calculated полей (2026-02-05)
 - ✅ FinancialTable: все группы свёрнуты по умолчанию (2026-02-05)
+- ✅ J3: Переход на queryId из layout для getData (2026-02-09)
+- ✅ J3.4: KPI загрузка через componentId, обновлён интерфейс KPIMetric (2026-02-09)
+- ✅ KPI grid: 7 колонок на широких экранах (2xl), уменьшенный gap и шрифт изменений (2026-02-09)
+- ✅ J1+J2: UI выбора периодов (DatePicker), даты из header_dates API (2026-02-09)
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)
 
 ### Известные проблемы:
-- ⚠️ Header берёт даты не из БД (зависит от бэка J.1)
-- ⚠️ Нет фильтров по периодам (задача J.2)
+- _(Нет критичных проблем)_
 
 ## Команды
 

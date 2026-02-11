@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useLayout, useAllKPIs, useGetData } from "@/hooks/useAPI";
 import { KPICard } from "@/components/KPICard";
 import { Header } from "@/components/Header";
+import { DatePicker } from "@/components/DatePicker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -11,9 +12,8 @@ import { executeCalculation } from "@/lib/calculations";
 import {
   FinancialTable,
   type TableRowData,
-  type GroupingOption,
 } from "@/components/FinancialTable";
-import type { LayoutComponent, TableData, FetchKPIsParams, FieldType, CalculationConfig } from "@/lib/api";
+import type { LayoutComponent, TableData, FetchKPIsParams, FieldType, CalculationConfig, PeriodDate } from "@/lib/api";
 
 // Тип для колонки из layout с поддержкой fieldType
 interface LayoutColumn {
@@ -267,28 +267,28 @@ function DynamicTable({ component }: DynamicTableProps) {
     ? buttons.find((btn) => btn.id === activeButtonId)
     : null;
 
-  // Определяем data_source_key для загрузки данных:
-  // 1. Если есть активная кнопка - используем её data_source_key
-  // 2. Иначе используем data_source_key таблицы
-  const dataSourceKey = activeButton?.dataSourceKey || component.dataSourceKey;
+  // Определяем queryId для загрузки данных:
+  // 1. Если есть активная кнопка - используем её queryId
+  // 2. Иначе используем queryId таблицы
+  const queryId = activeButton?.queryId || component.queryId;
 
   // Получаем dates из контекста родительского компонента
   const dates = (component as any).dates; // TODO: типизировать через props
 
-  // Загружаем данные через getData
+  // Загружаем данные через getData с queryId из layout
   const { 
     data: tableData, 
     isLoading,
     error,
   } = useGetData(
-    dataSourceKey || null,
+    queryId || null,
     dates ? {
       p1: dates.periodDate,
       p2: dates.ppDate,
       p3: dates.pyDate,
     } : {},
     { 
-      enabled: !!dataSourceKey && !!dates && !!component.componentId,
+      enabled: !!queryId && !!dates && !!component.componentId,
       componentId: component.componentId,
     }
   );
@@ -329,7 +329,7 @@ function DynamicTable({ component }: DynamicTableProps) {
             <>
               Не удалось загрузить даты из header. Таблица "{component.title}" не может загрузить данные без параметров дат.
               <div className="mt-2 text-xs font-mono">
-                Data source: {dataSourceKey}, Dates: {dates ? "loaded" : "not loaded"}
+                queryId: {queryId}, Dates: {dates ? "loaded" : "not loaded"}
               </div>
             </>
           ) : (
@@ -392,22 +392,21 @@ export default function DynamicDashboard() {
     return layout.header || null;
   }, [layout]);
 
-  // Получаем data_source_key для header (используем componentId, если data_source_key не задан)
-  const headerDataSourceKey = useMemo(() => {
+  // Получаем queryId для header из layout
+  const headerQueryId = useMemo(() => {
     if (!headerComponent) return null;
-    return headerComponent.dataSourceKey || "header_dates"; // fallback на header_dates
+    return headerComponent.queryId || null; // без fallback - queryId должен быть в layout
   }, [headerComponent]);
 
-  // Загружаем даты через getData
+  // Загружаем даты через getData с queryId из layout
   const { 
     data: headerData, 
-    isLoading: headerDataLoading, 
     error: headerDataError 
   } = useGetData(
-    headerDataSourceKey,
+    headerQueryId,
     {},
     { 
-      enabled: !!headerDataSourceKey && !!headerComponent?.componentId,
+      enabled: !!headerQueryId && !!headerComponent?.componentId,
       componentId: headerComponent?.componentId,
     }
   );
@@ -419,38 +418,71 @@ export default function DynamicDashboard() {
     }
   }, [headerDataError]);
 
-  // Извлекаем даты из ответа getData
-  // Новый формат: { componentId, type, rows }
-  const dates = useMemo(() => {
+  // Парсим список доступных дат из header_dates API
+  // Новый формат: { componentId, type, rows: [{ periodDate, isP1, isP2, isP3 }, ...] }
+  const availableDates = useMemo((): PeriodDate[] => {
     if (!headerData?.rows || !Array.isArray(headerData.rows) || headerData.rows.length === 0) {
       console.warn("[DynamicDashboard] Header data is empty or invalid:", headerData);
+      return [];
+    }
+    
+    // Преобразуем rows в PeriodDate[]
+    const dates = headerData.rows.map((row) => {
+      const r = row as Record<string, unknown>;
+      return {
+        periodDate: String(r.periodDate || r.period_date || ""),
+        isP1: Boolean(r.isP1 || r.is_p1),
+        isP2: Boolean(r.isP2 || r.is_p2),
+        isP3: Boolean(r.isP3 || r.is_p3),
+      } as PeriodDate;
+    }).filter((d) => d.periodDate); // Фильтруем пустые
+    
+    console.log("[DynamicDashboard] Available dates from header_dates:", dates);
+    return dates;
+  }, [headerData]);
+
+  // Состояние для выбранных дат пользователем
+  const [selectedDates, setSelectedDates] = useState<{
+    p1: string | null;
+    p2: string | null;
+    p3: string | null;
+  }>({ p1: null, p2: null, p3: null });
+
+  // Инициализация выбранных дат по умолчанию из флагов isP1/isP2/isP3
+  useEffect(() => {
+    if (availableDates.length > 0 && !selectedDates.p1) {
+      const defaultP1 = availableDates.find((d) => d.isP1)?.periodDate || null;
+      const defaultP2 = availableDates.find((d) => d.isP2)?.periodDate || null;
+      const defaultP3 = availableDates.find((d) => d.isP3)?.periodDate || null;
+      
+      console.log("[DynamicDashboard] Setting default selected dates:", {
+        defaultP1,
+        defaultP2,
+        defaultP3,
+      });
+      
+      setSelectedDates({ p1: defaultP1, p2: defaultP2, p3: defaultP3 });
+    }
+  }, [availableDates, selectedDates.p1]);
+
+  // Обработчик применения выбора дат
+  const handleDateApply = useCallback((newDates: { p1: string; p2: string | null; p3: string | null }) => {
+    console.log("[DynamicDashboard] Applying new dates:", newDates);
+    setSelectedDates(newDates);
+  }, []);
+
+  // Преобразуем выбранные даты в формат для API
+  // dates используется для таблиц и KPI
+  const dates = useMemo(() => {
+    if (!selectedDates.p1) {
       return null;
     }
-    // Предполагаем, что данные приходят в формате [{ periodDate, ppDate, pyDate }]
-    const firstRow = headerData.rows[0] as Record<string, string>;
-    const extractedDates = {
-      periodDate: firstRow.periodDate || firstRow.period_date || firstRow.p1,
-      ppDate: firstRow.ppDate || firstRow.pp_date || firstRow.p2,
-      pyDate: firstRow.pyDate || firstRow.py_date || firstRow.p3,
+    return {
+      periodDate: selectedDates.p1,
+      ppDate: selectedDates.p2 || selectedDates.p1, // fallback на p1 если p2 не выбран
+      pyDate: selectedDates.p3 || selectedDates.p1, // fallback на p1 если p3 не выбран
     };
-    
-    // Логирование для проверки
-    console.log("[DynamicDashboard] Extracted dates from header:", {
-      headerData,
-      firstRow,
-      extractedDates,
-    });
-    
-    // Проверяем, что все даты извлечены
-    if (!extractedDates.periodDate || !extractedDates.ppDate || !extractedDates.pyDate) {
-      console.warn("[DynamicDashboard] Missing dates in header data:", {
-        extractedDates,
-        firstRow,
-      });
-    }
-    
-    return extractedDates;
-  }, [headerData]);
+  }, [selectedDates]);
 
   // Загружаем KPIs через getData с параметрами дат и layout_id
   // Убеждаемся, что все даты присутствуют перед вызовом
@@ -483,20 +515,20 @@ export default function DynamicDashboard() {
     }
   }, [layout]);
 
-  // Логирование data_source_key для всех компонентов (для отладки)
+  // Логирование queryId для всех компонентов (для отладки)
   useEffect(() => {
     if (layout) {
-      const componentsWithDataSource = layout.sections.flatMap((section) =>
+      const componentsWithQueryId = layout.sections.flatMap((section) =>
         section.components
-          .filter((c) => c.dataSourceKey)
+          .filter((c) => c.queryId)
           .map((c) => ({
             type: c.type,
             componentId: c.componentId,
-            dataSourceKey: c.dataSourceKey,
+            queryId: c.queryId,
           }))
       );
-      if (componentsWithDataSource.length > 0) {
-        console.log("[DynamicDashboard] Components with data_source_key:", componentsWithDataSource);
+      if (componentsWithQueryId.length > 0) {
+        console.log("[DynamicDashboard] Components with queryId:", componentsWithQueryId);
       }
     }
   }, [layout]);
@@ -529,9 +561,9 @@ export default function DynamicDashboard() {
         {shouldRenderLegacyHeader && <Header />}
         <div className="container mx-auto p-6 space-y-8">
           <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
             {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
+              <Skeleton key={i} className="h-24" />
             ))}
           </div>
         </div>
@@ -567,9 +599,19 @@ export default function DynamicDashboard() {
         {headerComponent && (
           <header className="border-b border-border bg-card sticky top-0 z-50">
             <div className="container mx-auto px-6 py-4">
-              <h1 className="text-xl font-bold text-foreground">
-                {headerComponent.title || headerComponent.componentId}
-              </h1>
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold text-foreground">
+                  {headerComponent.title || headerComponent.componentId}
+                </h1>
+                {availableDates.length > 0 && (
+                  <DatePicker
+                    availableDates={availableDates}
+                    selectedDates={selectedDates}
+                    onApply={handleDateApply}
+                    isLoading={layoutLoading || kpisLoading}
+                  />
+                )}
+              </div>
             </div>
           </header>
         )}
@@ -593,20 +635,35 @@ export default function DynamicDashboard() {
       {headerComponent && (
         <header className="border-b border-border bg-card sticky top-0 z-50">
           <div className="container mx-auto px-6 py-4">
-            <h1 className="text-xl font-bold text-foreground">
-              {headerComponent.title || headerComponent.componentId}
-            </h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-bold text-foreground">
+                {headerComponent.title || headerComponent.componentId}
+              </h1>
+              {/* DatePicker для выбора периодов */}
+              {availableDates.length > 0 && (
+                <DatePicker
+                  availableDates={availableDates}
+                  selectedDates={selectedDates}
+                  onApply={handleDateApply}
+                  isLoading={layoutLoading || kpisLoading}
+                />
+              )}
+            </div>
             {dates && (
               <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
                 <span data-testid="header-date-periodDate">
-                  Период: {dates.periodDate}
+                  P1 (текущий): {dates.periodDate}
                 </span>
-                <span data-testid="header-date-ppDate">
-                  ПП: {dates.ppDate}
-                </span>
-                <span data-testid="header-date-pyDate">
-                  ПГ: {dates.pyDate}
-                </span>
+                {selectedDates.p2 && (
+                  <span data-testid="header-date-ppDate">
+                    P2 (пред. период): {dates.ppDate}
+                  </span>
+                )}
+                {selectedDates.p3 && (
+                  <span data-testid="header-date-pyDate">
+                    P3 (пред. год): {dates.pyDate}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -621,7 +678,7 @@ export default function DynamicDashboard() {
           return (
             <CollapsibleSection key={section.id} title={section.title}>
               {cardComponents.length > 0 ? (
-                <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${cardComponents.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
                   {cardComponents.map((component) => (
                     <KPICard key={component.id} componentId={component.id} kpis={kpis} />
                   ))}

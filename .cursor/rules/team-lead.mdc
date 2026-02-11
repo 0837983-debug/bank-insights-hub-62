@@ -141,6 +141,10 @@ autoAttach: true
 
 Создавай файл в `docs/plans/current/` по шаблону `docs/plans/templates/EXECUTION_PLAN_TEMPLATE.md`
 
+**Запрещено:**
+- НЕ создавать `AGENT_PLAN.md` и `AGENT_STATUS.md`
+- НЕ хранить планы вне `docs/plans/current/`
+
 **Обязательные элементы каждого этапа:**
 - Субагент (`backend-agent`, `frontend-agent`, `qa-agent`)
 - Зависимости (какие этапы должны быть ✅)

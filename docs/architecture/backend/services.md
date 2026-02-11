@@ -48,7 +48,7 @@ title: Сервисы
    - Возвращает готовый SQL
 
 **Специальные случаи:**
-- `query_id=header_dates` - обходит SQL Builder, использует `periodService.getHeaderDates()` напрямую
+- `query_id=header_dates` - использует SQL Builder для запроса к VIEW `mart.v_p_dates`
 - `query_id=layout` - возвращает структуру `sections` вместо `rows`
 - `query_id=kpis` - возвращает массив KPIMetric[] напрямую (без обертки)
 
@@ -100,21 +100,6 @@ title: Сервисы
 - Данные баланса получаются через `/api/data?query_id=assets_table` или `/api/data?query_id=liabilities_table`
 - SQL Builder использует таблицу `mart.balance` для получения данных
 
-## periodService (`services/mart/base/periodService.ts`)
-
-Сервис для работы с датами периодов.
-
-**Функции:**
-- `getPeriodDates()` - получение трех дат периодов из `mart.kpi_metrics`
-  - Возвращает: `PeriodDates` с полями `current`, `previousMonth`, `previousYear` (Date | null)
-  - Логика: находит максимальную дату в БД, затем максимальные даты предыдущего месяца и года
-- `formatDateForSQL(date)` - форматирование даты в YYYY-MM-DD для SQL запросов
-  - Синхронная функция-утилита
-  - Используется для преобразования Date объектов в строки для SQL запросов
-
-**Использование:**
-- Используется в `dataRoutes.ts` для получения дат периодов
-- Используется в SQL Builder для форматирования дат в параметрах
 
 ## calculationService (`services/mart/base/calculationService.ts`)
 

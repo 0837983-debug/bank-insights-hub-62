@@ -62,9 +62,10 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       // Если есть данные, проверяем структуру первой строки
       if (responseData.rows.length > 0) {
         const firstRow = responseData.rows[0];
-        expect(firstRow).toHaveProperty("id");
+        // assets_table возвращает строки с class, section, item, value
         expect(firstRow).toHaveProperty("class");
         expect(firstRow).toHaveProperty("section");
+        expect(firstRow).toHaveProperty("value");
       }
     });
 

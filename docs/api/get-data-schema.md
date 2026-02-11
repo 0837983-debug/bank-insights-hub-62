@@ -44,16 +44,25 @@ header_dates kpis            layout
 header_dates
     │
     ▼
-[periodService.getHeaderDates()]
+[buildQueryFromId("header_dates", paramsJson)]
     │
-    ├─ backend/src/services/mart/base/periodService.ts
-    │  - getHeaderDates(): { periodDate, ppDate, pyDate }
+    ├─ backend/src/services/queryBuilder/builder.ts
+    │  - buildQueryFromId(queryId, paramsJson): string
+    │  - Загружает конфиг из config.component_queries
+    │  - Валидирует параметры
+    │  - Строит SQL с подстановкой значений
     │
     ▼
-{ componentId, type: "table", rows: [{ periodDate, ppDate, pyDate }] }
+[SQL выполнение через pool.query()]
+    │
+    ├─ Использует view: mart.v_p_dates
+    │  - Получает даты из mart.v_kpi_all (distinct period_date)
+    │
+    ▼
+{ componentId, type: "header", rows: [{ periodDate, isP1, isP2, isP3 }] }
 ```
 
-**Сервис:** [`periodService.ts`](/backend/src/services/mart/base/periodService.ts#L89)
+**Сервис:** [`builder.ts`](/backend/src/services/queryBuilder/builder.ts#L457)
 
 ---
 
@@ -190,10 +199,9 @@ query_id (например, "assets_table")
 - **Функция:** `validateParams(params, config): void`
 - **Описание:** Валидирует параметры (missing/excess)
 
-### Period Service
-- **Файл:** `backend/src/services/mart/base/periodService.ts`
-- **Функция:** `getHeaderDates(): { periodDate, ppDate, pyDate }`
-- **Описание:** Рассчитывает даты периодов для header
+### Database Views
+- **VIEW:** `mart.v_p_dates`
+- **Описание:** Получает даты периодов из `mart.v_kpi_all` (distinct `period_date`) с флагами `isP1`, `isP2`, `isP3`
 
 ### Calculation Service
 - **Файл:** `backend/src/services/mart/base/calculationService.ts`

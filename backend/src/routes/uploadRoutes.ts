@@ -17,9 +17,9 @@ import {
   loadToSTG,
   loadFinResultsToSTG,
   transformSTGToODS,
-  transformODSToMART,
+  refreshBalanceMaterializedViews,
   transformFinResultsSTGToODS,
-  transformFinResultsODSToMART,
+  refreshFinResultsMaterializedViews,
   updateUploadStatus,
   saveValidationErrors,
 } from "../services/upload/ingestionService.js";
@@ -508,7 +508,7 @@ router.post("/", (req: Request, res: Response, next: any) => {
         progressService.completeStage(sessionId, 'loaded_to_ods', { rowsProcessed: rowsLoadedToODS });
         progressService.startStage(sessionId, 'loaded_to_mart');
         
-        rowsLoadedToMART = await transformFinResultsODSToMART(uploadId);
+        rowsLoadedToMART = await refreshFinResultsMaterializedViews();
         progressService.completeStage(sessionId, 'loaded_to_mart', { rowsProcessed: rowsLoadedToMART });
         progressService.completeSession(sessionId);
         
@@ -539,7 +539,7 @@ router.post("/", (req: Request, res: Response, next: any) => {
         progressService.completeStage(sessionId, 'loaded_to_ods', { rowsProcessed: rowsLoadedToODS });
         progressService.startStage(sessionId, 'loaded_to_mart');
         
-        rowsLoadedToMART = await transformODSToMART(uploadId);
+        rowsLoadedToMART = await refreshBalanceMaterializedViews();
         progressService.completeStage(sessionId, 'loaded_to_mart', { rowsProcessed: rowsLoadedToMART });
         progressService.completeSession(sessionId);
 

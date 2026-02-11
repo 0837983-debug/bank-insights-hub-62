@@ -18,11 +18,15 @@ related:
 Получение данных через query string.
 
 **Query параметры (обязательные):**
-- `query_id` (string) - Идентификатор запроса из `config.component_queries.query_id`
+- `query_id` (string) - Идентификатор запроса из `config.component_queries.query_id`. Берётся из `queryId` в layout JSON для компонентов table/button/header.
 - `component_Id` (string) - Идентификатор компонента (обратите внимание на заглавную I)
 
 **Query параметры (опциональные):**
 - `parametrs` (string) - JSON строка с параметрами для подстановки в SQL (обратите внимание на опечатку в названии)
+
+**Откуда берётся query_id:**
+- Для **table**, **button**, **header** — из поля `queryId` в layout JSON
+- Для **KPI карточек** — фиксированный `query_id='kpis'`
 
 **Пример запроса:**
 ```bash
@@ -65,9 +69,13 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 ```
 
 **Структура ответа:**
-- `componentId` (string) - Идентификатор компонента
+- `componentId` (string) - Идентификатор компонента (из `component_Id` параметра запроса)
 - `type` (string) - Тип данных, всегда `"table"` для табличных запросов
 - `rows` (array) - Массив строк данных
+
+**Связь с layout:**
+- `query_id` берётся из `queryId` в layout JSON
+- `component_Id` берётся из `componentId` в layout JSON
 
 ### Успешный ответ (layout)
 
@@ -87,21 +95,47 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 
 ### Успешный ответ (header_dates)
 
-Для `query_id = "header_dates"` возвращаются даты периодов:
+Для `query_id = "header_dates"` возвращаются даты периодов из `mart.v_p_dates`:
 
 ```json
 {
   "componentId": "header",
-  "type": "table",
+  "type": "header",
   "rows": [
     {
-      "periodDate": "2025-08-31",
-      "ppDate": "2025-07-31",
-      "pyDate": "2024-08-31"
+      "periodDate": "2025-12-31",
+      "isP1": true,
+      "isP2": false,
+      "isP3": false
+    },
+    {
+      "periodDate": "2025-11-30",
+      "isP1": false,
+      "isP2": true,
+      "isP3": false
+    },
+    {
+      "periodDate": "2024-12-31",
+      "isP1": false,
+      "isP2": false,
+      "isP3": true
     }
   ]
 }
 ```
+
+**Структура ответа:**
+- `componentId` (string) - Идентификатор компонента, всегда `"header"`
+- `type` (string) - Тип данных, всегда `"header"`
+- `rows` (array) - Массив объектов с датами периодов
+
+**Поля в rows:**
+- `periodDate` (string) - Дата периода в формате `YYYY-MM-DD`
+- `isP1` (boolean) - Флаг последней даты (p1)
+- `isP2` (boolean) - Флаг предпоследней даты (p2)
+- `isP3` (boolean) - Флаг последней даты предыдущего года (p3)
+
+**Источник данных:** VIEW `mart.v_p_dates`, который получает даты из `mart.v_kpi_all` (distinct `period_date`).
 
 ## Как работает endpoint
 
@@ -111,10 +145,10 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
    - Проверка наличия `query_id` и `component_id`
    - Проверка формата `params` (для POST) или `parametrs` (для GET)
 
-2. **Специальная обработка для header_dates**
-   - Если `query_id === "header_dates"`, endpoint обходит SQL Builder
-   - Вызывает `periodService.getHeaderDates()` напрямую
-   - Возвращает даты периодов без выполнения SQL запроса
+2. **Обработка header_dates**
+   - Если `query_id === "header_dates"`, endpoint использует SQL Builder
+   - SQL Builder выполняет запрос к VIEW `mart.v_p_dates`
+   - Возвращает список дат периодов с флагами `isP1`, `isP2`, `isP3`
 
 3. **Специальная обработка для layout**
    - Если `query_id === "layout"`, выполняется SQL через SQL Builder
@@ -146,7 +180,7 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 7. **Формирование ответа**
    - Для табличных данных: `{ componentId, type: "table", rows }`
    - Для layout: `{ sections }`
-   - Для header_dates: `{ componentId, type: "table", rows: [{ periodDate, ppDate, pyDate }] }`
+   - Для header_dates: `{ componentId, type: "header", rows: [{ periodDate, isP1, isP2, isP3 }] }`
 
 ### Схема работы
 
@@ -162,7 +196,7 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 │                                                              │
 │  1. Валидация query_id, component_id, params               │
 │  2. Специальная обработка?                                  │
-│     ├─ header_dates → periodService.getHeaderDates()       │
+│     ├─ header_dates → SQL Builder → mart.v_p_dates         │
 │     └─ layout → SQL Builder → extract sections             │
 │  3. buildQueryFromId(query_id, paramsJson)                  │
 └──────────────────────┬──────────────────────────────────────┘
@@ -208,26 +242,36 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 
 ### header_dates
 
-Для `query_id = "header_dates"` endpoint обходит SQL Builder и использует `periodService.getHeaderDates()` напрямую.
+Для `query_id = "header_dates"` endpoint использует SQL Builder для запроса к VIEW `mart.v_p_dates`.
 
-**Почему:** Даты периодов рассчитываются относительно `NOW()`, а не из данных БД.
+**Источник данных:** VIEW `mart.v_p_dates` получает даты из `mart.v_kpi_all` (distinct `period_date`).
 
 **Процесс:**
-1. Вызов `getHeaderDates()` из `periodService`
-2. Возврат дат в формате:
+1. SQL Builder загружает конфиг `header_dates` из `config.component_queries`
+2. Выполняется SQL запрос к VIEW `mart.v_p_dates`
+3. Возврат дат в формате:
    ```json
    {
      "componentId": "header",
-     "type": "table",
-     "rows": [{
-       "periodDate": "2025-08-31",
-       "ppDate": "2025-07-31",
-       "pyDate": "2024-08-31"
-     }]
+     "type": "header",
+     "rows": [
+       {
+         "periodDate": "2025-12-31",
+         "isP1": true,
+         "isP2": false,
+         "isP3": false
+       },
+       {
+         "periodDate": "2025-11-30",
+         "isP1": false,
+         "isP2": true,
+         "isP3": false
+       }
+     ]
    }
    ```
 
-**Конфиг в БД:** Конфиг `header_dates` в `config.component_queries` существует, но не используется для этого endpoint.
+**Конфиг в БД:** Конфиг `header_dates` в `config.component_queries` использует SQL Builder для запроса к `mart.v_p_dates`.
 
 ### layout
 
@@ -297,10 +341,10 @@ GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_d
 
 ### kpis
 
-Для `query_id = "kpis"` endpoint возвращает массив KPI метрик.
+Для `query_id = "kpis"` endpoint возвращает массив KPI метрик с `componentId` для сопоставления с карточками.
 
 **Процесс:**
-1. Построение SQL через SQL Builder (использует view `mart.kpis_view`)
+1. Построение SQL через SQL Builder (использует view `mart.v_kpi_all`)
 2. Выполнение SQL запроса
 3. Трансформация данных через `transformKPIData()`
 4. Возврат массива метрик напрямую (без обертки в объект)
@@ -320,21 +364,26 @@ GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-1
 ```json
 [
   {
-    "id": "capital",
+    "componentId": "capital_card",
     "periodDate": "2025-12-31",
     "value": 1500000000,
-    "previousValue": 1425000000,
-    "ytdValue": 1335000000
+    "p2Value": 1425000000,
+    "p3Value": 1335000000
   },
   {
-    "id": "ebitda",
+    "componentId": "ebitda_card",
     "periodDate": "2025-12-31",
     "value": 500000000,
-    "previousValue": 480000000,
-    "ytdValue": 450000000
+    "p2Value": 480000000,
+    "p3Value": 450000000
   }
 ]
 ```
+
+**Связь с layout:**
+- Каждая метрика содержит `componentId`, который соответствует `componentId` карточки в layout
+- `componentId` определяется через JOIN `config.components` по `data_source_key = kpi_name`
+- На фронтенде KPI сопоставляются с карточками по `componentId`
 
 **Важно:** API возвращает только сырые значения (`value`, `previousValue`, `ytdValue`). Процентные изменения (`ppChange`, `ytdChange`) рассчитываются на фронтенде через функцию `calculatePercentChange()` из `src/lib/calculations.ts`.
 
@@ -798,7 +847,13 @@ const data = await fetchTableData('assets_table', 'assets_table', {
 ```typescript
 // Получение дат периодов для header
 const headerData = await fetchTableData('header_dates', 'header', {});
-// Результат: { componentId: 'header', type: 'table', rows: [{ periodDate, ppDate, pyDate }] }
+// Результат: { componentId: 'header', type: 'header', rows: [{ periodDate, isP1, isP2, isP3 }] }
+
+// Использование на фронтенде
+const dates = headerData.rows; // Массив PeriodDate[]
+const defaultP1 = dates.find(d => d.isP1)?.periodDate;
+const defaultP2 = dates.find(d => d.isP2)?.periodDate;
+const defaultP3 = dates.find(d => d.isP3)?.periodDate;
 ```
 
 ### Пример с layout
@@ -820,11 +875,9 @@ const layoutData = await fetchTableData('layout', 'layout', {
 - Валидирует параметры (missing/excess)
 - Строит SQL с подстановкой значений
 
-### Period Service
+### Date Formatting
 
-- `getHeaderDates()` - расчет дат периодов для header
-- Используется напрямую для `query_id = "header_dates"`
-- Обходит SQL Builder
+- `formatDateForSQL()` - форматирование даты для SQL запросов (утилита в `dataRoutes.ts`)
 
 ### Row Name Mapper
 

@@ -207,91 +207,22 @@ export async function transformSTGToODS(uploadId: number): Promise<number> {
 }
 
 /**
- * Трансформация данных из ODS в MART
- * @param uploadId - ID загрузки
- * @returns количество загруженных строк
+ * Обновление Materialized Views для Balance после загрузки данных в ODS
+ * MART слой теперь реализован как MV с автоматическим JOIN на dict.field_mappings
+ * @returns количество строк в обновлённом MV
  */
-export async function transformODSToMART(uploadId: number): Promise<number> {
+export async function refreshBalanceMaterializedViews(): Promise<number> {
   const client = await pool.connect();
   try {
-    // Удаляем старые данные за периоды из загрузки
-    const periodsResult = await client.query(
-      `SELECT DISTINCT period_date, class, section, item
-       FROM ods.balance
-       WHERE upload_id = $1 AND deleted_at IS NULL`,
-      [uploadId]
-    );
-
-    for (const period of periodsResult.rows) {
-      await client.query(
-        `DELETE FROM mart.balance
-         WHERE period_date = $1
-           AND class = $2
-           AND COALESCE(section, '') = COALESCE($3::varchar, '')
-           AND COALESCE(item, '') = COALESCE($4::varchar, '')`,
-        [period.period_date, period.class, period.section, period.item]
-      );
-    }
-
-    // Вставляем данные из ODS в MART
-    // Формируем row_code из class, section, item, sub_item
-    // Сначала обновляем существующие записи
-    const updateResult = await client.query(
-      `UPDATE mart.balance
-       SET value = ods.value,
-           updated_at = CURRENT_TIMESTAMP
-       FROM ods.balance ods
-       WHERE mart.balance.table_component_id = 'balance_assets_table'
-         AND mart.balance.period_date = ods.period_date
-         AND mart.balance.class = ods.class
-         AND (mart.balance.section IS NOT DISTINCT FROM ods.section)
-         AND (mart.balance.item IS NOT DISTINCT FROM ods.item)
-         AND (mart.balance.sub_item IS NOT DISTINCT FROM ods.sub_item)
-         AND mart.balance.client_type IS NULL
-         AND mart.balance.client_segment IS NULL
-         AND mart.balance.product_code IS NULL
-         AND mart.balance.portfolio_code IS NULL
-         AND mart.balance.currency_code = 'RUB'
-         AND ods.upload_id = $1
-         AND ods.deleted_at IS NULL`,
-      [uploadId]
-    );
-
-    // Вставляем новые записи
-    const insertResult = await client.query(
-      `INSERT INTO mart.balance 
-       (table_component_id, row_code, period_date, value, class, section, item, sub_item, currency_code)
-       SELECT 
-         'balance_assets_table' as table_component_id,
-         COALESCE(ods.class || '-' || ods.section || COALESCE('-' || ods.item, ''), ods.class) as row_code,
-         ods.period_date,
-         ods.value,
-         ods.class,
-         ods.section,
-         ods.item,
-         ods.sub_item,
-         'RUB' as currency_code
-       FROM ods.balance ods
-       WHERE ods.upload_id = $1 AND ods.deleted_at IS NULL
-         AND NOT EXISTS (
-           SELECT 1 FROM mart.balance mart
-           WHERE mart.table_component_id = 'balance_assets_table'
-             AND mart.period_date = ods.period_date
-             AND mart.class = ods.class
-             AND (mart.section IS NOT DISTINCT FROM ods.section)
-             AND (mart.item IS NOT DISTINCT FROM ods.item)
-             AND (mart.sub_item IS NOT DISTINCT FROM ods.sub_item)
-             AND mart.client_type IS NULL
-             AND mart.client_segment IS NULL
-             AND mart.product_code IS NULL
-             AND mart.portfolio_code IS NULL
-             AND mart.currency_code = 'RUB'
-         )
-       RETURNING id`,
-      [uploadId]
-    );
-
-    return (updateResult.rowCount || 0) + (insertResult.rowCount || 0);
+    // Обновляем основной MART MV
+    await client.query('REFRESH MATERIALIZED VIEW mart.balance');
+    
+    // Обновляем KPI MV
+    await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_balance');
+    
+    // Возвращаем количество строк в обновлённом MV
+    const countResult = await client.query('SELECT COUNT(*) FROM mart.balance');
+    return parseInt(countResult.rows[0].count, 10);
   } finally {
     client.release();
   }
@@ -555,64 +486,22 @@ export async function transformFinResultsSTGToODS(uploadId: number): Promise<num
 }
 
 /**
- * Трансформация данных Financial Results из ODS в MART
- * @param uploadId - ID загрузки
- * @returns количество обработанных строк
+ * Обновление Materialized Views для Financial Results после загрузки данных в ODS
+ * MART слой теперь реализован как MV с автоматическим JOIN на dict.field_mappings
+ * @returns количество строк в обновлённом MV
  */
-export async function transformFinResultsODSToMART(uploadId: number): Promise<number> {
+export async function refreshFinResultsMaterializedViews(): Promise<number> {
   const client = await pool.connect();
   try {
-    // 1. Получить уникальные периоды из ODS для этой загрузки (только активные записи)
-    const periodsResult = await client.query(
-      `SELECT DISTINCT period_date
-       FROM ods.fin_results
-       WHERE deleted_at IS NULL AND upload_id = $1`,
-      [uploadId]
-    );
-
-    const periodDates = periodsResult.rows.map(r => r.period_date);
-
-    if (periodDates.length === 0) {
-      return 0;
-    }
-
-    // 2. DELETE из MART по периодам
-    await client.query(
-      `DELETE FROM mart.fin_results WHERE period_date = ANY($1)`,
-      [periodDates]
-    );
-
-    // 3. INSERT из ODS в MART с агрегацией по бизнес-ключу (SUM для дубликатов)
-    const insertResult = await client.query(
-      `INSERT INTO mart.fin_results (
-        class, category, item, subitem, details,
-        client_type, currency_code, data_source,
-        value, period_date, row_code, table_component_id
-      )
-      SELECT 
-        class, category, item, subitem, 
-        MAX(details) as details,
-        client_type, currency_code, data_source,
-        SUM(value) as value, 
-        period_date,
-        CONCAT(class, '|', category, '|', COALESCE(item, ''), '|', COALESCE(subitem, '')),
-        'fin_results_table'
-      FROM ods.fin_results
-      WHERE deleted_at IS NULL AND upload_id = $1
-      GROUP BY class, category, item, subitem, client_type, currency_code, data_source, period_date
-      ON CONFLICT (
-        period_date, class, category,
-        COALESCE(item, ''), COALESCE(subitem, ''),
-        COALESCE(client_type, ''), COALESCE(currency_code, ''), COALESCE(data_source, '')
-      ) DO UPDATE SET
-        value = EXCLUDED.value,
-        details = EXCLUDED.details,
-        updated_at = CURRENT_TIMESTAMP
-      RETURNING id`,
-      [uploadId]
-    );
-
-    return insertResult.rowCount || 0;
+    // Обновляем основной MART MV
+    await client.query('REFRESH MATERIALIZED VIEW mart.fin_results');
+    
+    // Обновляем KPI MV
+    await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_fin_results');
+    
+    // Возвращаем количество строк в обновлённом MV
+    const countResult = await client.query('SELECT COUNT(*) FROM mart.fin_results');
+    return parseInt(countResult.rows[0].count, 10);
   } finally {
     client.release();
   }

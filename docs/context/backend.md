@@ -1,6 +1,6 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-02-04 (архивация неиспользуемого кода)  
+> **Последнее обновление**: 2026-02-09 (periodService архивирован, даты через mart.v_p_dates)  
 > **Обновляет**: Backend Agent после каждого изменения
 
 > **Архивированный код:** Старые сервисы и скрипты перемещены в `archive/`. См. `archive/ARCHIVED_FILES.md`.
@@ -25,8 +25,7 @@ backend/src/
 │   │   ├── builder.ts    # Генерация SQL
 │   │   └── queryLoader.ts
 │   ├── mart/             # Сервисы для данных
-│   │   ├── base/
-│   │   │   └── periodService.ts
+│   │   ├── base/         # (пусто — сервисы архивированы)
 │   │   └── types.ts
 │   └── upload/           # Загрузка файлов
 │       ├── fileParserService.ts
@@ -57,10 +56,9 @@ backend/src/
 |--------|------|------------|
 | Data API | `routes/dataRoutes.ts` | Универсальный endpoint `/api/data` |
 | SQL Builder | `services/queryBuilder/builder.ts` | Генерация SQL из JSON-конфигов |
-| Period Service | `services/mart/base/periodService.ts` | Работа с периодами |
 | Upload | `routes/uploadRoutes.ts` | Загрузка файлов (balance, fin_results) |
 | Validation | `services/upload/validationService.ts` | Валидация данных |
-| Ingestion | `services/upload/ingestionService.ts` | Загрузка в STG и трансформации (`loadToSTG`, `loadFinResultsToSTG`, `transformFinResultsSTGToODS`, `transformFinResultsODSToMART`) |
+| Ingestion | `services/upload/ingestionService.ts` | Загрузка STG→ODS + REFRESH MV (`loadToSTG`, `loadFinResultsToSTG`, `transformSTGToODS`, `transformFinResultsSTGToODS`, `refreshBalanceMaterializedViews`, `refreshFinResultsMaterializedViews`) |
 
 ## API Endpoints
 
@@ -152,12 +150,17 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ Загрузка Balance (XLSX с Excel-датами) — STG → ODS → MART
 - ✅ Загрузка Financial Results — полный pipeline STG → ODS → MART с soft-delete
 - ✅ Unit-тесты (108 тестов, все проходят)
+- ✅ Разделение query_id и data_source_key (миграция 053)
+- ✅ v_kpi_all с component_id (миграция 052) — KPI привязаны к карточкам через data_source_key
+- ✅ v_kpi_all с layout_id (миграция 055) — KPI можно фильтровать по layout
+- ✅ v_kpi_all дедупликация (миграция 058) — устранены дубликаты из layout_component_mapping
+- ✅ Query `kpis` возвращает componentId для сопоставления на фронте
+- ✅ VIEW mart.v_p_dates для дат периодов (миграции 056, 057) — header_dates через SQL Builder
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)
 
 ### Известные проблемы:
-- ⚠️ periodService генерирует даты от текущей даты, а не из БД (задача J.1)
 - ⚠️ Валидация отрицательных значений в Balance (min: 0)
 
 ## Команды

@@ -350,7 +350,7 @@ GET /api/data?query_id=header_dates&component_Id=header
 - При невалидном JSON в `parametrs` возвращается ошибка 400
 
 **Специальные случаи:**
-- `query_id=header_dates` - обходит SQL Builder, использует `periodService.getHeaderDates()` напрямую
+- `query_id=header_dates` - использует SQL Builder для запроса к VIEW `mart.v_p_dates`
 - `query_id=layout` - возвращает структуру `sections` вместо `rows`
 
 ---

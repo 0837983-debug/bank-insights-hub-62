@@ -93,7 +93,6 @@ backend/
 │   │       └── base/                  # Базовые сервисы
 │   │           ├── calculationService.ts  # Расчеты (ppChange, ytdChange)
 │   │           ├── componentService.ts    # Работа с компонентами
-│   │           ├── periodService.ts       # Работа с периодами
 │   │           └── rowNameMapper.ts       # Маппинг названий строк
 │   │
 │   ├── middleware/         # Express middleware
@@ -245,7 +244,6 @@ scripts/
   - `validator.ts` - валидация параметров
   - `queryLoader.ts` - загрузка конфигов из БД
 - `backend/src/services/mart/base/calculationService.ts` - Расчеты (используется в transformKPIData)
-- `backend/src/services/mart/base/periodService.ts` - Работа с периодами
 - `backend/src/services/config/layoutService.ts` - Построение layout (устаревший, используется через SQL Builder)
 - `backend/src/services/mart/kpiService.ts` - KPI метрики (устаревший, используется через SQL Builder)
 - `backend/src/services/mart/balanceService.ts` - Баланс (устаревший, используется через SQL Builder)

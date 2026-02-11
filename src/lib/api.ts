@@ -57,6 +57,20 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
 }
 
 // ============================================================================
+// Period Dates API (header_dates)
+// ============================================================================
+
+/**
+ * Интерфейс для одной даты периода из header_dates
+ */
+export interface PeriodDate {
+  periodDate: string;
+  isP1: boolean;
+  isP2: boolean;
+  isP3: boolean;
+}
+
+// ============================================================================
 // Layout API
 // ============================================================================
 
@@ -119,7 +133,8 @@ export interface LayoutComponent {
   icon?: string;
   format?: Record<string, string>;
   compactDisplay?: boolean;
-  dataSourceKey?: string; // ключ источника данных (query_id для getData)
+  queryId?: string; // ID запроса для getData (из config.components.query_id)
+  dataSourceKey?: string; // ключ для KPI mapping (tech_kpi_name), НЕ используется для getData
   columns?: Array<{
     id: string;
     label: string;
@@ -236,14 +251,18 @@ export async function fetchLayout(layoutId?: string | unknown): Promise<Layout> 
 
 export interface KPIMetric {
   id: string;
+  componentId?: string; // ID компонента для сопоставления с layout (из v_kpi_all)
   value: number;
-  change?: number; // Deprecated: используйте ppChange
-  previousValue?: number; // Значение за предыдущий период
-  ytdValue?: number; // Значение за аналогичный период прошлого года
-  ppChange?: number; // Изменение к предыдущему периоду (в долях)
-  ppChangeAbsolute?: number; // Абсолютное изменение к предыдущему периоду
-  ytdChange?: number; // Изменение YTD (в долях)
-  ytdChangeAbsolute?: number; // Абсолютное изменение YTD
+  p2Value?: number; // Значение за предыдущий период (p2)
+  p3Value?: number; // Значение за прошлый год (p3)
+  // Deprecated fields (для обратной совместимости, удалить после полного перехода)
+  change?: number;
+  previousValue?: number;
+  ytdValue?: number;
+  ppChange?: number;
+  ppChangeAbsolute?: number;
+  ytdChange?: number;
+  ytdChangeAbsolute?: number;
 }
 
 /**

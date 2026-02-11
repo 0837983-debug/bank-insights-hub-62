@@ -32,7 +32,6 @@ test.describe("API Integration Tests", () => {
       // Старый endpoint /api/kpis удалён, используем новый /api/data?query_id=kpis
       const headerDates = await getHeaderDates(request);
       const paramsJson = JSON.stringify({
-        layout_id: "main_dashboard",
         p1: headerDates.periodDate,
         p2: headerDates.ppDate,
         p3: headerDates.pyDate,
@@ -53,15 +52,11 @@ test.describe("API Integration Tests", () => {
       // Check structure of first KPI (backend returns only raw values, calculations happen on frontend)
       if (kpis.length > 0) {
         const kpi = kpis[0];
-        expect(kpi).toHaveProperty("id");
+        // KPI возвращает: componentId, value, p2Value, p3Value
+        expect(kpi).toHaveProperty("componentId");
         expect(kpi).toHaveProperty("value");
-        expect(kpi).toHaveProperty("previousValue");
-        expect(kpi).toHaveProperty("ytdValue");
-        expect(kpi).toHaveProperty("periodDate");
-        // Расчётные поля не должны присутствовать (они рассчитываются на фронте)
-        expect(kpi).not.toHaveProperty("change");
-        expect(kpi).not.toHaveProperty("ppChange");
-        expect(kpi).not.toHaveProperty("ytdChange");
+        expect(kpi).toHaveProperty("p2Value");
+        expect(kpi).toHaveProperty("p3Value");
       }
     });
 
@@ -181,8 +176,10 @@ test.describe("API Integration Tests", () => {
         expect(data).toHaveProperty("rows");
         expect(Array.isArray(data.rows)).toBe(true);
         if (data.rows.length > 0) {
-          // Check structure of first row
-          expect(data.rows[0]).toHaveProperty("id");
+          // Check structure of first row (assets_table возвращает class, section, value)
+          expect(data.rows[0]).toHaveProperty("class");
+          expect(data.rows[0]).toHaveProperty("section");
+          expect(data.rows[0]).toHaveProperty("value");
         }
       } else {
         // Если новый endpoint не работает, проверяем старый (может быть удален)

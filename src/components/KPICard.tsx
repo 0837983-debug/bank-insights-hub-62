@@ -89,11 +89,8 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
 
   const componentKey = resolveComponentKey(component?.id, component?.componentId);
 
-  // Находим соответствующий KPI по componentId (или id) из API
-  const kpi = kpis?.find((k) => {
-    const kpiKey = (k as { componentId?: string; id?: string }).componentId ?? k.id;
-    return kpiKey === componentKey;
-  });
+  // Находим соответствующий KPI по componentId из API (fallback на id для обратной совместимости)
+  const kpi = kpis?.find((k) => (k.componentId ?? k.id) === componentKey);
 
   // Если компонент или KPI не найдены, не рендерим карточку
   if (!component || !kpi) {
@@ -242,7 +239,7 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
                             ) : (
                               <ArrowDownIcon className={cn("w-3 h-3", changeColor)} />
                             )}
-                            <span className={cn("text-xs font-semibold", changeColor)}>
+                            <span className={cn("text-[10px] font-medium", changeColor)}>
                               {formattedChange}
                             </span>
                           </div>
@@ -259,7 +256,7 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
                   <TooltipProvider key={field.id} delayDuration={300}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className={cn("text-xs cursor-help", changeColor)}>
+                        <span className={cn("text-[10px] cursor-help", changeColor)}>
                           ({isPositive ? "↑" : "↓"}{formattedChange})
                         </span>
                       </TooltipTrigger>

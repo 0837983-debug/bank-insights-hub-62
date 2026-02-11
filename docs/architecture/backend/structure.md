@@ -29,7 +29,6 @@ backend/
 │   │   │   ├── balanceService.ts  # (устаревший, используется через SQL Builder)
 │   │   │   ├── kpiService.ts  # (устаревший, используется через SQL Builder)
 │   │   │   ├── base/    # Базовые сервисы
-│   │   │   │   ├── periodService.ts
 │   │   │   │   ├── calculationService.ts
 │   │   │   │   ├── componentService.ts
 │   │   │   │   └── rowNameMapper.ts

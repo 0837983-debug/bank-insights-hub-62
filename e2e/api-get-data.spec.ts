@@ -59,10 +59,10 @@ test.describe("GET /api/data - getData endpoint", () => {
       // Если есть данные, проверяем структуру первой строки
       if (responseData.rows.length > 0) {
         const firstRow = responseData.rows[0];
+        // assets_table возвращает строки с class, section, item, value
         expect(firstRow).toHaveProperty("class");
         expect(firstRow).toHaveProperty("section");
-        expect(firstRow).toHaveProperty("item");
-        expect(firstRow).toHaveProperty("sub_item");
+        expect(firstRow).toHaveProperty("value");
       }
     });
 

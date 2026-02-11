@@ -94,7 +94,7 @@ Layout состоит из:
     "componentId": "header",
     "type": "header",
     "title": "Header",
-    "dataSourceKey": "header_dates"
+    "queryId": "header_dates"
   },
   "sections": [
     {
@@ -107,6 +107,7 @@ Layout состоит из:
           "type": "card",
           "title": "Капитал",
           "icon": "Landmark",
+          "dataSourceKey": "capital",
           "format": {
             "value": "currency_rub",
             "PPTD": "percent",
@@ -118,7 +119,7 @@ Layout состоит из:
           "componentId": "assets_table",
           "type": "table",
           "title": "Активы",
-          "dataSourceKey": "assets_table",
+          "queryId": "assets_table",
           "columns": [
             {
               "id": "class",
@@ -140,7 +141,7 @@ Layout состоит из:
               "componentId": "button_assets_table_cfo",
               "type": "button",
               "title": "ЦФО",
-              "dataSourceKey": "assets_table",
+              "queryId": "assets_table",
               "settings": {
                 "fieldId": "cfo",
                 "groupBy": "cfo"
@@ -157,59 +158,133 @@ Layout состоит из:
 **Особенности структуры:**
 - `header` - отдельное top-level поле (не в `sections`)
 - `header.id` - составной ID: `{layoutId}::{componentId}`
-- `header.dataSourceKey` - ссылка на `query_id` в `config.component_queries`
+- `header.queryId` - ссылка на `query_id` в `config.component_queries` (для получения данных)
 - `sections` - массив секций с компонентами
 - Header рендерится над всеми секциями на frontend
+
+**Поля для получения данных:**
+- `queryId` - для table, button, header (ID запроса в `config.component_queries`)
+- `dataSourceKey` - для card (ключ KPI, `tech_kpi_name`)
 
 ### Типы компонентов
 
 1. **Header** (`type: 'header'`)
    - Компонент для отображения дат периодов
-   - Имеет `dataSourceKey` для получения данных через `/api/data`
+   - Имеет `queryId` для получения данных через `/api/data`
 
 2. **Card** (`type: 'card'`)
    - Карточки с KPI метриками
-   - Может иметь `dataSourceKey` для получения данных через `/api/data`
-   - Или использует KPI API для получения данных
+   - Имеет `dataSourceKey` — ключ для сопоставления с KPI данными (`tech_kpi_name`)
+   - KPI данные загружаются через `getData(query_id='kpis')` и сопоставляются по `componentId`
 
 3. **Table** (`type: 'table'`)
    - Таблицы с данными
-   - Может иметь `dataSourceKey` для получения данных через `/api/data`
-   - Или использует Table Data API для получения данных
+   - Имеет `queryId` для получения данных через `/api/data`
 
 4. **Chart** (`type: 'chart'`)
    - Графики
-   - Может иметь `dataSourceKey` для получения данных через `/api/data`
+   - Может иметь `queryId` для получения данных через `/api/data`
 
 5. **Button** (`type: 'button'`)
    - Кнопки для группировки данных в таблицах
    - Привязаны к таблице через `parent_component_id` в `layout_component_mapping`
-   - Имеют `dataSourceKey` для получения данных через `/api/data` с параметром `groupBy`
+   - Имеют `queryId` для получения данных через `/api/data` с параметром `groupBy`
    - Заменяют устаревшее поле `groupableFields` в таблицах
 
-## data_source_key
+## queryId vs dataSourceKey
+
+В системе используются два разных поля для связи компонентов с данными:
+
+| Поле | Назначение | Используется для |
+|------|------------|------------------|
+| `queryId` | ID запроса для `/api/data` | table, button, header |
+| `dataSourceKey` | Ключ для KPI mapping (`tech_kpi_name`) | card (KPI карточки) |
+
+### queryId
+
+Поле `queryId` определяет, какой запрос использовать для получения данных компонента через `/api/data`.
+
+**Как это работает:**
+
+1. **В базе данных:**
+   - Компонент в `config.components` имеет поле `query_id`
+   - Значение `query_id` соответствует `query_id` в `config.component_queries`
+   - SQL Builder использует `query_id` для построения SQL запроса
+
+2. **В Layout JSON:**
+   - View `config.layout_sections_json_view` возвращает `queryId` из `config.components.query_id`
+   - `queryId` включается в JSON для компонентов типа `table`, `button`, `header`
+
+3. **На фронтенде:**
+   - Компонент получает `queryId` из layout
+   - Делается запрос к `/api/data?query_id={queryId}&component_Id={componentId}&parametrs={...}`
+
+**Пример:**
+```json
+{
+  "id": "main::balance::assets_table",
+  "componentId": "assets_table",
+  "type": "table",
+  "title": "Активы",
+  "queryId": "assets_table"
+}
+```
+
+### dataSourceKey
+
+Поле `dataSourceKey` используется для сопоставления KPI карточек с данными из `mart.v_kpi_all`.
+
+**Как это работает:**
+
+1. **В базе данных:**
+   - KPI карточка в `config.components` имеет `data_source_key = tech_kpi_name`
+   - View `mart.v_kpi_all` возвращает `component_id` через JOIN по `data_source_key = kpi_name`
+
+2. **В Layout JSON:**
+   - View `config.layout_sections_json_view` возвращает `dataSourceKey` для карточек
+   - Используется как ключ для сопоставления данных KPI с компонентом
+
+3. **На фронтенде:**
+   - KPI данные загружаются через `getData(query_id='kpis')`
+   - Каждая метрика имеет `componentId`, который соответствует ID карточки в layout
+   - Сопоставление KPI с карточкой происходит по `componentId`
+
+**Пример:**
+```json
+{
+  "id": "main::balance::capital_card",
+  "componentId": "capital_card",
+  "type": "card",
+  "title": "Капитал",
+  "dataSourceKey": "capital"
+}
+```
+
+### Deprecated: dataSourceKey для query
+
+⚠️ **Deprecated:** Ранее `dataSourceKey` использовался как `query_id` для таблиц и header. Это поведение удалено. Используйте `queryId` для получения данных.
+
+## data_source_key (для KPI)
 
 ### Назначение
 
-Поле `data_source_key` в `config.components` связывает компонент с запросом в `config.component_queries`. Это позволяет компонентам получать данные через единый endpoint `/api/data`.
+Поле `data_source_key` в `config.components` связывает KPI карточку с техническим именем KPI (`tech_kpi_name`) в `mart.v_kpi_all`. Это позволяет сопоставлять данные KPI с компонентами по `componentId`.
 
 ### Как это работает
 
 1. **В базе данных:**
-   - Компонент в `config.components` имеет поле `data_source_key`
-   - Значение `data_source_key` соответствует `query_id` в `config.component_queries`
-   - SQL Builder использует `query_id` для построения SQL запроса
+   - KPI карточка в `config.components` имеет `data_source_key = tech_kpi_name`
+   - View `mart.v_kpi_all` делает JOIN с `config.components` по `data_source_key = kpi_name`
+   - Запрос `kpis` возвращает `componentId` для каждой метрики
 
-2. **В SQL Builder (через `/api/data?query_id=layout`):**
-   - SQL Builder загружает конфиг из `config.component_queries` где `query_id='layout'`
-   - Выполняет SQL запрос через view `config.layout_sections_json_view`
-   - View автоматически включает `data_source_key` из `config.components` в JSON структуру
-   - `dataSourceKey` возвращается только если он заполнен в БД
+2. **В SQL Builder (через `/api/data?query_id=kpis`):**
+   - SQL Builder загружает конфиг из `config.component_queries` где `query_id='kpis'`
+   - Результат содержит `componentId` для сопоставления с карточками
 
 3. **На фронтенде:**
-   - Компонент получает `dataSourceKey` из layout
-   - Если `dataSourceKey` присутствует, делается запрос к `/api/data` с `query_id = dataSourceKey`
-   - Параметры запроса передаются через `params` в `/api/data`
+   - KPI данные загружаются через `fetchAllKPIs()`
+   - Сопоставление происходит по `componentId` из данных
+   - `dataSourceKey` используется только для backward compatibility в layout JSON
 
 ### Примеры
 
@@ -220,11 +295,64 @@ Layout состоит из:
   "componentId": "header",
   "type": "header",
   "title": "Header",
-  "dataSourceKey": "header_dates"
+  "queryId": "header_dates"
 }
 ```
 
 **Важно:** Header возвращается как отдельное поле `layout.header`, а не внутри секций. Это позволяет рендерить header над всеми секциями дашборда.
+
+## Выбор дат периодов
+
+### DatePicker компонент
+
+Компонент `DatePicker` позволяет пользователю выбрать до 3 дат из списка доступных периодов для сравнения данных.
+
+**Как это работает:**
+
+1. **Получение доступных дат:**
+   - Frontend запрашивает `/api/data?query_id=header_dates&component_Id=header`
+   - API возвращает список дат из `mart.v_p_dates` с флагами `isP1`, `isP2`, `isP3`
+   - Даты отсортированы по убыванию (от новых к старым)
+
+2. **Выбор дат:**
+   - Пользователь открывает DatePicker и видит список доступных дат
+   - Можно выбрать до 3 дат кликом (повторный клик снимает выбор)
+   - По умолчанию выбраны даты с флагами `isP1`, `isP2`, `isP3` из ответа API
+
+3. **Назначение p1/p2/p3:**
+   - После нажатия кнопки "Применить" выбранные даты сортируются по убыванию
+   - `p1` = самая новая выбранная дата
+   - `p2` = вторая по новизне (если выбрана)
+   - `p3` = самая старая выбранная дата (если выбрана)
+
+4. **Применение выбора:**
+   - После нажатия "Применить" обновляются параметры запросов для таблиц и KPI карточек
+   - Все компоненты перезагружают данные с новыми параметрами `p1`, `p2`, `p3`
+
+**Пример использования:**
+
+```typescript
+// Получение доступных дат
+const headerData = await getData('header_dates', 'header');
+const availableDates = headerData.rows; // PeriodDate[]
+
+// Инициализация с дефолтными значениями
+const defaultP1 = availableDates.find(d => d.isP1)?.periodDate;
+const defaultP2 = availableDates.find(d => d.isP2)?.periodDate;
+const defaultP3 = availableDates.find(d => d.isP3)?.periodDate;
+
+// Применение выбранных дат
+const handleApplyDates = (dates: { p1: string; p2: string | null; p3: string | null }) => {
+  // Обновление параметров запросов
+  setTableParams({ p1: dates.p1, p2: dates.p2, p3: dates.p3 });
+  setKpiParams({ periodDate: dates.p1 });
+  // Перезагрузка данных
+  refetchTables();
+  refetchKPIs();
+};
+```
+
+**Компонент:** `src/components/DatePicker.tsx`
 
 **Table компонент:**
 ```json
@@ -232,14 +360,14 @@ Layout состоит из:
   "id": "assets_table",
   "type": "table",
   "title": "Активы",
-  "dataSourceKey": "assets_table",
+  "queryId": "assets_table",
   "columns": [...],
   "buttons": [
     {
       "id": "button_assets_table_cfo",
       "type": "button",
       "title": "ЦФО",
-      "dataSourceKey": "assets_table",
+      "queryId": "assets_table",
       "settings": {
         "fieldId": "cfo",
         "groupBy": "cfo"
@@ -256,7 +384,7 @@ Layout состоит из:
   "type": "button",
   "title": "ЦФО",
   "label": "ЦФО",
-  "dataSourceKey": "assets_table",
+  "queryId": "assets_table",
   "settings": {
     "fieldId": "cfo",
     "groupBy": "cfo"
@@ -264,16 +392,18 @@ Layout состоит из:
 }
 ```
 
-**Card компонент (без dataSourceKey):**
+**Card компонент (с dataSourceKey):**
 ```json
 {
   "id": "capital_card",
   "type": "card",
   "title": "Капитал",
-  "icon": "Landmark"
-  // Нет dataSourceKey - использует KPI API
+  "icon": "Landmark",
+  "dataSourceKey": "capital"
 }
 ```
+
+**Примечание:** Для card компонентов `dataSourceKey` = `tech_kpi_name`. KPI данные загружаются через `getData(query_id='kpis')` и сопоставляются по `componentId`.
 
 ## Возврат data_source_key в Layout
 
@@ -495,15 +625,14 @@ Frontend → GET /api/data (query_id, params) → dataRoutes → SQL Builder
 }
 ```
 
-## Миграция
+## Текущее состояние
 
-Компоненты постепенно мигрируют на использование `dataSourceKey`:
+Все компоненты используют разделение `queryId` и `dataSourceKey`:
 
-- ✅ **Header** - использует `dataSourceKey: 'header_dates'`
-- ✅ **Table (assets_table)** - использует `dataSourceKey: 'assets_table'`
-- ✅ **Button** - использует `dataSourceKey` таблицы с параметром `groupBy`
-- ⏳ **Card** - пока использует KPI API, миграция планируется
-- ⏳ **Table (другие)** - пока используют Table Data API, миграция планируется
+- ✅ **Header** - использует `queryId: 'header_dates'` для получения данных
+- ✅ **Table** - использует `queryId` для получения данных (например, `queryId: 'assets_table'`)
+- ✅ **Button** - использует `queryId` таблицы с параметром `groupBy`
+- ✅ **Card** - использует `dataSourceKey` как `tech_kpi_name`, данные загружаются через `getData(query_id='kpis')` и сопоставляются по `componentId`
 
 ### Удаление groupableFields
 

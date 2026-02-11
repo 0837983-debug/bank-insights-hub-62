@@ -11,7 +11,6 @@
 import { Router, Request, Response } from "express";
 import { buildQueryFromId } from "../services/queryBuilder/builder.js";
 import { pool } from "../config/database.js";
-import { getPeriodDates, formatDateForSQL } from "../services/mart/base/periodService.js";
 
 const router = Router();
 
@@ -60,21 +59,6 @@ router.get("/", async (req: Request, res: Response) => {
 
     // Логирование запроса
     console.log(`[getData] GET Request: query_id=${query_id}, component_Id=${component_Id}, paramsJson=${paramsJson}`);
-
-    // Специальная обработка для header_dates - используем getPeriodDates
-    if (query_id === "header_dates") {
-      const periodDates = await getPeriodDates();
-      // Преобразуем PeriodDates в формат header_dates
-      return res.json({
-        componentId: component_Id,
-        type: "table",
-        rows: [{
-          periodDate: periodDates.current ? formatDateForSQL(periodDates.current) : "",
-          ppDate: periodDates.previousMonth ? formatDateForSQL(periodDates.previousMonth) : "",
-          pyDate: periodDates.previousYear ? formatDateForSQL(periodDates.previousYear) : "",
-        }],
-      });
-    }
 
     // KPIs возвращаются напрямую как массив (без обёртки componentId/type/rows)
     // Формат определяется конфигом kpis в config.component_queries
