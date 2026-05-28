@@ -149,7 +149,7 @@ curl "http://localhost:3001/api/data?query_id=kpis&component_Id=kpis&parametrs=%
 curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout&parametrs=%7B%22layout_id%22%3A%22main_dashboard%22%7D"
 
 # Table data
-curl http://localhost:3001/api/table-data/balance_assets
+curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_table&parametrs=%7B%22p1%22%3A%222025-12-31%22%2C%22p2%22%3A%222025-11-30%22%2C%22p3%22%3A%222024-12-31%22%7D"
 ```
 
 ## См. также

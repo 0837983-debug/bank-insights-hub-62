@@ -13,9 +13,9 @@ related:
 
 ## Общий поток данных для таблицы
 
-1. **Layout** (из `/api/data?query_id=layout`) задаёт секции и компоненты. Для каждой таблицы в layout хранятся: `componentId`, `dataSourceKey`, `columns`, `buttons`.
+1. **Layout** (из `/api/data?query_id=layout`) задаёт секции и компоненты. Для каждой таблицы в layout хранятся: `componentId`, `queryId`, `columns`, `buttons`.
 2. **DynamicDashboard** загружает layout и даты из header, затем для каждой секции рендерит **DynamicTable** для каждого компонента с `type === "table"`.
-3. **DynamicTable** по `component.dataSourceKey` и переданным `dates` вызывает **useGetData** и получает сырые строки от API.
+3. **DynamicTable** по `component.queryId` и переданным `dates` вызывает **useGetData** и получает сырые строки от API.
 4. **transformTableData(apiData, component.columns)** превращает плоские строки API в иерархические **TableRowData[]** с группами и расчётными полями.
 5. **FinancialTable** получает `rows`, `componentId` и опционально `buttons`; по `componentId` из layout подтягивает **колонки и форматы** и рендерит таблицу.
 
@@ -73,7 +73,7 @@ related:
   - Основное значение: `(row as any)[col.id]` (чаще всего `value`), формат из `col.format` или из value-колонки layout (например, `currency_rub`).
   - Под значением, если `showChange` и в строке есть ppChange/ytdChange: показываются изменения (PP и при наличии YTD), цвет по знаку, форматы из `sub_columns` (ppChange, ytdChange).
 
-- **Кнопки над таблицей:** если в layout у компонента заданы `buttons`, они рендерятся в шапке карточки; выбор кнопки передаётся наверх через `onButtonClick` и влияет на то, какой `dataSourceKey` использует DynamicTable для запроса данных (см. ниже).
+- **Кнопки над таблицей:** если в layout у компонента заданы `buttons`, они рендерятся в шапке карточки; выбор кнопки передаётся наверх через `onButtonClick` и влияет на то, какой `queryId` использует DynamicTable для запроса данных (см. ниже).
 
 ### Иерархия и сортировка
 
@@ -134,13 +134,13 @@ related:
 
 - **Кнопки (buttons):**
   - У таблицы в layout могут быть дочерние компоненты с `type === "button"` (component.buttons). Они рендерятся как кнопки над таблицей внутри FinancialTable.
-  - При выборе кнопки сохраняется `activeButtonId`. Источник данных для запроса: если есть активная кнопка, берётся **dataSourceKey кнопки**, иначе **dataSourceKey таблицы**. Так одна и та же таблица может показывать разные выборки (например, активы/пассивы).
+  - При выборе кнопки сохраняется `activeButtonId`. Источник данных для запроса: если есть активная кнопка, берётся **queryId кнопки**, иначе **queryId таблицы**. Так одна и та же таблица может показывать разные выборки (например, активы/пассивы).
 
 - **Запрос данных:**
-  - Вызов **useGetData(dataSourceKey, { p1: periodDate, p2: ppDate, p3: pyDate }, { componentId })**. Включён только при наличии dataSourceKey и dates.
+  - Вызов **useGetData(queryId, { p1: periodDate, p2: ppDate, p3: pyDate }, { componentId })**. Включён только при наличии queryId и dates.
   - Ответ — объект с полями componentId, type, rows. rows передаются в transformTableData вместе с component.columns.
 
-- **Даты:** берутся из header: DynamicDashboard загружает их через useGetData(headerDataSourceKey) и кладёт в состояние `dates`, затем передаёт `dates` в каждый DynamicTable как `component.dates`. Без дат таблица не запрашивается и показывает ошибку.
+- **Даты:** берутся из header: DynamicDashboard загружает их через useGetData(headerQueryId) и кладёт в состояние `dates`, затем передаёт `dates` в каждый DynamicTable как `component.dates`. Без дат таблица не запрашивается и показывает ошибку.
 
 - **Цепочка до отображения:**  
   useGetData → tableData → transformTableData(tableData, component.columns) → tableRows → FinancialTable({ rows: tableRows, componentId, buttons, ... }).
@@ -149,7 +149,7 @@ related:
 
 ## KPICard (кратко)
 
-**Вход:** компонент из layout (card), массив KPI `kpis` с бэкенда. Карточка находит в `kpis` запись по `componentId` (или dataSourceKey) и выводит title, value, изменение (pp/ytd), описание. Форматы берутся из layout по componentId. Подробнее см. [Frontend архитектура](/architecture/frontend).
+**Вход:** компонент из layout (card), массив KPI `kpis` с бэкенда. Карточка находит в `kpis` запись по `componentId` и выводит title, value, изменение (pp/ytd), описание. `dataSourceKey` используется на уровне БД для связи KPI с карточкой, а на фронтенде основное сопоставление идёт по `componentId`. Форматы берутся из layout по componentId. Подробнее см. [Frontend архитектура](/architecture/frontend).
 
 ---
 

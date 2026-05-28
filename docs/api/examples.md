@@ -95,17 +95,18 @@ function KPIDashboard() {
 }
 ```
 
-### Использование useTableData
+### Использование useGetData для таблицы
 
 ```typescript
-import { useTableData } from '@/hooks/useAPI';
+import { useGetData } from '@/hooks/useAPI';
 import { useState } from 'react';
 
 function IncomeTable() {
-  const [groupBy, setGroupBy] = useState<string | undefined>();
-  const { data, isLoading, error } = useTableData(
+  const [p1, setP1] = useState('2025-12-31');
+  const { data, isLoading, error } = useGetData(
     'financial_results_income',
-    { groupBy: groupBy ? [groupBy] : undefined }
+    { p1, p2: '2025-11-30', p3: '2024-12-31' },
+    { componentId: 'financial_results_income' }
   );
 
   if (isLoading) return <div>Loading table data...</div>;
@@ -113,11 +114,7 @@ function IncomeTable() {
 
   return (
     <div>
-      <select onChange={(e) => setGroupBy(e.target.value)}>
-        <option value="">No grouping</option>
-        <option value="cfo">Group by CFO</option>
-        <option value="client_segment">Group by Client Segment</option>
-      </select>
+      <input type="date" value={p1} onChange={(e) => setP1(e.target.value)} />
       
       <table>
         <thead>
@@ -292,7 +289,7 @@ function Dashboard() {
 ### Сценарий 2: Фильтрация таблицы по периоду
 
 ```typescript
-import { useTableData } from '@/hooks/useAPI';
+import { useGetData } from '@/hooks/useAPI';
 import { useState } from 'react';
 
 function PeriodFilteredTable() {
@@ -300,10 +297,11 @@ function PeriodFilteredTable() {
     new Date().toISOString().split('T')[0]
   );
 
-  const { data } = useTableData('financial_results_income', {
-    dateFrom: periodDate,
-    dateTo: periodDate
-  });
+  const { data } = useGetData(
+    'financial_results_income',
+    { p1: periodDate, p2: periodDate, p3: periodDate },
+    { componentId: 'financial_results_income' }
+  );
 
   return (
     <div>
@@ -318,27 +316,30 @@ function PeriodFilteredTable() {
 }
 ```
 
-### Сценарий 3: Динамическая группировка
+### Сценарий 3: Динамический выбор queryId из layout
 
 ```typescript
-import { useTableData } from '@/hooks/useAPI';
-import { useLayout } from '@/hooks/useAPI';
+import { useGetData, useLayout } from '@/hooks/useAPI';
 import { useState } from 'react';
 
 function GroupableTable({ tableId }: { tableId: string }) {
   const { data: layout } = useLayout();
-  const [selectedGroupBy, setSelectedGroupBy] = useState<string>('');
+  const [activeButtonId, setActiveButtonId] = useState<string | null>(null);
 
   // Найти компонент таблицы в layout
   const tableComponent = layout?.sections
     .flatMap(s => s.components)
-    .find(c => c.dataSourceKey === tableId);
+    .find(c => c.componentId === tableId);
 
   const buttons = tableComponent?.buttons || [];
+  const activeButton = buttons.find(button => button.id === activeButtonId);
+  const queryId = activeButton?.queryId || tableComponent?.queryId;
 
-  const { data } = useTableData(tableId, {
-    groupBy: selectedGroupBy ? [selectedGroupBy] : undefined
-  });
+  const { data } = useGetData(
+    queryId || null,
+    { p1: '2025-12-31', p2: '2025-11-30', p3: '2024-12-31' },
+    { componentId: tableId, enabled: !!queryId }
+  );
 
   return (
     <div>
@@ -347,8 +348,8 @@ function GroupableTable({ tableId }: { tableId: string }) {
           {buttons.map(button => (
             <button
               key={button.id}
-              onClick={() => setSelectedGroupBy(button.settings?.groupBy)}
-              className={selectedGroupBy === button.settings?.groupBy ? 'active' : ''}
+              onClick={() => setActiveButtonId(button.id)}
+              className={activeButtonId === button.id ? 'active' : ''}
             >
               {button.title}
             </button>
@@ -385,12 +386,18 @@ async function fetchKPIsDirectly() {
 }
 
 async function fetchTableDataDirectly(tableId: string, groupBy?: string) {
-  const url = new URL(`http://localhost:3001/api/table-data/${tableId}`);
-  if (groupBy) {
-    url.searchParams.append('groupBy', groupBy);
-  }
+  const paramsJson = JSON.stringify({
+    p1: '2025-12-31',
+    p2: '2025-11-30',
+    p3: '2024-12-31'
+  });
+  const queryString = new URLSearchParams({
+    query_id: tableId,
+    component_Id: tableId,
+    parametrs: paramsJson
+  }).toString();
   
-  const response = await fetch(url.toString());
+  const response = await fetch(`http://localhost:3001/api/data?${queryString}`);
   
   if (!response.ok) {
     const error = await response.json();

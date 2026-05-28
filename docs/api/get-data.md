@@ -4,7 +4,6 @@ description: Единый endpoint для получения данных чер
 related:
   - /api/endpoints
   - /reference/sql-builder
-  - /reference/component-queries
 ---
 
 # Get Data API
@@ -142,15 +141,15 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 ### Процесс работы
 
 1. **Валидация входных данных**
-   - Проверка наличия `query_id` и `component_id`
+   - Проверка наличия `query_id` и `component_Id`
    - Проверка формата `params` (для POST) или `parametrs` (для GET)
 
-2. **Обработка header_dates**
-   - Если `query_id === "header_dates"`, endpoint использует SQL Builder
-   - SQL Builder выполняет запрос к VIEW `mart.v_p_dates`
+2. **Конфиг `header_dates` через SQL Builder**
+   - Для `query_id = "header_dates"` применяется обычный пайплайн SQL Builder
+   - SQL Builder загружает конфиг из `config.component_queries` и выполняет запрос к VIEW `mart.v_p_dates`
    - Возвращает список дат периодов с флагами `isP1`, `isP2`, `isP3`
 
-3. **Специальная обработка для layout**
+3. **Формат ответа для layout**
    - Если `query_id === "layout"`, выполняется SQL через SQL Builder
    - Результат извлекается из `jsonb_agg` и возвращается структура `sections`
    - Используется view `config.layout_sections_json_view`
@@ -171,11 +170,10 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
    - При `wrapJson=true` результат обернут в `jsonb_agg(row_to_json(t))`
    - Результат: `result.rows[0].jsonb_agg` - массив объектов
 
-6. **Трансформация данных**
-   - Вызывается `transformTableData(data)` для табличных данных
-   - Добавление `id` если отсутствует (формируется из `class-section-item-sub_item`)
-   - Добавление `sortOrder` если отсутствует (через `rowNameMapper.getSortOrder()`)
-   - Преобразование строк в числа для `value`, `previousValue`, `ytdValue`
+6. **Возврат данных**
+   - Endpoint не выполняет доменную трансформацию строк таблицы.
+   - Для `query_id='kpis'` возвращает массив KPI напрямую.
+   - Для обычных запросов возвращает `{ componentId, type: "table", rows }`; иерархия, calculated-поля и форматирование считаются на фронтенде.
 
 7. **Формирование ответа**
    - Для табличных данных: `{ componentId, type: "table", rows }`
@@ -195,10 +193,10 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 │              dataRoutes.ts (Endpoint Handler)               │
 │                                                              │
 │  1. Валидация query_id, component_id, params               │
-│  2. Специальная обработка?                                  │
-│     ├─ header_dates → SQL Builder → mart.v_p_dates         │
-│     └─ layout → SQL Builder → extract sections             │
-│  3. buildQueryFromId(query_id, paramsJson)                  │
+│  2. buildQueryFromId(query_id, paramsJson)                  │
+│     ├─ header_dates → SQL Builder config → mart.v_p_dates  │
+│     └─ layout → SQL Builder config → extract sections      │
+│  3. Выполнение SQL и формирование ответа                    │
 └──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
@@ -238,11 +236,11 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Специальные случаи
+## Конфиги с отдельным форматом ответа
 
 ### header_dates
 
-Для `query_id = "header_dates"` endpoint использует SQL Builder для запроса к VIEW `mart.v_p_dates`.
+Для `query_id = "header_dates"` используется обычный SQL Builder-конфиг из `config.component_queries`, который выполняет запрос к VIEW `mart.v_p_dates`.
 
 **Источник данных:** VIEW `mart.v_p_dates` получает даты из `mart.v_kpi_all` (distinct `period_date`).
 
@@ -271,7 +269,7 @@ curl "http://localhost:3001/api/data?query_id=assets_table&component_Id=assets_t
    }
    ```
 
-**Конфиг в БД:** Конфиг `header_dates` в `config.component_queries` использует SQL Builder для запроса к `mart.v_p_dates`.
+**Конфиг в БД:** `query_id = "header_dates"` хранится в `config.component_queries`; отдельной runtime-ветки для этого query нет.
 
 ### layout
 
@@ -321,7 +319,7 @@ GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_d
           "id": "main_dashboard::header::header",
           "componentId": "header",
           "type": "header",
-          "dataSourceKey": "header_dates"
+          "queryId": "header_dates"
         }
       ]
     },
@@ -346,18 +344,16 @@ GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_d
 **Процесс:**
 1. Построение SQL через SQL Builder (использует view `mart.v_kpi_all`)
 2. Выполнение SQL запроса
-3. Трансформация данных через `transformKPIData()`
-4. Возврат массива метрик напрямую (без обертки в объект)
+3. Возврат массива метрик напрямую (без обертки в объект)
 
-**Параметры:**
-- `category` (string, опционально) - Фильтр по категории (например: 'finance', 'balance')
-- `periodDate` (string, опционально) - Дата периода в формате YYYY-MM-DD
+**Параметры (`parametrs`):**
+- `layout_id` (string) - ID layout, обычно `"main_dashboard"`
+- `p1`, `p2`, `p3` (string, даты) - текущий период, предыдущий период и период прошлого года
 
 **Пример запроса:**
 ```bash
 GET /api/data?query_id=kpis&component_Id=kpis&parametrs={}
-GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"category":"finance"}
-GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-15"}
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"layout_id":"main_dashboard","p1":"2025-12-31","p2":"2025-11-30","p3":"2024-12-31"}
 ```
 
 **Пример ответа:**
@@ -385,26 +381,14 @@ GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-1
 - `componentId` определяется через JOIN `config.components` по `data_source_key = kpi_name`
 - На фронтенде KPI сопоставляются с карточками по `componentId`
 
-**Важно:** API возвращает только сырые значения (`value`, `previousValue`, `ytdValue`). Процентные изменения (`ppChange`, `ytdChange`) рассчитываются на фронтенде через функцию `calculatePercentChange()` из `src/lib/calculations.ts`.
+**Важно:** API возвращает только сырые значения (`value`, `p2Value`, `p3Value`). Процентные и абсолютные изменения рассчитываются на фронтенде по `calculationConfig` из layout через `executeCalculation()` из `src/lib/calculations.ts`.
 
 **Использование на фронтенде:**
 ```typescript
-import { calculatePercentChange } from '@/lib/calculations';
-
 const response = await fetch('/api/data?query_id=kpis&component_Id=kpis&parametrs={}');
 const kpis = await response.json(); // Массив KPIMetricAPI[]
 
-// Рассчитываем процентные изменения на фронтенде
-const kpisWithChanges = kpis.map(kpi => {
-  const changes = calculatePercentChange(kpi.value, kpi.previousValue, kpi.ytdValue);
-  return {
-    ...kpi,
-    ppChange: changes.ppPercent,
-    ppChangeAbsolute: changes.ppDiff,
-    ytdChange: changes.ytdPercent,
-    ytdChangeAbsolute: changes.ytdDiff,
-  };
-});
+// KPICard берёт value/p2Value/p3Value и рассчитывает sub_columns по calculationConfig из layout.
 ```
 
 ### Табличные данные
@@ -414,8 +398,8 @@ const kpisWithChanges = kpis.map(kpi => {
 **Процесс:**
 1. Построение SQL через SQL Builder из конфига в `config.component_queries`
 2. Выполнение SQL запроса
-3. Трансформация данных через `transformTableData()`
-4. Возврат в формате: `{ componentId, type: "table", rows: [...] }`
+3. Возврат в формате: `{ componentId, type: "table", rows: [...] }`
+4. На фронтенде `transformTableData(apiData, component.columns)` строит иерархию и calculated-поля.
 
 **Пример запроса:**
 ```bash
@@ -442,7 +426,7 @@ GET /api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2
 }
 ```
 
-**Важно:** API возвращает только сырые значения (`value`, `previousValue`, `ytdValue`). Процентные изменения рассчитываются на фронтенде через `calculatePercentChange()`.
+**Важно:** API возвращает сырые строки из SQL Builder. Иерархия, агрегация и calculated-поля рассчитываются на фронтенде через `transformTableData()` и `executeCalculation()`.
 
 ## Типы запросов через /api/data
 
@@ -458,7 +442,7 @@ GET /api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2
 
 2. **KPI метрики** - `query_id = "kpis"`
    - Возвращает массив KPI метрик
-   - Параметры: `category` (опционально), `periodDate` (опционально)
+   - Параметры: `layout_id`, `p1`, `p2`, `p3`
 
 3. **Даты периодов** - `query_id = "header_dates"`
    - Возвращает даты периодов для header
@@ -473,13 +457,13 @@ GET /api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2
 Все доступные `query_id` хранятся в таблице `config.component_queries`:
 
 ```sql
-SELECT query_id, component_id, description
+SELECT query_id, title, config_json
 FROM config.component_queries
 WHERE is_active = TRUE
 ORDER BY query_id;
 ```
 
-Каждый компонент в `config.components` может иметь `data_source_key`, который соответствует `query_id` в `config.component_queries`. Это позволяет динамически определять, какие данные нужны для каждого компонента.
+Для table/button/header `config.components.query_id` соответствует `config.component_queries.query_id`. Для KPI-карточек `data_source_key` используется отдельно: он сопоставляется с `mart.v_kpi_all.kpi_name`, а данные карточек запрашиваются общим `query_id='kpis'`.
 
 ## Контракт SQL Builder
 
@@ -502,9 +486,9 @@ SQL Builder (функция `buildQueryFromId`) принимает:
 
 ## Ограничения
 
-### wrapJson должен быть true
+### Требование `wrapJson` из конфига
 
-Endpoint требует, чтобы в конфиге запроса (`config.component_queries`) было установлено `wrap_json = true`.
+Endpoint использует значение `wrap_json` из конфига запроса (`config.component_queries`).
 
 **Если `wrapJson = false`:**
 ```json
@@ -548,33 +532,7 @@ GET /api/data?query_id=assets_table&component_Id=assets_table&parametrs={"p1":"2
 
 ## Трансформация данных
 
-Endpoint автоматически трансформирует данные для таблиц через функцию `transformTableData()`:
-
-### 1. Добавление `id`
-
-Если поле `id` отсутствует в данных, оно формируется из иерархических полей:
-```typescript
-const idParts = [row.class, row.section, row.item, row.sub_item].filter(Boolean);
-row.id = idParts.join('-') || 'unknown';
-```
-
-**Пример:**
-- `class: "assets"`, `section: "loans"`, `item: "corporate"` → `id: "assets-loans-corporate"`
-
-### 2. Добавление `sortOrder`
-
-Если поле `sortOrder` отсутствует, оно вычисляется через `rowNameMapper.getSortOrder(row.id)`:
-- Извлекает числовой префикс из `id` (например, `a1` → `1000`, `a2-1` → `2001`)
-- Используется для сортировки строк в таблице
-
-### 3. Преобразование типов
-
-Строковые значения числовых полей преобразуются в числа:
-- `value` (string) → `value` (number)
-- `previousValue` (string) → `previousValue` (number)
-- `ytdValue` (string) → `ytdValue` (number)
-
-**Примечание:** Преобразование происходит только если значение является строкой. Если значение уже число, оно остается без изменений.
+Endpoint `/api/data` возвращает результат SQL Builder без доменной трансформации. Для таблиц фронтенд вызывает `transformTableData(apiData, component.columns)`: по `fieldType='dimension'` строит иерархию, по `fieldType='measure'` агрегирует значения, а `fieldType='calculated'` считает через `executeCalculation()`. Для KPI-карточек расчёт изменений также выполняется на фронтенде по `calculationConfig` из layout.
 
 ## Обработка ошибок
 
@@ -709,10 +667,10 @@ row.id = idParts.join('-') || 'unknown';
 
 Запрос считается успешным, если:
 
-1. ✅ **Входные данные валидны** - `query_id`, `component_id`, `params` присутствуют и имеют правильный формат
+1. ✅ **Входные данные валидны** - `query_id`, `component_Id`, `parametrs` присутствуют и имеют правильный формат
 2. ✅ **JSON валиден** - `paramsJson` является валидной JSON строкой (для SQL Builder)
 3. ✅ **Конфиг найден** - `query_id` существует в `config.component_queries` и активен
-4. ✅ **wrapJson=true** - в конфиге установлено `wrap_json = true` (кроме header_dates)
+4. ✅ **Конфиг валиден для `/api/data`** - настройки `config.component_queries` корректны (включая `wrap_json`)
 5. ✅ **Параметры соответствуют** - все требуемые параметры переданы, лишних параметров нет
 6. ✅ **SQL выполнен** - запрос успешно выполнен в БД
 7. ✅ **Результат в формате jsonb_agg** - при `wrapJson=true` результат обернут в `jsonb_agg`
@@ -720,7 +678,7 @@ row.id = idParts.join('-') || 'unknown';
 **Успешный ответ:**
 - HTTP статус: `200 OK`
 - Формат: `{ componentId, type: "table", rows: [...] }` или `{ sections: [...] }` для layout
-- `rows` содержит массив данных из БД после трансформации
+- `rows` содержит массив данных из БД; доменная трансформация выполняется на фронтенде
 
 ## Примеры использования
 
@@ -888,6 +846,6 @@ const layoutData = await fetchTableData('layout', 'layout', {
 
 - [Схема работы /api/data](/api/get-data-schema) - краткая схема работы endpoint'а со ссылками на сервисы
 - [SQL Builder](/reference/sql-builder) - описание SQL Builder и wrapJson
-- [Component Queries](/reference/component-queries) - описание конфигов запросов
+- [Схемы БД](/database/schemas) - описание `config.component_queries`
 - [Endpoints](/api/endpoints) - список всех API endpoints
 - [Модели данных](/api/data-models) - структуры данных для KPI и таблиц

@@ -139,7 +139,7 @@ describe('formatValue', () => {
 
 Конфигурация в `playwright.config.ts`:
 - Браузеры: Chromium, Firefox, WebKit
-- Base URL: http://localhost:8080
+- Base URL берётся из `PLAYWRIGHT_BASE_URL` или из значения по умолчанию в конфиге
 - Timeout: 30 секунд
 
 ### Запуск тестов

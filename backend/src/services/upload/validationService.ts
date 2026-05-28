@@ -26,6 +26,10 @@ export interface ValidationResult {
   errorCount: number;
 }
 
+const BALANCE_SIGN_THRESHOLD = 0.9;
+const ASSET_CLASS_NAMES = new Set(["АКТИВЫ", "ASSETS"]);
+const LIABILITY_CLASS_NAMES = new Set(["ПАССИВЫ", "LIABILITIES"]);
+
 /**
  * Получение маппинга полей для целевой таблицы
  * @param targetTable - целевая таблица (balance, и т.д.)
@@ -236,6 +240,108 @@ function validateRow(
   return errors;
 }
 
+function normalizeClassName(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value).trim().toUpperCase();
+}
+
+function parseNumericValue(value: string | number | null | undefined): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  // Поддерживаем "1 234,56" и "1234.56" из CSV/XLSX.
+  const normalized = value.replace(/\s+/g, "").replace(",", ".");
+  if (normalized === "") {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Агрегатная проверка знаков в balance-файле:
+ * - для АКТИВОВ доля отрицательных >= 90%
+ * - для ПАССИВОВ доля положительных >= 90%
+ */
+function checkBalanceSignRatios(
+  rows: ParsedRow[],
+  mapping: Awaited<ReturnType<typeof getFieldMapping>>
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const classMap = mapping.find((m) => m.targetField === "class");
+  const valueMap = mapping.find((m) => m.targetField === "value");
+
+  if (!classMap || !valueMap) {
+    return errors;
+  }
+
+  const assetsStats = { total: 0, validSign: 0 };
+  const liabilitiesStats = { total: 0, validSign: 0 };
+
+  for (const row of rows) {
+    const className = normalizeClassName(getRowValue(row, classMap.sourceField));
+    const value = parseNumericValue(getRowValue(row, valueMap.sourceField));
+
+    if (value === null) {
+      continue;
+    }
+
+    if (ASSET_CLASS_NAMES.has(className)) {
+      assetsStats.total += 1;
+      if (value < 0) {
+        assetsStats.validSign += 1;
+      }
+      continue;
+    }
+
+    if (LIABILITY_CLASS_NAMES.has(className)) {
+      liabilitiesStats.total += 1;
+      if (value > 0) {
+        liabilitiesStats.validSign += 1;
+      }
+    }
+  }
+
+  const checks = [
+    {
+      label: "АКТИВОВ",
+      expectedSign: "отрицательных",
+      stats: assetsStats,
+    },
+    {
+      label: "ПАССИВОВ",
+      expectedSign: "положительных",
+      stats: liabilitiesStats,
+    },
+  ];
+
+  for (const check of checks) {
+    if (check.stats.total === 0) {
+      continue;
+    }
+
+    const ratio = check.stats.validSign / check.stats.total;
+    if (ratio < BALANCE_SIGN_THRESHOLD) {
+      const actualPercent = (ratio * 100).toFixed(1);
+      const expectedPercent = (BALANCE_SIGN_THRESHOLD * 100).toFixed(1);
+      errors.push({
+        fieldName: classMap.sourceField,
+        errorType: "balance_sign_ratio_below_threshold",
+        errorMessage: `Нарушение правила знака: для ${check.label} доля ${check.expectedSign} значений ${actualPercent}% (${check.stats.validSign} из ${check.stats.total}), требуется минимум ${expectedPercent}%.`,
+      });
+    }
+  }
+
+  return errors;
+}
+
 /**
  * Валидация всех строк данных
  * @param rows - массив строк данных
@@ -266,6 +372,8 @@ export async function validateData(
   if (targetTable === "balance") {
     const uniquenessErrors = checkUniqueness(rows, mapping);
     errors.push(...uniquenessErrors);
+    const signRatioErrors = checkBalanceSignRatios(rows, mapping);
+    errors.push(...signRatioErrors);
   }
 
   return {

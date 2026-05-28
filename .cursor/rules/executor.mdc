@@ -46,7 +46,7 @@ autoAttach: false
 ```javascript
 // Пример вызова Task tool
 Task(
-  subagent_type: "backend-agent",  // или frontend-agent, qa-agent, docs-agent
+  subagent_type: "backend-agent",  // или frontend-agent, qa-agent, product-owner-agent, docs-agent
   description: "Краткое описание (5-10 слов)",
   prompt: `
     Прочитай контекст: [файлы контекста]
@@ -67,6 +67,7 @@ Task(
 - `backend-agent` — API, сервисы, миграции
 - `frontend-agent` — React, UI, страницы  
 - `qa-agent` — E2E тесты Playwright
+- `product-owner-agent` — пользовательская приемка, UX/UI, бизнес-ценность
 - `docs-agent` — Документация
 
 ### 4. Проверь результат
@@ -142,6 +143,7 @@ npm run test:e2e -- --reporter=list
 | Backend | `backend-agent` | API, сервисы, миграции |
 | Frontend | `frontend-agent` | React, UI, страницы |
 | QA | `qa-agent` | E2E тесты Playwright |
+| Product Owner | `product-owner-agent` | Пользовательская приемка, UX/UI, возврат на доработку |
 | Docs | `docs-agent` | Документация |
 
 ## Важные правила
@@ -171,6 +173,12 @@ npm run build 2>&1 | grep -E "error|Error" | head -10
 ```bash
 npm run test:e2e -- --reporter=list [конкретный тест]
 ```
+
+### Product Owner:
+Проверь acceptance report:
+- `ACCEPTED` → можно продолжать/закрывать задачу
+- `CHANGES_REQUESTED` → не закрывай план; сообщи Team Lead, нужен план доработок
+- `BLOCKED` → не закрывай план; сообщи блокер Team Lead
 
 ## Если что-то пошло не так
 

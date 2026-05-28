@@ -257,26 +257,29 @@ interface LayoutFilter {
 
 ```typescript
 interface LayoutComponent {
-  id: string;                     // Уникальный ID компонента
-  type: "card" | "table" | "chart"; // Тип компонента
+  id: string;                     // Уникальный ID экземпляра в layout
+  componentId: string;            // ID компонента из config.components
+  type: "card" | "table" | "chart" | "header" | "button"; // Тип компонента
   title: string;                  // Заголовок
   tooltip?: string;               // Подсказка
   icon?: string;                  // Название иконки
-  dataSourceKey: string;         // Ключ источника данных
+  queryId?: string;               // query_id для /api/data (table/button/header)
+  dataSourceKey?: string;         // KPI mapping key для card
   format?: Record<string, string>; // Форматы (ссылки на LayoutFormat)
   compactDisplay?: boolean;       // Компактное отображение
   columns?: Array<{               // Колонки (для таблиц)
     id: string;
     label: string;
     type: string;
-    isDimension?: boolean;        // Является ли измерением
-    isMeasure?: boolean;          // Является ли метрикой
-    format?: Record<string, string>;
+    fieldType?: "dimension" | "measure" | "calculated" | "attribute";
+    format?: string;
+    calculationConfig?: CalculationConfig;
   }>;
   buttons?: Array<{              // Кнопки для группировки (заменяют groupableFields)
     id: string;
     type: 'button';
     title: string;
+    queryId?: string;
     dataSourceKey?: string;
     settings?: {
       fieldId: string;
@@ -289,12 +292,13 @@ interface LayoutComponent {
 **Пример JSON (Card):**
 ```json
 {
-  "id": "capital_card",
+  "id": "main_dashboard::section_balance::card_capital",
+  "componentId": "card_capital",
   "type": "card",
   "title": "Капитал",
   "tooltip": "Собственный капитал банка",
   "icon": "Landmark",
-  "dataSourceKey": "capital",
+  "dataSourceKey": "КАПИТАЛ",
   "format": {
     "value": "currency_rub"
   },
@@ -305,16 +309,18 @@ interface LayoutComponent {
 **Пример JSON (Table):**
 ```json
 {
-  "id": "income_table",
+  "id": "main_dashboard::section_financial_results::income_table",
+  "componentId": "income_table",
   "type": "table",
   "title": "Структура доходов",
-  "dataSourceKey": "financial_results_income",
+  "queryId": "financial_results_income",
   "buttons": [
     {
       "id": "button_income_table_cfo",
+      "componentId": "button_income_table_cfo",
       "type": "button",
       "title": "ЦФО",
-      "dataSourceKey": "financial_results_income",
+      "queryId": "financial_results_income",
       "settings": {
         "fieldId": "cfo",
         "groupBy": "cfo"
@@ -322,9 +328,10 @@ interface LayoutComponent {
     },
     {
       "id": "button_income_table_client_segment",
+      "componentId": "button_income_table_client_segment",
       "type": "button",
       "title": "Сегмент клиента",
-      "dataSourceKey": "financial_results_income",
+      "queryId": "financial_results_income",
       "settings": {
         "fieldId": "client_segment",
         "groupBy": "client_segment"
@@ -336,16 +343,14 @@ interface LayoutComponent {
       "id": "name",
       "label": "Наименование",
       "type": "text",
-      "isDimension": true
+      "fieldType": "dimension"
     },
     {
       "id": "value",
       "label": "Значение",
       "type": "number",
-      "isMeasure": true,
-      "format": {
-        "value": "currency_rub"
-      }
+      "fieldType": "measure",
+      "format": "currency_rub"
     }
   ]
 }
@@ -370,10 +375,11 @@ interface LayoutSection {
   "title": "Баланс",
   "components": [
     {
-      "id": "capital_card",
+      "id": "main_dashboard::section_balance::card_capital",
+      "componentId": "card_capital",
       "type": "card",
       "title": "Капитал",
-      "dataSourceKey": "capital"
+      "dataSourceKey": "КАПИТАЛ"
     }
   ]
 }

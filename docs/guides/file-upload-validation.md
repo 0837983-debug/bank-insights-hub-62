@@ -129,7 +129,7 @@ INSERT INTO dict.upload_mappings (
 
 **Валидация:**
 - Проверка, что значение является числом
-- Поддержка правил `min` и `max` в `validation_rules`
+- Поддержка правил `min` и `max` в `validation_rules` (если они заданы)
 
 **Пример конфигурации:**
 ```sql
@@ -137,7 +137,7 @@ INSERT INTO dict.upload_mappings (
   target_table, source_field, target_field, field_type, is_required, validation_rules
 ) VALUES (
   'balance', 'amount', 'value', 'numeric', TRUE,
-  '{"min": 0}'::jsonb
+  NULL
 );
 ```
 
@@ -221,6 +221,16 @@ null
 ```
 
 или просто не указывать `validation_rules` (NULL).
+
+### Специальные правила для `balance` (проверка знака на уровне файла)
+
+Для загрузок в таблицу `balance` действует дополнительная агрегатная проверка распределения знаков:
+
+- `АКТИВЫ` — не менее 90% значений должны быть отрицательными
+- `ПАССИВЫ` — не менее 90% значений должны быть положительными
+- Остальные классы (`КАПИТАЛ` и др.) — без ограничений по знаку
+
+Проверка выполняется после построчной валидации и формирует ошибку уровня файла, если порог не соблюдён.
 
 ## Типы ошибок валидации
 
@@ -348,6 +358,21 @@ null
 }
 ```
 
+### 9. `sign_distribution_violation` - Нарушение распределения знаков
+
+**Описание:** Для таблицы `balance` не выполнено требование по доле знаков в классе (`АКТИВЫ` или `ПАССИВЫ`).
+
+**Пример:**
+```json
+{
+  "rowNumber": null,
+  "fieldName": "value",
+  "errorType": "sign_distribution_violation",
+  "errorMessage": "Класс АКТИВЫ: отрицательных значений 84.50%, требуется не менее 90%",
+  "fieldValue": null
+}
+```
+
 ## Примеры конфигурации
 
 ### Полная конфигурация для таблицы `balance`
@@ -382,12 +407,12 @@ INSERT INTO dict.upload_mappings (
   'balance', 'item', 'item', 'varchar', FALSE, NULL
 );
 
--- Обязательное поле: значение (только положительные числа)
+-- Обязательное поле: значение (без минимального ограничения)
 INSERT INTO dict.upload_mappings (
   target_table, source_field, target_field, field_type, is_required, validation_rules
 ) VALUES (
   'balance', 'amount', 'value', 'numeric', TRUE,
-  '{"min": 0}'::jsonb
+  NULL
 );
 ```
 
@@ -398,8 +423,8 @@ INSERT INTO dict.upload_mappings (
 INSERT INTO dict.upload_mappings (
   target_table, source_field, target_field, field_type, is_required, validation_rules
 ) VALUES (
-  'balance', 'amount', 'value', 'numeric', TRUE,
-  '{"min": 0, "max": 1000000000}'::jsonb
+  'new_table', 'amount', 'value', 'numeric', TRUE,
+  '{"min": -1000000000, "max": 1000000000}'::jsonb
 );
 ```
 
@@ -458,15 +483,15 @@ INSERT INTO dict.upload_mappings (
         "field": "month"
       },
       {
-        "type": "value_too_small",
-        "message": "Значение меньше минимального (min: 0)",
-        "field": "amount"
+        "type": "sign_distribution_violation",
+        "message": "Класс ПАССИВЫ: положительных значений 88.10%, требуется не менее 90%",
+        "field": "value"
       }
     ],
     "totalCount": 15,
     "byType": {
       "invalid_date_format": 5,
-      "value_too_small": 10
+      "sign_distribution_violation": 10
     }
   }
 }

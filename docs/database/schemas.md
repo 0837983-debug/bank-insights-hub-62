@@ -263,7 +263,7 @@ related:
 | Поле          | Тип                                  | Описание                                                                                                                                                                                                                                       |
 | ------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`          | SERIAL, PK                           | ID записи. Автоинкремент. Используется для уникальной идентификации каждого конфига.                                                                                                                                                           |
-| `query_id`    | VARCHAR(200), NOT NULL, UNIQUE       | Уникальный идентификатор запроса (например, 'header_dates', 'assets_table', 'layout'). Используется в SQL Builder через buildQueryFromId(query_id, paramsJson). Связывается с компонентами через config.components.data_source_key = query_id. |
+| `query_id`    | VARCHAR(200), NOT NULL, UNIQUE       | Уникальный идентификатор запроса (например, 'header_dates', 'assets_table', 'layout'). Используется в SQL Builder через buildQueryFromId(query_id, paramsJson). Для table/button/header связывается с компонентами через `config.components.query_id = config.component_queries.query_id`. |
 | `title`       | VARCHAR(500)                         | Название запроса для отображения. Используется в административном интерфейсе для идентификации запроса.                                                                                                                                        |
 | `config_json` | JSONB, NOT NULL                      | JSON конфиг для SQL Builder в формате QueryConfig. Содержит структуру запроса: from, select, where, groupBy, orderBy, limit, offset, params, paramTypes. Используется в SQL Builder для построения SQL запроса.                                |
 | `wrap_json`   | BOOLEAN, DEFAULT FALSE               | Нужно ли оборачивать результат в jsonb_agg. Если true, SQL Builder оборачивает результат в `SELECT jsonb_agg(row_to_json(t)) FROM (...) t`. Используется для endpoint `/api/data`, который требует wrapJson=true.                              |
@@ -283,11 +283,11 @@ related:
 - `header_dates` - получение максимальной даты периода из mart.kpi_metrics
 - `assets_table` - получение данных таблицы активов с расчетом изменений за три периода
 - `layout` - получение структуры sections через view layout_sections_json_view
-- `kpis` - получение KPI метрик для карточек через view mart.kpis_view с агрегацией по периодам
+- `kpis` - получение KPI метрик для карточек через view `mart.v_kpi_all` с агрегацией по периодам
 
 **Использование:** SQL Builder читает конфиги из этой таблицы по `query_id` и строит параметризованные SQL запросы.
 
-**См. также:** [Component Queries](/reference/component-queries) - детальное описание и примеры конфигов
+**См. также:** [SQL Builder](/reference/sql-builder) - детальное описание и примеры конфигов
 
 ### config.layout_formats_view
 
@@ -453,6 +453,8 @@ period_date  | is_p1 | is_p2 | is_p3
 
 **Назначение:** Хранение данных баланса (активы, пассивы, капитал) с детализацией по статьям и аналитическим разрезам.
 
+**Правило знака в MART:** при загрузке в `mart.balance` для строк с `tech_class = 'ASSETS'` значение `value` инвертируется (`value * -1`). Это нормализует знак для АКТИВОВ в витрине.
+
 **Иерархические поля (что учитываем):**
 
 
@@ -494,7 +496,7 @@ period_date  | is_p1 | is_p2 | is_p3
 | `table_component_id` | VARCHAR(200), NOT NULL               | Ссылка на config.components.id (component_type='table'). Определяет, для какой таблицы это значение. Используется для связи данных с компонентом таблицы.    |
 | `row_code`           | VARCHAR(100), NOT NULL               | Код строки (например, 'a1', 'a2-1', 'l1'). Используется для идентификации строки таблицы. Маппится в человекочитаемые названия через rowNameMapper.          |
 | `period_date`        | DATE, NOT NULL                       | Дата периода (YYYY-MM-DD). Определяет, за какой период это значение. Используется для расчета изменений относительно предыдущего периода и предыдущего года. |
-| `value`              | NUMERIC(20, 2), NOT NULL             | Значение баланса. Основное числовое значение статьи баланса. Используется для отображения в таблице и расчета метрик.                                        |
+| `value`              | NUMERIC(20, 2), NOT NULL             | Значение баланса. Для `tech_class = 'ASSETS'` в MART хранится уже после инверсии знака; для остальных классов сохраняется исходный знак. Используется для отображения в таблице и расчета метрик. |
 
 
 **Индексы:**
@@ -517,6 +519,18 @@ period_date  | is_p1 | is_p2 | is_p3
 - `idx_balance_component_date_class` - составной индекс на `(table_component_id, period_date DESC, class)` для оптимизации запросов
 
 **Использование:** В SQL Builder при получении данных баланса через `/api/data?query_id=assets_table` или `/api/data?query_id=liabilities_table`. API возвращает только сырые значения (value, previousValue, ytdValue), расчет метрик (ppChange, ytdChange) выполняется на фронтенде.
+
+### mart.mv_kpi_derived
+
+Материализованный view с производными KPI.
+
+**Назначение:** Расчёт агрегированных KPI на основе витринных данных (`mart.balance`, `mart.financial_results`) для последующей загрузки в `mart.kpi_metrics`.
+
+**Актуальная формула ROA:** после инверсии знака АКТИВОВ в `mart.balance` формула ROA не использует `* -1`.
+
+```sql
+ROA = (Чистая прибыль / Средние активы) * 100
+```
 
 ### mart.kpis_view
 
@@ -779,7 +793,8 @@ View для получения KPI карточек с учетом layout_id.
 - `config.components.id` → `mart.kpi_metrics.component_id` (для карточек)
 - `config.components.id` → `mart.balance.table_component_id` (для таблиц)
 - `config.component_fields.format_id` → `config.formats.id` (для форматов)
-- `config.components.data_source_key` → `config.component_queries.query_id` (для получения данных через SQL Builder)
+- `config.components.query_id` → `config.component_queries.query_id` (для получения данных table/button/header через SQL Builder)
+- `config.components.data_source_key` → `mart.v_kpi_all.kpi_name` (для сопоставления KPI-карточек)
 
 ### ing ↔ stg ↔ ods ↔ mart
 
@@ -807,6 +822,5 @@ View для получения KPI карточек с учетом layout_id.
 - [Data Marts](/database/data-marts) - детали Data Mart структуры
 - [Миграции](/database/migrations) - работа с миграциями
 - [Архитектура БД](/architecture/database) - общая архитектура базы данных
-- [Component Queries](/reference/component-queries) - описание конфигов запросов
 - [SQL Builder](/reference/sql-builder) - документация SQL Builder
 

@@ -10,5 +10,3 @@ description: Руководство по деплою проекта
 ## Разделы
 
 - [CI/CD Pipeline](/deployment/ci-cd) - настройка и использование CI/CD
-- [Переменные окружения](/deployment/environment) - настройка переменных окружения
-- [Production Deployment](/deployment/production) - деплой в production

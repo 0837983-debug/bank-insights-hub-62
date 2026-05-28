@@ -60,32 +60,24 @@ GET /api/data?query_id=layout&component_Id=layout&parametrs={"layout_id":"main_d
 - `query_id` (string) - Должен быть `"kpis"`
 - `component_Id` (string) - Должен быть `"kpis"`
 
-**Query параметры (опциональные):**
-- `parametrs` (string) - JSON строка с параметрами:
-  - `category` (string, опционально) - Фильтр по категории (например: 'finance', 'balance')
-  - `periodDate` (string, опционально) - Дата периода в формате YYYY-MM-DD
+**Query параметры (`parametrs`, JSON строка):**
+- `layout_id` (string) - ID layout, обычно `"main_dashboard"`
+- `p1`, `p2`, `p3` (string, даты) - текущий период, предыдущий период и период прошлого года. В рабочем дашборде эти даты берутся из header.
 
 **Пример:**
 ```bash
 GET /api/data?query_id=kpis&component_Id=kpis&parametrs={}
-GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"category":"finance"}
-GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-15"}
+GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"layout_id":"main_dashboard","p1":"2025-12-31","p2":"2025-11-30","p3":"2024-12-31"}
 ```
 
 **Структура ответа:**
 ```json
 [
   {
-    "id": "capital",
-    "title": "Капитал",
-    "value": "1500000000",
-    "description": "Собственный капитал банка",
-    "change": 5.2,
-    "ytdChange": 12.5,
-    "category": "balance",
-    "categoryId": "balance",
-    "iconName": "Landmark",
-    "sortOrder": 1
+    "componentId": "card_capital",
+    "value": 1500000000,
+    "p2Value": 1425000000,
+    "p3Value": 1335000000
   }
 ]
 ```
@@ -94,39 +86,7 @@ GET /api/data?query_id=kpis&component_Id=kpis&parametrs={"periodDate":"2024-01-1
 
 ## Table Data
 
-### `GET /api/table-data/:tableId`
-
-Получить данные таблицы по ID.
-
-**Поддерживаемые tableId:**
-- `financial_results_income` - Доходы
-- `financial_results_expenses` - Расходы
-- `balance_assets` - Активы баланса
-- `balance_liabilities` - Обязательства баланса
-
-**Query параметры:**
-- `groupBy` (опционально) - Группировка (например: 'cfo', 'client_segment', 'fot')
-- `periodDate` (опционально) - Дата периода в формате YYYY-MM-DD
-- `dateFrom` (опционально) - Начальная дата (для будущего использования)
-- `dateTo` (опционально) - Конечная дата (для будущего использования)
-
-**Пример:**
-```bash
-GET /api/table-data/financial_results_income
-GET /api/table-data/financial_results_income?groupBy=cfo
-GET /api/table-data/financial_results_income?periodDate=2024-01-15&groupBy=client_segment
-```
-
-## Chart Data Endpoints
-
-### `GET /api/chart-data/:chartId`
-
-Получить данные графика по ID.
-
-**Пример:**
-```bash
-GET /api/chart-data/income-chart
-```
+Табличные данные загружаются через единый endpoint `GET /api/data`: `query_id` берётся из `queryId` компонента таблицы или активной кнопки в layout, `component_Id` — из `componentId`.
 
 ## Upload Endpoints
 
@@ -344,14 +304,14 @@ GET /api/data?query_id=header_dates&component_Id=header
 ```
 
 **Ограничения:**
-- Требуется `wrapJson=true` в конфиге запроса (кроме `header_dates`)
+- Требование `wrapJson` определяется конфигом `query_id` в `config.component_queries`
 - Если `wrapJson=false`, возвращается ошибка 400
 - При отсутствии `query_id` или `component_Id` возвращается ошибка 400
 - При невалидном JSON в `parametrs` возвращается ошибка 400
 
-**Специальные случаи:**
-- `query_id=header_dates` - использует SQL Builder для запроса к VIEW `mart.v_p_dates`
-- `query_id=layout` - возвращает структуру `sections` вместо `rows`
+**Конфиги с отдельным форматом ответа:**
+- `query_id=header_dates` - SQL Builder-конфиг к VIEW `mart.v_p_dates`, ответ `{ componentId, type: "header", rows }`
+- `query_id=layout` - SQL Builder-конфиг, ответ `{ sections }`
 
 ---
 

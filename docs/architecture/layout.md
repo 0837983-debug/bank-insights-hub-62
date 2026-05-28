@@ -562,9 +562,9 @@ Frontend → GET /api/data (query_id, params) → dataRoutes → SQL Builder
 
 ## Преимущества
 
-1. **Единая точка данных:** Все компоненты с `dataSourceKey` используют `/api/data`
-2. **Гибкость:** Компоненты могут использовать как новый `/api/data`, так и старые API
-3. **Конфигурируемость:** Изменение `data_source_key` в БД не требует изменения кода
+1. **Единая точка данных:** Компоненты с `queryId` используют `/api/data`
+2. **Гибкость:** Источник данных меняется конфигурацией `config.component_queries`
+3. **Конфигурируемость:** Изменение `query_id` в БД не требует изменения кода
 4. **Типобезопасность:** TypeScript интерфейсы для всех типов компонентов
 
 ## Кнопки как компоненты
@@ -578,7 +578,7 @@ Frontend → GET /api/data (query_id, params) → dataRoutes → SQL Builder
 1. **В базе данных:**
    - Кнопки создаются в `config.components` с типом `button`
    - ID кнопки: `button_{table_id}_{field_id}` (например, `button_assets_table_cfo`)
-   - `data_source_key` содержит `query_id` таблицы (например, `assets_table`)
+   - `query_id` содержит ID запроса таблицы (например, `assets_table`)
    - `settings` содержит `fieldId` и `groupBy` для группировки
 
 2. **Привязка к таблице:**
@@ -587,7 +587,7 @@ Frontend → GET /api/data (query_id, params) → dataRoutes → SQL Builder
    - Кнопки возвращаются в массиве `buttons` внутри компонента таблицы
 
 3. **Использование:**
-   - При клике на кнопку делается запрос к `/api/data` с `query_id = dataSourceKey` и параметром `groupBy` из `settings`
+   - При клике на кнопку делается запрос к `/api/data` с `query_id = queryId` и параметрами из дашборда
    - Данные таблицы перегружаются с новой группировкой
 
 ### Пример структуры
@@ -595,27 +595,30 @@ Frontend → GET /api/data (query_id, params) → dataRoutes → SQL Builder
 **Таблица с кнопками:**
 ```json
 {
-  "id": "assets_table",
+  "id": "main_dashboard::section_balance::assets_table",
+  "componentId": "assets_table",
   "type": "table",
   "title": "Активы",
-  "dataSourceKey": "assets_table",
+  "queryId": "assets_table",
   "columns": [...],
   "buttons": [
     {
-      "id": "button_assets_table_cfo",
+      "id": "main_dashboard::section_balance::assets_table::button_assets_table_cfo",
+      "componentId": "button_assets_table_cfo",
       "type": "button",
       "title": "ЦФО",
-      "dataSourceKey": "assets_table",
+      "queryId": "assets_table",
       "settings": {
         "fieldId": "cfo",
         "groupBy": "cfo"
       }
     },
     {
-      "id": "button_assets_table_client_segment",
+      "id": "main_dashboard::section_balance::assets_table::button_assets_table_client_segment",
+      "componentId": "button_assets_table_client_segment",
       "type": "button",
       "title": "Сегмент клиента",
-      "dataSourceKey": "assets_table",
+      "queryId": "assets_table",
       "settings": {
         "fieldId": "client_segment",
         "groupBy": "client_segment"
@@ -643,5 +646,5 @@ Frontend → GET /api/data (query_id, params) → dataRoutes → SQL Builder
 
 - [Get Data API](/api/get-data) - получение layout через `/api/data?query_id=layout`
 - [Get Data API](/api/get-data) - описание `/api/data` endpoint
-- [Component Queries](/reference/component-queries) - описание конфигов запросов
+- [SQL Builder](/reference/sql-builder) - описание конфигов запросов
 - [Database Schemas](/database/schemas) - структура таблиц config схемы

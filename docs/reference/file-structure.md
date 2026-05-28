@@ -243,7 +243,7 @@ scripts/
   - `builder.ts` - построение SQL из конфигов
   - `validator.ts` - валидация параметров
   - `queryLoader.ts` - загрузка конфигов из БД
-- `backend/src/services/mart/base/calculationService.ts` - Расчеты (используется в transformKPIData)
+- `backend/src/services/mart/base/calculationService.ts` - Исторический сервис расчетов mart-слоя
 - `backend/src/services/config/layoutService.ts` - Построение layout (устаревший, используется через SQL Builder)
 - `backend/src/services/mart/kpiService.ts` - KPI метрики (устаревший, используется через SQL Builder)
 - `backend/src/services/mart/balanceService.ts` - Баланс (устаревший, используется через SQL Builder)

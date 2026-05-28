@@ -127,12 +127,6 @@ export default defineConfig({
             },
             { text: 'База данных', link: '/architecture/database' },
             { text: 'Поток данных', link: '/architecture/data-flow' },
-            {
-              text: 'Архитектурные решения',
-              items: [
-                { text: 'Обзор ADR', link: '/architecture/decisions/' }
-              ]
-            }
           ]
         }
       ],
@@ -182,9 +176,7 @@ export default defineConfig({
           text: 'Деплой',
           items: [
             { text: 'Обзор', link: '/deployment/' },
-            { text: 'CI/CD Pipeline', link: '/deployment/ci-cd' },
-            { text: 'Переменные окружения', link: '/deployment/environment' },
-            { text: 'Production Deployment', link: '/deployment/production' }
+            { text: 'CI/CD Pipeline', link: '/deployment/ci-cd' }
           ]
         }
       ],

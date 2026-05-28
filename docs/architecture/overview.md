@@ -128,7 +128,7 @@ Database Config → Layout Service → Frontend Components
 Стандартизированный REST API:
 
 - `GET /api/data?query_id=kpis` - получение KPI метрик
-- `GET /api/table-data/:tableId` - получение данных таблиц
+- `GET /api/data?query_id=<queryId>&component_Id=<componentId>` - получение данных таблиц/header через SQL Builder
 - `GET /api/data?query_id=layout` - получение структуры layout
 
 ## Принципы проектирования

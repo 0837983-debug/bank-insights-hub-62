@@ -51,7 +51,7 @@ related:
 │              config.components                                  │
 │                                                                 │
 │  id = 'income_by_product_table'                                │
-│  data_source_key = 'income_by_product_table' ───────────────┐ │
+│  query_id = 'income_by_product_table' ──────────────────────┐ │
 │                                                               │ │
 └───────────────────────────────────────────────────────────────┘ │
                                                                    │
@@ -84,16 +84,17 @@ related:
 │              Frontend (React)                                   │
 │                                                                 │
 │  1. Layout загружается через /api/data?query_id=layout          │
-│  2. Компонент получает dataSourceKey из layout                 │
+│  2. Компонент получает queryId из layout                      │
 │  3. Компонент запрашивает данные через                         │
-│     /api/data?query_id={dataSourceKey}                         │
+│     /api/data?query_id={queryId}                               │
 │  4. Данные отображаются в UI                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 **Ключевые связи:**
 - `mart.*.table_component_id` → `config.components.id`
-- `config.components.data_source_key` → `config.component_queries.query_id`
+- `config.components.query_id` → `config.component_queries.query_id` (для table/button/header)
+- `config.components.data_source_key` → `mart.v_kpi_all.kpi_name` (для KPI-карточек)
 - `config.components.id` → `config.component_fields.component_id`
 - `config.components.id` → `config.layout_component_mapping.component_id`
 - `config.component_fields.format_id` → `config.formats.id`
@@ -240,7 +241,7 @@ INSERT INTO config.components (
   label,
   tooltip,
   icon,
-  data_source_key,
+  query_id,
   category,
   is_active,
   created_by
@@ -258,19 +259,20 @@ VALUES (
   'admin'
 ) ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
-  data_source_key = EXCLUDED.data_source_key,
+  query_id = EXCLUDED.query_id,
   updated_at = CURRENT_TIMESTAMP;
 ```
 
 **Ключевые моменты:**
 - `id` должен совпадать с `table_component_id` в данных MART
 - `component_type` = `'table'` для таблиц, `'card'` для карточек, `'header'` для header
-- `data_source_key` должен совпадать с `query_id` из `config.component_queries`
+- Для таблиц, кнопок и header поле `query_id` должно совпадать с `query_id` из `config.component_queries`
+- Для KPI-карточек поле `data_source_key` хранит техническое имя KPI из `mart.v_kpi_all.kpi_name`
 - `category` используется для группировки компонентов
 
 **Проверка компонента:**
 ```sql
-SELECT id, component_type, title, data_source_key, is_active 
+SELECT id, component_type, title, query_id, data_source_key, is_active 
 FROM config.components 
 WHERE id = 'income_by_product_table';
 ```
@@ -444,7 +446,7 @@ curl "http://localhost:3001/api/data?query_id=layout&component_Id=layout&paramet
   "componentId": "income_by_product_table",
   "type": "table",
   "title": "Доходы по продуктам",
-  "dataSourceKey": "income_by_product_table",
+  "queryId": "income_by_product_table",
   "columns": [
     {
       "id": "product_code",
@@ -556,7 +558,7 @@ VALUES (
   'ROA',
   'Рентабельность активов',
   'TrendingUp',
-  'kpis',  -- Используется общий конфиг для всех KPI
+  'ROA',  -- техническое имя KPI из mart.v_kpi_all.kpi_name
   'finance',
   TRUE,
   'admin'
@@ -642,14 +644,15 @@ VALUES
 
 - [ ] **Конфиг SQL Builder:**
   - [ ] Конфиг создан в `config.component_queries`
-  - [ ] `query_id` уникален и соответствует `data_source_key`
+  - [ ] `query_id` уникален и соответствует `config.components.query_id` для таблицы/header/button
   - [ ] `wrap_json = TRUE` (обязательно для `/api/data`)
   - [ ] Конфиг протестирован (SQL запрос работает)
 
 - [ ] **Компонент UI:**
   - [ ] Компонент создан в `config.components`
   - [ ] `id` совпадает с `table_component_id` в данных MART
-  - [ ] `data_source_key` совпадает с `query_id` из `component_queries`
+  - [ ] Для таблицы/header/button `query_id` совпадает с `query_id` из `component_queries`
+  - [ ] Для KPI-карточки `data_source_key` совпадает с `kpi_name` из `mart.v_kpi_all`
   - [ ] `component_type` правильный (`table`, `card`, `header`)
 
 - [ ] **Поля компонента:**
@@ -665,7 +668,7 @@ VALUES
 
 - [ ] **Проверка:**
   - [ ] Layout возвращает компонент через `/api/data?query_id=layout`
-  - [ ] Данные возвращаются через `/api/data?query_id={data_source_key}`
+  - [ ] Данные таблицы возвращаются через `/api/data?query_id={queryId}`
   - [ ] Компонент отображается на фронтенде
   - [ ] Данные загружаются и отображаются корректно
   - [ ] Форматирование применяется правильно
@@ -693,7 +696,7 @@ WHERE id = 'your_component_id';
 ### Проблема: Данные не загружаются
 
 **Причины:**
-- `data_source_key` не совпадает с `query_id` в `component_queries`
+- Для таблицы/header/button `query_id` не совпадает с `query_id` в `component_queries`
 - `wrap_json = FALSE` (должен быть `TRUE`)
 - Конфиг SQL Builder невалиден
 - Параметры не передаются или неверны
@@ -703,12 +706,13 @@ WHERE id = 'your_component_id';
 -- Проверить связь
 SELECT 
   c.id AS component_id,
+  c.query_id,
   c.data_source_key,
   cq.query_id,
   cq.wrap_json,
   cq.is_active
 FROM config.components c
-LEFT JOIN config.component_queries cq ON c.data_source_key = cq.query_id
+LEFT JOIN config.component_queries cq ON c.query_id = cq.query_id
 WHERE c.id = 'your_component_id';
 
 -- Проверить конфиг

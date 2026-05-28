@@ -14,7 +14,7 @@ title: Архитектурные слои
 - `GET /api/data?query_id=kpis` - получение KPI метрик через SQL Builder
 - `GET /api/data?query_id=layout` - структура layout через SQL Builder
 - `GET /api/data?query_id=assets_table` - табличные данные через SQL Builder
-- `GET /api/data?query_id=header_dates` - даты периодов для header
+- `GET /api/data?query_id=header_dates` - даты периодов для header через SQL Builder-конфиг (`mart.v_p_dates`)
 
 **Все данные получаются через единый endpoint `/api/data` с использованием SQL Builder.**
 

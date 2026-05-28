@@ -1,6 +1,6 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-02-09 (periodService архивирован, даты через mart.v_p_dates)  
+> **Последнее обновление**: 2026-05-23 (Balance sign validation: порог 90%, инверсия АКТИВОВ в mart.balance, ROA без `* -1`)  
 > **Обновляет**: Backend Agent после каждого изменения
 
 > **Архивированный код:** Старые сервисы и скрипты перемещены в `archive/`. См. `archive/ARCHIVED_FILES.md`.
@@ -57,8 +57,9 @@ backend/src/
 | Data API | `routes/dataRoutes.ts` | Универсальный endpoint `/api/data` |
 | SQL Builder | `services/queryBuilder/builder.ts` | Генерация SQL из JSON-конфигов |
 | Upload | `routes/uploadRoutes.ts` | Загрузка файлов (balance, fin_results) |
-| Validation | `services/upload/validationService.ts` | Валидация данных |
+| Validation | `services/upload/validationService.ts` | Валидация данных + агрегатная проверка знака для balance (АКТИВЫ >=90% отрицательные, ПАССИВЫ >=90% положительные) |
 | Ingestion | `services/upload/ingestionService.ts` | Загрузка STG→ODS + REFRESH MV (`loadToSTG`, `loadFinResultsToSTG`, `transformSTGToODS`, `transformFinResultsSTGToODS`, `refreshBalanceMaterializedViews`, `refreshFinResultsMaterializedViews`) |
+| Local DB Bootstrap | `scripts/bootstrap-local-db.sh` | Идемпотентный bootstrap локальной БД (PostgreSQL, миграции, минимальный dataset через Upload API) |
 
 ## API Endpoints
 
@@ -156,12 +157,19 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ v_kpi_all дедупликация (миграция 058) — устранены дубликаты из layout_component_mapping
 - ✅ Query `kpis` возвращает componentId для сопоставления на фронте
 - ✅ VIEW mart.v_p_dates для дат периодов (миграции 056, 057) — header_dates через SQL Builder
+- ✅ periodService и его unit-тест перенесены в `archive/backend/src/services/mart/base/` и удалены из runtime-кода `backend/`
+- ✅ Локальный bootstrap БД через `scripts/bootstrap-local-db.sh` (macOS-first, optional Linux branch, миграции + dataset через Upload API)
+- ✅ Darwin bootstrap fix: скрипт больше не пропускает `brew services start` только из-за наличия `psql`; при отсутствии server-формулы пытается установить `postgresql@16`
+- ✅ Balance sign validation: в upload-валидации добавлен файловый порог `>= 90%` по знаку для АКТИВОВ/ПАССИВОВ
+- ✅ В `mart.balance` добавлена инверсия знака для АКТИВОВ (миграции 060/062): через `tech_class='ASSETS'` и fallback по `class='АКТИВЫ'`
+- ✅ В `mart.mv_kpi_derived` обновлена формула ROA: удалён `* -1` (т.к. после инверсии АКТИВЫ агрегируются с положительным знаком)
+- ✅ В upload pipeline добавлен авто-refresh `mart.mv_kpi_derived` после обновления `mart.mv_kpi_balance` / `mart.mv_kpi_fin_results`
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)
 
 ### Известные проблемы:
-- ⚠️ Валидация отрицательных значений в Balance (min: 0)
+- ⚠️ В некоторых macOS окружениях bootstrap может упираться в права Homebrew (`Cellar is not writable`) до завершения QA-прогона
 
 ## Команды
 
@@ -177,6 +185,9 @@ cd backend && npm run migrate
 
 # Build
 cd backend && npm run build
+
+# Локальный bootstrap БД + минимальный dataset
+bash scripts/bootstrap-local-db.sh
 ```
 
 ## Зависимости

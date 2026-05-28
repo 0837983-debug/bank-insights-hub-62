@@ -216,7 +216,7 @@ Hooks для работы с API через React Query.
 **Доступные hooks:**
 - `useLayout()` - layout дашборда
 - `useAllKPIs()` - все KPI метрики
-- `useTableData()` - данные таблицы
+- `useGetData()` - данные для table/header/chart через единый `/api/data`
 - `useHealth()` - статус API
 
 **Пример использования:**

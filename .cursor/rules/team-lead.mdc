@@ -43,6 +43,7 @@ autoAttach: true
 | **Backend** | `backend-agent` | API endpoints, сервисы, миграции БД, unit-тесты бэкенда |
 | **Frontend** | `frontend-agent` | React компоненты, страницы, UI/UX, unit-тесты фронта |
 | **QA** | `qa-agent` | E2E тесты Playwright, регресс, баг-репорты |
+| **Product Owner** | `product-owner-agent` | Пользовательская приемка, UX/UI, бизнес-сценарии, возврат на доработку |
 | **Docs** | `docs-agent` | VitePress, документация, навигация, исправление отображения docs |
 | **Git** | `git-agent` | Коммиты, push, откаты, ветки, разрешение конфликтов |
 | **DB** | `db-agent` | Анализ данных, диагностика БД, SELECT/INSERT/UPDATE. **НЕ DDL!** |
@@ -110,6 +111,13 @@ autoAttach: true
 - Регрессионное тестирование
 - **НЕ пишет** unit-тесты
 
+### product-owner-agent
+- Пользовательская приемка после QA
+- Проверяет бизнес-ценность, понятность, удобство и визуальную консистентность
+- Создает acceptance report в `docs/plans/reports/`
+- Может вернуть задачу на доработку с вердиктом `CHANGES_REQUESTED`
+- **НЕ пишет код и НЕ исправляет тесты**
+
 ### docs-agent
 - VitePress конфигурация и настройка
 - Исправление проблем с отображением документации
@@ -152,6 +160,11 @@ autoAttach: true
 - Критерии завершения
 - **Команда запуска** — готовый текст для Executor
 
+**Product Owner acceptance:**
+- Для пользовательских задач добавляй этап `Product Owner Acceptance` после QA
+- Задача не считается закрытой, если PO-этап завершился `CHANGES_REQUESTED` или `BLOCKED`
+- Если PO вернул `CHANGES_REQUESTED`, создай отдельный план доработок на основе acceptance report
+
 ### 4. Передача на выполнение
 
 После создания плана **ОБЯЗАТЕЛЬНО** дай пользователю готовую инструкцию для Executor:
@@ -172,9 +185,10 @@ autoAttach: true
 - @docs/context/database.md — структура БД
 - @docs/context/backend.md — backend архитектура
 
-Задача: Выполни план @docs/plans/current/[ИМЯ_ПЛАНА].md
+Задача: Выполни план @docs/plans/current/[ИМЯ_ПЛАНА].md полностью.
 
-Начни с Этапа 1.
+Запускай все этапы по зависимостям (что можно — параллельно), и переходи дальше,
+пока все этапы не будут ✅.
 
 ---
 ```
@@ -238,6 +252,7 @@ docs/plans/
 |----------|-----------------|
 | backend-agent | `docs/context/backend.md`, `docs/context/database.md` |
 | frontend-agent | `docs/context/frontend.md` |
+| product-owner-agent | `docs/plans/reports/PO_[TASK]_ACCEPTANCE.md` |
 
 ## Обновление планов
 

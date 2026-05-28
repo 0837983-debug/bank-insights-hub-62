@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-02-09 (добавлен v_p_dates для дат периодов)  
+> **Последнее обновление**: 2026-05-23 (обновлены правила знаков balance и формула ROA)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -8,6 +8,16 @@
 - **Тип**: PostgreSQL (AWS RDS)
 - **SSL**: Required
 - **Конфигурация**: `backend/src/config/database.ts`
+- **Локальный bootstrap**: `scripts/bootstrap-local-db.sh` (macOS/Homebrew основной путь, Debian/Ubuntu дополнительный)
+
+### Локальный bootstrap (идемпотентный)
+
+- Скрипт гарантирует существование роли/БД через проверки `pg_roles` и `pg_database`.
+- Миграции применяются повторно через существующий `npm run migrate` (DDL/seed с `IF NOT EXISTS` / upsert-паттернами в проекте).
+- Минимальный dataset загружается через существующий Upload pipeline (`POST /api/upload`) из:
+  - `test-data/uploads/capital_2025-01.csv`
+  - `test-data/uploads/fin_results_2025-01.csv`
+- Для локальной БД создается extension `pgcrypto` через `CREATE EXTENSION IF NOT EXISTS`.
 
 ## Схемы
 
@@ -73,6 +83,10 @@
 | `upload_mappings` | Маппинг полей файла → БД |
 | `field_mappings` | Универсальный справочник подмен: raw_value → display_value для MART слоя |
 
+**upload_mappings (актуально):**
+- Для `target_table IN ('balance', 'fin_results')` у `numeric`-полей снято ограничение `min: 0`.
+- Отрицательные значения проходят базовую валидацию типов; доменная проверка знака выполняется агрегатно в upload validation service.
+
 **field_mappings — ключевые поля:**
 - `source_table` — источник данных: 'fin_results', 'balance'
 - `field_name` — имя поля: 'class', 'category', 'section'
@@ -111,7 +125,7 @@
 
 | View | Назначение |
 |------|------------|
-| `balance` | MV из `ods.balance` с тремя именами (raw, display, tech) через field_mappings |
+| `balance` | MV из `ods.balance` с тремя именами (raw, display, tech) через field_mappings; для `tech_class='ASSETS'` значение `value` инвертируется |
 | `fin_results` | MV из `ods.fin_results` с тремя именами (raw, display, tech) через field_mappings |
 | `mv_kpi_balance` | Агрегаты баланса для KPI. kpi_name = tech_class / tech_class::tech_section |
 | `mv_kpi_fin_results` | Агрегаты финреза для KPI. kpi_name = tech_class / tech_class::tech_category + расчётные агрегаты |
@@ -178,14 +192,14 @@ SELECT * FROM mart.mv_kpi_fin_results WHERE kpi_name = 'NET_PROFIT';
 
 | KPI | Формула | Источники |
 |-----|---------|-----------|
-| `ROA` | NET_PROFIT / АКТИВЫ * -1 * 12 | mv_kpi_fin_results + mv_kpi_balance |
+| `ROA` | NET_PROFIT / АКТИВЫ * 12 | mv_kpi_fin_results + mv_kpi_balance |
 | `ROE` | NET_PROFIT / КАПИТАЛ * 12 | mv_kpi_fin_results + mv_kpi_balance |
 | `CIR` | \|ОПЕРАЦИОННЫЕ_РАСХОДЫ\| / TOTAL_OPERATING_INCOME | mv_kpi_fin_results |
 | `OPERATING_MARGIN` | OPERATING_PROFIT / TOTAL_OPERATING_INCOME | mv_kpi_fin_results |
 
 **Примечания к формулам:**
-- ROA: `* -1` компенсирует отрицательный знак АКТИВОВ в агрегации, `* 12` для годовых %
-- ROE: КАПИТАЛ положительный, поэтому только `* 12` для годовых %
+- ROA: после инверсии АКТИВОВ в `mart.balance` (миграции 060/062: `tech_class='ASSETS'` + fallback по `class='АКТИВЫ'`) множитель `* -1` больше не нужен; остаётся `* 12` для годовых %
+- ROE: КАПИТАЛ положительный, поэтому `* 12` для годовых %
 
 ```sql
 -- Примеры запросов к производным KPI

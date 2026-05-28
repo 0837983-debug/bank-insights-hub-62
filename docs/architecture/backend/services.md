@@ -47,8 +47,8 @@ title: Сервисы
    - Строит SQL с подстановкой значений
    - Возвращает готовый SQL
 
-**Специальные случаи:**
-- `query_id=header_dates` - использует SQL Builder для запроса к VIEW `mart.v_p_dates`
+**Конфиги с отдельным форматом ответа:**
+- `query_id=header_dates` - использует SQL Builder-конфиг к VIEW `mart.v_p_dates` (без отдельной runtime-ветки)
 - `query_id=layout` - возвращает структуру `sections` вместо `rows`
 - `query_id=kpis` - возвращает массив KPIMetric[] напрямую (без обертки)
 
@@ -119,7 +119,7 @@ title: Сервисы
 - `roundToDecimals(value, decimals)` - округление до указанного количества знаков
 
 **Использование:**
-- Используется в `transformKPIData()` для расчетов (если нужно)
+- Исторически использовался в backend-трансформациях; актуальный дашборд считает изменения на фронтенде через `src/lib/calculations.ts`
 - Все функции синхронные, не требуют работы с БД
 
 ## componentService (`services/mart/base/componentService.ts`)

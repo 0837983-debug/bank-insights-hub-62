@@ -219,6 +219,7 @@ export async function refreshBalanceMaterializedViews(): Promise<number> {
     
     // Обновляем KPI MV
     await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_balance');
+    await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_derived');
     
     // Возвращаем количество строк в обновлённом MV
     const countResult = await client.query('SELECT COUNT(*) FROM mart.balance');
@@ -498,6 +499,7 @@ export async function refreshFinResultsMaterializedViews(): Promise<number> {
     
     // Обновляем KPI MV
     await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_fin_results');
+    await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_derived');
     
     // Возвращаем количество строк в обновлённом MV
     const countResult = await client.query('SELECT COUNT(*) FROM mart.fin_results');

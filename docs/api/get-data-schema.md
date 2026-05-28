@@ -23,8 +23,9 @@ GET /api/data?query_id=...&component_Id=...&parametrs=...
          ┌───────────┴───────────┐
          │                       │
          ▼                       ▼
-    Специальные              Обычные
-    случаи                   запросы
+    Конфиги                  Конфиги
+    с форматом               табличных
+    ответа                   данных
          │                       │
          │                       │
     ┌────┴────┐                  │
@@ -36,9 +37,9 @@ header_dates kpis            layout
     ▼         ▼                  ▼
 ```
 
-## Специальные случаи
+## Конфиги с отдельным форматом ответа
 
-### 1. `query_id = "header_dates"`
+### 1. `query_id = "header_dates"` (без runtime-ветки)
 
 ```
 header_dates
@@ -66,7 +67,7 @@ header_dates
 
 ---
 
-### 2. `query_id = "kpis"`
+### 2. `query_id = "kpis"` (формат массива)
 
 ```
 kpis
@@ -87,26 +88,15 @@ kpis
     │  - pool: pg.Pool
     │
     ▼
-[transformKPIData(data, periodDate)]
-    │
-    ├─ backend/src/routes/dataRoutes.ts (локальная функция)
-    │  - Использует calculateChange() из calculationService
-    │  - Рассчитывает ppChange, ytdChange, ppChangeAbsolute, ytdChangeAbsolute
-    │
-    ├─ backend/src/services/mart/base/calculationService.ts
-    │  - calculateChange(current, previous): number
-    │
-    ▼
-KPIMetric[] (массив напрямую, без обертки)
+KPIMetric[] (массив напрямую, без обертки; изменения считаются на фронтенде по calculationConfig)
 ```
 
 **Сервисы:**
 - [`builder.ts`](/backend/src/services/queryBuilder/builder.ts#L457) - SQL Builder
-- [`calculationService.ts`](/backend/src/services/mart/base/calculationService.ts#L5) - Расчет изменений
 
 ---
 
-### 3. `query_id = "layout"`
+### 3. `query_id = "layout"` (формат sections)
 
 ```
 layout
@@ -220,17 +210,15 @@ query_id (например, "assets_table")
 
 ---
 
-## Локальные функции в dataRoutes.ts
+## Трансформации данных
 
-### `transformTableData(rows: any[]): any[]`
-- Добавляет `id` если отсутствует (формируется из `class-section-item-sub_item`)
-- Добавляет `sortOrder` если отсутствует (через `rowNameMapper.getSortOrder()`)
-- Преобразует строки в числа для `value`, `previousValue`, `ytdValue`
+`dataRoutes.ts` не содержит локальных доменных трансформаций. Endpoint выполняет SQL Builder и возвращает:
 
-### `transformKPIData(rows: any[], periodDate: string): any[]`
-- Рассчитывает `ppChange`, `ytdChange` (в долях)
-- Рассчитывает `ppChangeAbsolute`, `ytdChangeAbsolute`
-- Форматирует данные в формат `KPIMetric[]`
+- для `query_id='kpis'` — массив KPI напрямую;
+- для `query_id='layout'` — `{ sections }`;
+- для остальных запросов — `{ componentId, type: "table", rows }`.
+
+Иерархия таблиц и calculated-поля считаются на фронтенде в `src/pages/DynamicDashboard.tsx` через `transformTableData()` и `executeCalculation()`.
 
 ---
 

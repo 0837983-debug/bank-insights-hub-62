@@ -74,8 +74,8 @@ Data Mart - агрегированные данные для быстрого д
 ### config ↔ mart
 
 Компоненты из config ссылаются на данные в mart:
-- `config.components.data_source_key` → `config.component_queries.query_id` → SQL Builder → `mart.*`
-- `config.components.id` → `mart.kpi_metrics.component_id` (для карточек)
+- `config.components.query_id` → `config.component_queries.query_id` → SQL Builder → `mart.*` (для table/button/header)
+- `config.components.data_source_key` → `mart.v_kpi_all.kpi_name` → `component_id` в KPI-выдаче (для карточек)
 - `config.components.id` → `mart.balance.table_component_id` (для таблиц)
 
 

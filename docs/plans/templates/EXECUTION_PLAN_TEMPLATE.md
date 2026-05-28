@@ -131,6 +131,42 @@ Task(
 
 ---
 
+## Этап 4: Product Owner Acceptance ⏸️
+
+**Субагент**: `product-owner-agent`  
+**Зависимости**: Этапы 1, 2, 3 ✅  
+**Статус**: ⏸️ Ожидает
+
+### Задачи:
+- [ ] Пройти основной пользовательский сценарий
+- [ ] Проверить понятность интерфейса и текстов
+- [ ] Проверить визуальную консистентность
+- [ ] Проверить соответствие бизнес-цели из плана
+- [ ] Создать acceptance report
+
+### Файлы для изменения:
+- `docs/plans/reports/PO_[ИМЯ_ПЛАНА]_ACCEPTANCE.md`
+
+### Критерии завершения:
+- [ ] Вердикт `ACCEPTED`, `CHANGES_REQUESTED` или `BLOCKED` зафиксирован
+- [ ] Если `CHANGES_REQUESTED` — замечания сформулированы как пользовательские требования
+- [ ] Если `BLOCKED` — указан блокер и шаги воспроизведения
+
+### 📋 Команда запуска (скопировать в Executor):
+
+```
+Запусти product-owner-agent:
+- Прочитай инструкции: .cursor/agents/product-owner-agent.md
+- Прочитай контекст: docs/context/frontend.md, docs/context/backend.md
+- Прочитай план: docs/plans/current/[ИМЯ_ПЛАНА].md, раздел "Этап 4: Product Owner Acceptance"
+- Прочитай QA-отчет в docs/plans/reports/ если он есть
+- Проведи пользовательскую приемку
+- Создай отчет: docs/plans/reports/PO_[ИМЯ_ПЛАНА]_ACCEPTANCE.md
+- Если вердикт CHANGES_REQUESTED или BLOCKED — не закрывай план, сообщи Team Lead
+```
+
+---
+
 ## Финальная проверка
 
 После всех этапов Executor должен проверить:

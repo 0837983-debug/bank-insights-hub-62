@@ -2,7 +2,6 @@
 title: SQL Builder
 description: Библиотека для построения SQL запросов из JSON-конфигурации с автоматической подстановкой значений
 related:
-  - /reference/component-queries
   - /api/get-data
   - /database/schemas
 ---
@@ -879,6 +878,6 @@ const result = await pool.query(sql);
 
 ## См. также
 
-- [Component Queries](/reference/component-queries) - описание таблицы конфигов и примеры
+- [Database Schema](/database/schemas) - описание `config.component_queries`
 - [Get Data API](/api/get-data) - использование SQL Builder через `/api/data` endpoint
 - [Database Schema](/database/schemas) - структура базы данных

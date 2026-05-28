@@ -56,17 +56,17 @@ Host: localhost:3001
 - Вызывает SQL Builder для построения SQL из конфига `config.component_queries` где `query_id='kpis'`
 - SQL Builder загружает конфиг и строит SQL запрос
 - Выполняет SQL запрос к БД
-- Трансформирует данные через `transformKPIData()` (возвращает только сырые значения: value, previousValue, ytdValue)
+- Возвращает массив KPI напрямую, без backend-трансформации; формат задаётся конфигом `kpis`
 
 **SQL запрос (строится SQL Builder из конфига):**
 ```sql
 SELECT 
   component_id,
   value,
-  prev_period,
-  prev_year
-FROM mart.kpis_view
-WHERE period_date = $1
+  p2_value,
+  p3_value
+FROM mart.v_kpi_all
+WHERE period_date IN ($1, $2, $3)
 ```
 
 ### 4. Формирование ответа
@@ -89,11 +89,10 @@ WHERE period_date = $1
 ```json
 [
   {
-    "id": "capital",
-    "title": "Капитал",
+    "componentId": "card_capital",
     "value": 1500000000,
-    "change": 5.2,
-    "ytdChange": 12.5
+    "p2Value": 1425000000,
+    "p3Value": 1335000000
   }
 ]
 ```
@@ -119,23 +118,23 @@ WHERE period_date = $1
 
 ## Детальный поток: Табличные данные
 
-Таблицы на дашборде задаются в layout (type: "table"); для каждой таблицы в layout указаны `componentId`, `dataSourceKey`, `columns`, при необходимости `buttons`. Даты для запроса берутся из header (useGetData по header_dates).
+Таблицы на дашборде задаются в layout (type: "table"); для каждой таблицы в layout указаны `componentId`, `queryId`, `columns`, при необходимости `buttons`. Даты для запроса берутся из header (useGetData по `queryId=header_dates`).
 
 **Подробно:** [Компоненты фронтенда](/architecture/frontend-components) — что получает FinancialTable, как связываются колонки layout с полями строк, transformTableData, DynamicTable.
 
 ### 1. Инициация
 
 **Frontend (DynamicTable):**
-- По layout для каждой таблицы: `dataSourceKey` и при выборе кнопки — dataSourceKey кнопки
+- По layout для каждой таблицы: `queryId` и при выборе кнопки — queryId кнопки
 - Даты передаются с дашборда (header): periodDate, ppDate, pyDate
 ```typescript
-useGetData(dataSourceKey, { p1: periodDate, p2: ppDate, p3: pyDate }, { componentId });
+useGetData(queryId, { p1: periodDate, p2: ppDate, p3: pyDate }, { componentId });
 ```
 
 ### 2. HTTP запрос
 
 ```
-GET /api/data?query_id=<dataSourceKey>&component_Id=<componentId>&p1=...&p2=...&p3=...
+GET /api/data?query_id=<queryId>&component_Id=<componentId>&parametrs={"p1":"...","p2":"...","p3":"..."}
 ```
 
 ### 3. Backend обработка
@@ -240,12 +239,13 @@ FROM (
       "id": "balance",
       "title": "Баланс",
       "components": [
-        {
-          "id": "capital_card",
-          "type": "card",
-          "dataSourceKey": "capital",
-          ...
-        }
+    {
+      "id": "main_dashboard::section_balance::card_capital",
+      "componentId": "card_capital",
+      "type": "card",
+      "dataSourceKey": "КАПИТАЛ",
+      ...
+    }
       ]
     }
   ]

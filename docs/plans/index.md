@@ -14,8 +14,7 @@ description: Roadmap, статус выполнения задач и отчет
 
 ## Текущие задачи
 
-- [TEST_ACTUALIZATION](./current/TEST_ACTUALIZATION) - актуализация тестов
-- [BLOCK_B0_FIX](./current/BLOCK_B0_FIX) - исправление блока B0
+Список текущих задач формируется автоматически в боковом меню из файлов `docs/plans/current/`.
 
 ## Отчеты
 
