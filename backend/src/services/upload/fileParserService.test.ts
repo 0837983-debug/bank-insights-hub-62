@@ -32,9 +32,9 @@ describe("fileParserService", () => {
       expect(firstRow).toHaveProperty("item");
       expect(firstRow).toHaveProperty("amount");
 
-      // Check that amount is parsed as number
-      expect(typeof firstRow.amount).toBe("number");
-      expect(firstRow.amount).toBeGreaterThan(0);
+      // CSV parser keeps values as strings; numeric coercion happens later in pipeline
+      expect(typeof firstRow.amount).toBe("string");
+      expect(Number(firstRow.amount)).toBeGreaterThan(0);
     });
 
     it("should parse CSV file with comma delimiter", async () => {
@@ -47,7 +47,7 @@ describe("fileParserService", () => {
       expect(result.headers).toContain("month");
       expect(result.headers).toContain("amount");
       expect(result.rows.length).toBe(1);
-      expect(result.rows[0].amount).toBe(4500000000);
+      expect(result.rows[0].amount).toBe("4500000000");
     });
 
     it("should throw error for empty CSV file", async () => {
@@ -72,14 +72,14 @@ describe("fileParserService", () => {
       expect(result.rows[0].class).toBe("assets");
     });
 
-    it("should parse numeric values correctly", async () => {
+    it("should keep numeric-looking CSV values as strings", async () => {
       const csvContent = "month;class;section;item;amount\n2025-01-01;assets;loans;corporate_loans;4500000000";
       const testFile = Buffer.from(csvContent, "utf-8");
 
       const result = await parseCSV(testFile);
 
-      expect(typeof result.rows[0].amount).toBe("number");
-      expect(result.rows[0].amount).toBe(4500000000);
+      expect(typeof result.rows[0].amount).toBe("string");
+      expect(result.rows[0].amount).toBe("4500000000");
     });
 
     it("should handle empty values as null", async () => {

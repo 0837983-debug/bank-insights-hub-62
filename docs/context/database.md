@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-05-23 (обновлены правила знаков balance и формула ROA)  
+> **Последнее обновление**: 2026-05-28 (sanitize+seed гарантирует минимум 3 периода для strict API flow)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -18,6 +18,14 @@
   - `test-data/uploads/capital_2025-01.csv`
   - `test-data/uploads/fin_results_2025-01.csv`
 - Для локальной БД создается extension `pgcrypto` через `CREATE EXTENSION IF NOT EXISTS`.
+- Для безопасной замены real-data в dev есть `scripts/sanitize-and-seed-dev-db.sh`:
+  - требует `ALLOW_DATA_RESET=true`;
+  - блокирует запуск при `NODE_ENV=production`;
+  - прерывается при подозрительном DB host/name (prod/rds/prod-like);
+  - очищает только `log.upload_errors`, `stg.balance_upload`, `stg.fin_results_upload`, `ods.balance`, `ods.fin_results`, `ing.uploads`;
+  - загружает только тестовые CSV из `test-data/uploads` (по умолчанию 3 balance-файла: `capital_seed_2024-12.csv`, `capital_2025-01.csv`, `capital_seed_2025-02.csv`, плюс `fin_results_2025-01.csv`);
+  - проверяет strict контракт дат: в `mart.v_p_dates` должны существовать `p1`, `p2`, `p3` и все на разных датах;
+  - выполняет refresh всех MART MV (`mart.balance`, `mart.fin_results`, `mart.mv_kpi_balance`, `mart.mv_kpi_fin_results`, `mart.mv_kpi_derived`).
 
 ## Схемы
 
@@ -295,6 +303,8 @@ SELECT period_date FROM mart.v_p_dates WHERE is_p1 OR is_p2 OR is_p3;
 | `liabilities_table` | Таблица пассивов |
 | `fin_results_table` | Таблица финансовых результатов |
 | `kpis` | KPI для карточек (из mart.v_kpi_all с component_id) |
+
+Примечание: `assets_table` и `liabilities_table` поддерживаются отдельной миграцией совместимости `072_restore_assets_liabilities_query_ids.sql` (после рефакторинга на `table_balance_*`).
 
 **Query `kpis`:**
 - Источник: `mart.v_kpi_all`

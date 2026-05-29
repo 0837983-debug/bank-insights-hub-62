@@ -1,6 +1,6 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-05-23 (Balance sign validation: порог 90%, инверсия АКТИВОВ в mart.balance, ROA без `* -1`)  
+> **Последнее обновление**: 2026-05-28 (sanitize+seed гарантирует strict p1/p2/p3 flow для header_dates)  
 > **Обновляет**: Backend Agent после каждого изменения
 
 > **Архивированный код:** Старые сервисы и скрипты перемещены в `archive/`. См. `archive/ARCHIVED_FILES.md`.
@@ -60,6 +60,7 @@ backend/src/
 | Validation | `services/upload/validationService.ts` | Валидация данных + агрегатная проверка знака для balance (АКТИВЫ >=90% отрицательные, ПАССИВЫ >=90% положительные) |
 | Ingestion | `services/upload/ingestionService.ts` | Загрузка STG→ODS + REFRESH MV (`loadToSTG`, `loadFinResultsToSTG`, `transformSTGToODS`, `transformFinResultsSTGToODS`, `refreshBalanceMaterializedViews`, `refreshFinResultsMaterializedViews`) |
 | Local DB Bootstrap | `scripts/bootstrap-local-db.sh` | Идемпотентный bootstrap локальной БД (PostgreSQL, миграции, минимальный dataset через Upload API) |
+| Dev Data Sanitization | `scripts/sanitize-and-seed-dev-db.sh` | Безопасная очистка чувствительных данных в `stg/ods/ing/log` + пересев из `test-data/uploads` с защитами от prod и ручным флагом `ALLOW_DATA_RESET=true`; по умолчанию загружает 3 balance периода (2024-12, 2025-01, 2025-02) и валидирует наличие `p1/p2/p3` в `mart.v_p_dates` |
 
 ## API Endpoints
 
@@ -164,6 +165,9 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ В `mart.balance` добавлена инверсия знака для АКТИВОВ (миграции 060/062): через `tech_class='ASSETS'` и fallback по `class='АКТИВЫ'`
 - ✅ В `mart.mv_kpi_derived` обновлена формула ROA: удалён `* -1` (т.к. после инверсии АКТИВЫ агрегируются с положительным знаком)
 - ✅ В upload pipeline добавлен авто-refresh `mart.mv_kpi_derived` после обновления `mart.mv_kpi_balance` / `mart.mv_kpi_fin_results`
+- ✅ Добавлен `scripts/sanitize-and-seed-dev-db.sh`: безопасный idempotent sanitize/reset только для `stg/ods/ing/log`, загрузка только тестовых CSV из `test-data/uploads`, затем refresh всех MART MV
+- ✅ `scripts/sanitize-and-seed-dev-db.sh` теперь гарантирует strict flow для `header_dates`: минимум 3 периода (`p1/p2/p3`) на разных датах через множественную загрузку balance CSV и пост-валидацию `mart.v_p_dates`
+- ✅ Добавлена миграция 072: восстановлены API query_id `assets_table` и `liabilities_table` (совместимость Stage 5 QA после перехода на `table_balance_*`)
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)
@@ -188,6 +192,9 @@ cd backend && npm run build
 
 # Локальный bootstrap БД + минимальный dataset
 bash scripts/bootstrap-local-db.sh
+
+# Очистка чувствительных данных и пересев test-data
+ALLOW_DATA_RESET=true bash scripts/sanitize-and-seed-dev-db.sh
 ```
 
 ## Зависимости

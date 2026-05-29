@@ -26,8 +26,8 @@ describe("queryLoader", () => {
       expect(result).toBeNull();
     });
 
-    it("должен загрузить конфиг для assets_table", async () => {
-      const result = await loadQueryConfig("assets_table");
+    it("должен загрузить конфиг для table_balance", async () => {
+      const result = await loadQueryConfig("table_balance");
 
       expect(result).not.toBeNull();
       expect(result?.config).toHaveProperty("from");
@@ -36,10 +36,10 @@ describe("queryLoader", () => {
     });
 
     it("должен вернуть правильное значение wrapJson", async () => {
-      const result = await loadQueryConfig("assets_table");
+      const result = await loadQueryConfig("table_balance");
 
       expect(result).not.toBeNull();
-      // assets_table должен иметь wrapJson = true
+      // table_balance должен иметь wrapJson = true
       expect(result?.wrapJson).toBe(true);
     });
 

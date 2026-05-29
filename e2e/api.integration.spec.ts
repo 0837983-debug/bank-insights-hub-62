@@ -3,6 +3,14 @@ import { test, expect } from "@playwright/test";
 const API_BASE_URL = "http://localhost:3001/api";
 
 test.describe("API Integration Tests", () => {
+  function mapPeriodsFromHeaderRows(rows: any[]) {
+    const p1 = rows.find((row: any) => row.isP1)?.periodDate;
+    const p2 = rows.find((row: any) => row.isP2)?.periodDate;
+    const p3 = rows.find((row: any) => row.isP3)?.periodDate;
+
+    return { p1, p2, p3 };
+  }
+
   test.describe("Health Check", () => {
     test("should return health status", async ({ request }) => {
       const response = await request.get(`${API_BASE_URL}/health`);
@@ -25,16 +33,21 @@ test.describe("API Integration Tests", () => {
       );
       expect(response.ok()).toBeTruthy();
       const data = await response.json();
-      return data.rows[0];
+      const rows = Array.isArray(data?.rows) ? data.rows : [];
+      const periods = mapPeriodsFromHeaderRows(rows);
+      expect(periods.p1).toBeTruthy();
+      expect(periods.p2).toBeTruthy();
+      expect(periods.p3).toBeTruthy();
+      return periods;
     }
 
     test("should fetch all KPIs via /api/data", async ({ request }) => {
       // Старый endpoint /api/kpis удалён, используем новый /api/data?query_id=kpis
       const headerDates = await getHeaderDates(request);
       const paramsJson = JSON.stringify({
-        p1: headerDates.periodDate,
-        p2: headerDates.ppDate,
-        p3: headerDates.pyDate,
+        p1: headerDates.p1,
+        p2: headerDates.p2,
+        p3: headerDates.p3,
       });
 
       const response = await request.get(
@@ -130,10 +143,11 @@ test.describe("API Integration Tests", () => {
     test("should handle table data request", async ({ request }) => {
       // Старый endpoint /api/table-data может быть удален или изменен
       // Используем новый формат /api/data?query_id=...
+      const headerDates = await getHeaderDates(request);
       const paramsJson = JSON.stringify({
-        p1: "2025-12-01",
-        p2: "2025-11-01",
-        p3: "2024-12-01",
+        p1: headerDates.p1,
+        p2: headerDates.p2,
+        p3: headerDates.p3,
       });
       
       // Пробуем новый endpoint
@@ -159,10 +173,11 @@ test.describe("API Integration Tests", () => {
     test("should handle table data with groupBy param", async ({ request }) => {
       // Старый endpoint /api/table-data может быть удален
       // Используем новый формат /api/data?query_id=...
+      const headerDates = await getHeaderDates(request);
       const paramsJson = JSON.stringify({
-        p1: "2025-12-01",
-        p2: "2025-11-01",
-        p3: "2024-12-01",
+        p1: headerDates.p1,
+        p2: headerDates.p2,
+        p3: headerDates.p3,
       });
       
       // Пробуем новый endpoint

@@ -81,8 +81,9 @@ test.describe("Header Component - Backend", () => {
       // Проверяем структуру первой строки
       const firstRow = rows[0];
       expect(firstRow).toHaveProperty("periodDate");
-      expect(firstRow).toHaveProperty("ppDate");
-      expect(firstRow).toHaveProperty("pyDate");
+      expect(firstRow).toHaveProperty("isP1");
+      expect(firstRow).toHaveProperty("isP2");
+      expect(firstRow).toHaveProperty("isP3");
     });
 
     test("should return valid date format from header_dates", async ({ request }) => {
@@ -99,8 +100,9 @@ test.describe("Header Component - Backend", () => {
       if (rows.length > 0) {
         const firstRow = rows[0];
         expect(firstRow.periodDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-        expect(firstRow.ppDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-        expect(firstRow.pyDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(typeof firstRow.isP1).toBe("boolean");
+        expect(typeof firstRow.isP2).toBe("boolean");
+        expect(typeof firstRow.isP3).toBe("boolean");
       }
     });
   });

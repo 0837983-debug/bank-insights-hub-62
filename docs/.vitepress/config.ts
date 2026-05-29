@@ -189,7 +189,8 @@ export default defineConfig({
             { text: 'Добавление нового источника данных', link: '/guides/adding-data-source' },
             { text: 'Загрузка файлов', link: '/guides/file-upload' },
             { text: 'Загрузка данных и валидация', link: '/guides/file-upload-validation' },
-            { text: 'Восстановление файлов', link: '/guides/restoration' },
+            { text: 'Локальная БД и sanitize/seed', link: '/guides/local-db' },
+            { text: 'Восстановление после cleanup', link: '/guides/restoration' },
             { text: 'Сравнение Layout API', link: '/guides/layout-comparison' },
             { text: 'Решение проблем', link: '/guides/troubleshooting' }
           ]

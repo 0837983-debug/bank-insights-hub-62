@@ -3,6 +3,25 @@ import { test, expect } from "@playwright/test";
 const API_BASE_URL = "http://localhost:3001/api";
 
 test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)", () => {
+  async function getCurrentPeriods(request: any) {
+    const response = await request.get(
+      `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
+    );
+    expect(response.ok()).toBeTruthy();
+
+    const data = await response.json();
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const p1 = rows.find((row: any) => row.isP1)?.periodDate;
+    const p2 = rows.find((row: any) => row.isP2)?.periodDate;
+    const p3 = rows.find((row: any) => row.isP3)?.periodDate;
+
+    expect(p1).toBeTruthy();
+    expect(p2).toBeTruthy();
+    expect(p3).toBeTruthy();
+
+    return { p1, p2, p3 };
+  }
+
   test.describe("Successful requests", () => {
     test("should return data for header_dates query with required parameters", async ({ request }) => {
       const response = await request.get(
@@ -28,17 +47,15 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       if (responseData.rows.length > 0) {
         const firstRow = responseData.rows[0];
         expect(firstRow).toHaveProperty("periodDate");
-        expect(firstRow).toHaveProperty("ppDate");
-        expect(firstRow).toHaveProperty("pyDate");
+        expect(firstRow).toHaveProperty("isP1");
+        expect(firstRow).toHaveProperty("isP2");
+        expect(firstRow).toHaveProperty("isP3");
       }
     });
 
     test("should return data for assets_table query with all parameters", async ({ request }) => {
-      const parametrs = JSON.stringify({
-        p1: "2025-12-01",
-        p2: "2025-11-01",
-        p3: "2024-12-01",
-      });
+      const periods = await getCurrentPeriods(request);
+      const parametrs = JSON.stringify(periods);
 
       const response = await request.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(parametrs)}`

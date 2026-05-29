@@ -14,6 +14,19 @@
 | [Frontend](./frontend.md) | Frontend Agent | Компоненты, хуки, утилиты фронта |
 | [Database](./database.md) | Backend Agent | Схемы, таблицы, views |
 
+## Handoff: безопасность данных
+
+Для передачи внешнему разработчику допускается только dev/test контур:
+
+- использовать только синтетические CSV из `test-data/uploads`;
+- очищать и пересевать данные через `scripts/sanitize-and-seed-dev-db.sh`;
+- не передавать `.env`, credentials, токены, ключи, prod dumps и любые real-data артефакты.
+
+См. также:
+- [Настройка Backend](/BACKEND_SETUP)
+- [Локальная БД и sanitize/seed](/guides/local-db)
+- [Восстановление после cleanup](/guides/restoration)
+
 ## Правила обновления
 
 1. **После каждого изменения** — агент обновляет свой context-файл
