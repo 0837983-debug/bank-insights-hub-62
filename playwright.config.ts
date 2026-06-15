@@ -8,6 +8,20 @@ import { defineConfig, devices } from "@playwright/test";
 // import path from 'path';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+const isDockerSmokeRun = process.argv.some((arg) =>
+  arg.includes("docker-smoke")
+);
+const isApiOnlyRun = process.argv.some((arg) =>
+  arg.includes("api.integration")
+);
+const skipWebServer =
+  process.env.E2E_DOCKER_MODE === "true" || isDockerSmokeRun;
+
+const backendDevCommand =
+  process.platform === "win32"
+    ? 'cd backend && cmd /c "set FRONTEND_URL=http://127.0.0.1:3001/api-docs&& npm run dev"'
+    : "cd backend && FRONTEND_URL=http://127.0.0.1:3001/api-docs npm run dev";
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -39,20 +53,31 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: [
-    {
-      command: "npm run dev",
-      url: "http://localhost:8080",
-      reuseExistingServer: true,
-      timeout: 120 * 1000,
-    },
-    {
-      command: "cd backend && npm run dev",
-      url: "http://localhost:3001/api/health",
-      reuseExistingServer: true,
-      timeout: 120 * 1000,
-    },
-  ],
+  /* Run your local dev server before starting the tests (not for docker-smoke) */
+  webServer: skipWebServer
+    ? undefined
+    : isApiOnlyRun
+      ? [
+          {
+            command: backendDevCommand,
+            url: "http://localhost:3001/api/health",
+            reuseExistingServer: true,
+            timeout: 120 * 1000,
+          },
+        ]
+      : [
+          {
+            command: "npm run dev",
+            url: "http://localhost:8080",
+            reuseExistingServer: true,
+            timeout: 120 * 1000,
+          },
+          {
+            command: backendDevCommand,
+            url: "http://localhost:3001/api/health",
+            reuseExistingServer: true,
+            timeout: 120 * 1000,
+          },
+        ],
 });
 

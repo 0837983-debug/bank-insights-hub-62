@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-05-28 (sanitize+seed гарантирует минимум 3 периода для strict API flow)  
+> **Последнее обновление**: 2026-06-08 (Docker dev bootstrap через TS-скрипт)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -8,12 +8,15 @@
 - **Тип**: PostgreSQL (AWS RDS)
 - **SSL**: Required
 - **Конфигурация**: `backend/src/config/database.ts`
-- **Локальный bootstrap**: `scripts/bootstrap-local-db.sh` (macOS/Homebrew основной путь, Debian/Ubuntu дополнительный)
+- **Локальный bootstrap (legacy)**: `scripts/bootstrap-local-db.sh` (macOS/Homebrew основной путь, Debian/Ubuntu дополнительный)
+- **Локальный bootstrap (Docker/кроссплатформенный)**: `backend/src/scripts/bootstrap-local-db.ts` (`npm run bootstrap:local-db`, сервис `db-bootstrap` в `docker-compose.dev.yml`)
 
 ### Локальный bootstrap (идемпотентный)
 
+- Bash-скрипт (`scripts/bootstrap-local-db.sh`) и TS-скрипт (`bootstrap-local-db.ts`) используют одинаковую curated migration strategy (список миграций 001–058, compatibility fixes 021/028/051, schema overrides для upload).
+- TS-скрипт **не устанавливает** PostgreSQL (предполагает уже запущенный контейнер/сервер); подходит для Docker и Windows.
 - Скрипт гарантирует существование роли/БД через проверки `pg_roles` и `pg_database`.
-- Миграции применяются повторно через существующий `npm run migrate` (DDL/seed с `IF NOT EXISTS` / upsert-паттернами в проекте).
+- Миграции применяются через curated list (не через `npm run migrate`); перед применением сбрасываются managed schemas (`config`, `dict`, `stg`, `ods`, `mart`, `ing`, `log`, `sec`).
 - Минимальный dataset загружается через существующий Upload pipeline (`POST /api/upload`) из:
   - `test-data/uploads/capital_2025-01.csv`
   - `test-data/uploads/fin_results_2025-01.csv`

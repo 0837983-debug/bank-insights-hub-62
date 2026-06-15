@@ -1,6 +1,6 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-05-28 (sanitize+seed гарантирует strict p1/p2/p3 flow для header_dates)  
+> **Последнее обновление**: 2026-06-09 (Docker CI/CD — GitHub Actions publish to Docker Hub)  
 > **Обновляет**: Backend Agent после каждого изменения
 
 > **Архивированный код:** Старые сервисы и скрипты перемещены в `archive/`. См. `archive/ARCHIVED_FILES.md`.
@@ -59,7 +59,8 @@ backend/src/
 | Upload | `routes/uploadRoutes.ts` | Загрузка файлов (balance, fin_results) |
 | Validation | `services/upload/validationService.ts` | Валидация данных + агрегатная проверка знака для balance (АКТИВЫ >=90% отрицательные, ПАССИВЫ >=90% положительные) |
 | Ingestion | `services/upload/ingestionService.ts` | Загрузка STG→ODS + REFRESH MV (`loadToSTG`, `loadFinResultsToSTG`, `transformSTGToODS`, `transformFinResultsSTGToODS`, `refreshBalanceMaterializedViews`, `refreshFinResultsMaterializedViews`) |
-| Local DB Bootstrap | `scripts/bootstrap-local-db.sh` | Идемпотентный bootstrap локальной БД (PostgreSQL, миграции, минимальный dataset через Upload API) |
+| Local DB Bootstrap (bash) | `scripts/bootstrap-local-db.sh` | Legacy bootstrap для macOS/Linux (brew/apt, миграции, dataset через Upload API) |
+| Local DB Bootstrap (TS) | `src/scripts/bootstrap-local-db.ts` | Кроссплатформенный bootstrap (Docker/Windows, без установки PostgreSQL; curated migrations + Upload API seed) |
 | Dev Data Sanitization | `scripts/sanitize-and-seed-dev-db.sh` | Безопасная очистка чувствительных данных в `stg/ods/ing/log` + пересев из `test-data/uploads` с защитами от prod и ручным флагом `ALLOW_DATA_RESET=true`; по умолчанию загружает 3 balance периода (2024-12, 2025-01, 2025-02) и валидирует наличие `p1/p2/p3` в `mart.v_p_dates` |
 
 ## API Endpoints
@@ -160,6 +161,9 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ VIEW mart.v_p_dates для дат периодов (миграции 056, 057) — header_dates через SQL Builder
 - ✅ periodService и его unit-тест перенесены в `archive/backend/src/services/mart/base/` и удалены из runtime-кода `backend/`
 - ✅ Локальный bootstrap БД через `scripts/bootstrap-local-db.sh` (macOS-first, optional Linux branch, миграции + dataset через Upload API)
+- ✅ Docker dev stack: `docker-compose.dev.yml`, `backend/Dockerfile.dev`, `npm run bootstrap:local-db` (`src/scripts/bootstrap-local-db.ts`)
+- ✅ Docker prod backend: `backend/Dockerfile` (multi-stage build → `node dist/server.js`, healthcheck `/api/health`), `docker-compose.prod.yml`, `.env.prod.example`
+- ✅ Docker CI/CD: `.github/workflows/docker-publish.yml` — build + push `ayreon208/bank-insights-backend` и `ayreon208/bank-insights-frontend` (`:latest` + `:<git-sha>`) на push в `main` и tags `v*`
 - ✅ Darwin bootstrap fix: скрипт больше не пропускает `brew services start` только из-за наличия `psql`; при отсутствии server-формулы пытается установить `postgresql@16`
 - ✅ Balance sign validation: в upload-валидации добавлен файловый порог `>= 90%` по знаку для АКТИВОВ/ПАССИВОВ
 - ✅ В `mart.balance` добавлена инверсия знака для АКТИВОВ (миграции 060/062): через `tech_class='ASSETS'` и fallback по `class='АКТИВЫ'`
@@ -190,12 +194,57 @@ cd backend && npm run migrate
 # Build
 cd backend && npm run build
 
-# Локальный bootstrap БД + минимальный dataset
+# Локальный bootstrap БД + минимальный dataset (legacy bash, macOS/Linux)
 bash scripts/bootstrap-local-db.sh
+
+# Кроссплатформенный bootstrap (Docker / Windows / без brew)
+cd backend && npm run bootstrap:local-db
+
+# Docker dev stack
+docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml run --rm db-bootstrap
+
+# Docker prod stack (requires frontend/Dockerfile from Stage 2 frontend-agent)
+cp .env.prod.example .env
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml run --rm db-bootstrap
+
+# Prod with external RDS (disables bundled postgres)
+# In .env: COMPOSE_PROFILES=external-db, DB_HOST=<rds-endpoint>
+docker compose -f docker-compose.prod.yml --profile external-db up -d
 
 # Очистка чувствительных данных и пересев test-data
 ALLOW_DATA_RESET=true bash scripts/sanitize-and-seed-dev-db.sh
 ```
+
+## Docker CI/CD
+
+GitHub Actions workflow `.github/workflows/docker-publish.yml` публикует prod-образы в Docker Hub при push в `main` или при создании tag `v*`.
+
+| Образ | Репозиторий Docker Hub | Теги |
+|-------|------------------------|------|
+| Backend | `ayreon208/bank-insights-backend` | `latest`, `<git-commit-sha>` |
+| Frontend | `ayreon208/bank-insights-frontend` | `latest`, `<git-commit-sha>` |
+
+### Настройка secrets (GitHub → Settings → Secrets and variables → Actions)
+
+| Secret | Значение |
+|--------|----------|
+| `DOCKERHUB_USERNAME` | Логин Docker Hub (например `ayreon208`) |
+| `DOCKERHUB_TOKEN` | Access token с [hub.docker.com/settings/security](https://hub.docker.com/settings/security) (Read & Write) |
+
+### Deploy на VPS (после публикации образов)
+
+```bash
+docker login -u ayreon208
+cp .env.prod.example .env          # задать DB_PASSWORD и прочие секреты
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml run --rm db-bootstrap
+```
+
+Закрепить конкретную сборку: `TAG=<git-commit-sha> docker compose -f docker-compose.prod.yml pull`.
 
 ## Зависимости
 

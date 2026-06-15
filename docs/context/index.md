@@ -23,6 +23,7 @@
 - не передавать `.env`, credentials, токены, ключи, prod dumps и любые real-data артефакты.
 
 См. также:
+- [Docker: dev и prod](/guides/docker)
 - [Настройка Backend](/BACKEND_SETUP)
 - [Локальная БД и sanitize/seed](/guides/local-db)
 - [Восстановление после cleanup](/guides/restoration)

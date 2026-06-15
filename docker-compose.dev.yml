@@ -1,0 +1,110 @@
+# Full stack:  docker compose -f docker-compose.dev.yml up -d
+# DB only:     docker compose -f docker-compose.dev.yml --profile debug up -d postgres
+# Bootstrap:   docker compose -f docker-compose.dev.yml run --rm db-bootstrap
+#
+# Full stack requires COMPOSE_PROFILES=full (set in .env.docker.example).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bank-insights-postgres-dev
+    profiles:
+      - debug
+      - full
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-bank_local_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-bank_local_password}
+      POSTGRES_DB: ${DB_NAME:-bankdb_local}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-bank_local_user} -d ${DB_NAME:-bankdb_local}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    profiles:
+      - full
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: bank-insights-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-bankdb_local}
+      DB_USER: ${DB_USER:-bank_local_user}
+      DB_PASSWORD: ${DB_PASSWORD:-bank_local_password}
+      PORT: 3001
+      FRONTEND_URL: http://frontend:8080
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json:ro
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    profiles:
+      - full
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.dev
+    container_name: bank-insights-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+    depends_on:
+      - backend
+
+  db-bootstrap:
+    profiles:
+      - debug
+      - full
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: bank-insights-db-bootstrap
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-bankdb_local}
+      DB_USER: ${DB_USER:-bank_local_user}
+      DB_PASSWORD: ${DB_PASSWORD:-bank_local_password}
+      DB_ADMIN_USER: ${DB_USER:-bank_local_user}
+      DB_ADMIN_PASSWORD: ${DB_PASSWORD:-bank_local_password}
+      BOOTSTRAP_API_URL: http://backend:3001
+      DATASET_DIR: /test-data/uploads
+    volumes:
+      - ./test-data:/test-data:ro
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json:ro
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "bootstrap:local-db"]
+    restart: "no"
+
+volumes:
+  pgdata:

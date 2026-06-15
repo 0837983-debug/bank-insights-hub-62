@@ -175,13 +175,14 @@
 
 ## Блок C: Продуктивная среда
 
-### C.0 — Локальный перенос БД и подключений ⏸️
-**Смысл:** запуск проекта на собственных мощностях без облаков.
-- Скрипт установки и настройки PostgreSQL (Linux/macOS).
-- Накат структуры БД (миграции).
-- Загрузка справочников (тех. и бизнесовые).
-- Загрузка оставшихся данных (то, что приходит через Excel‑загрузки).
-- Проверка: локальный инстанс готов, данные доступны, UI открывается.
+### C.0 — Локальный перенос БД и подключений 🔄
+**Смысл:** кроссплатформенный запуск (Windows/macOS/Linux) через Docker.
+- ✅ Bash bootstrap для macOS/Linux (`scripts/bootstrap-local-db.sh`)
+- ✅ Docker dev stack + TS bootstrap — `DOCKER_CROSS_PLATFORM_SETUP`
+- ✅ Docker prod compose + CI publish в Docker Hub (`ayreon208/*`)
+- ✅ Документация Docker — [guides/docker](/guides/docker)
+- ✅ QA smoke E2E — `e2e/docker-smoke.spec.ts`
+- 🔄 **Follow-up:** полный дашборд в bootstrap — `docs/plans/current/DOCKER_BOOTSTRAP_FULL_DASHBOARD.md` (migrations 059–078, 3 balance-периода, fix compose profiles)
 
 ### C.1 — Подготовка к деплою ⏸️
 **Смысл:** код готов к production.
