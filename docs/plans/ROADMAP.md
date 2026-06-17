@@ -175,14 +175,15 @@
 
 ## Блок C: Продуктивная среда
 
-### C.0 — Локальный перенос БД и подключений 🔄
+### C.0 — Локальный перенос БД и подключений ✅
 **Смысл:** кроссплатформенный запуск (Windows/macOS/Linux) через Docker.
 - ✅ Bash bootstrap для macOS/Linux (`scripts/bootstrap-local-db.sh`)
 - ✅ Docker dev stack + TS bootstrap — `DOCKER_CROSS_PLATFORM_SETUP`
 - ✅ Docker prod compose + CI publish в Docker Hub (`ayreon208/*`)
 - ✅ Документация Docker — [guides/docker](/guides/docker)
 - ✅ QA smoke E2E — `e2e/docker-smoke.spec.ts`
-- 🔄 **Follow-up:** полный дашборд в bootstrap — `docs/plans/current/DOCKER_BOOTSTRAP_FULL_DASHBOARD.md` (migrations 059–078, 3 balance-периода, fix compose profiles)
+- ✅ Полный дашборд в bootstrap — `DOCKER_BOOTSTRAP_FULL_DASHBOARD` (migrations 059–078, 3 balance-периода, профиль `bootstrap`, docs)
+- ✅ Фиксы конфигурации дашборда — `DOCKER_DASHBOARD_CONFIG_FIXES` (wrap_json table_balance, component_fields fin_results_table, 3-period fin_results seed; PO ACCEPTED)
 
 ### C.1 — Подготовка к деплою ⏸️
 **Смысл:** код готов к production.

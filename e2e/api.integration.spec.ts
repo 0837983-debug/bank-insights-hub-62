@@ -47,6 +47,7 @@ test.describe("API Integration Tests", () => {
         p1: headerDates.p1,
         p2: headerDates.p2,
         p3: headerDates.p3,
+        layout_id: "main_dashboard",
       });
 
       const response = await request.get(
@@ -147,6 +148,7 @@ test.describe("API Integration Tests", () => {
         p1: headerDates.p1,
         p2: headerDates.p2,
         p3: headerDates.p3,
+        layout_id: "main_dashboard",
       });
       
       // Пробуем новый endpoint
@@ -177,6 +179,7 @@ test.describe("API Integration Tests", () => {
         p1: headerDates.p1,
         p2: headerDates.p2,
         p3: headerDates.p3,
+        layout_id: "main_dashboard",
       });
       
       // Пробуем новый endpoint

@@ -1,6 +1,6 @@
-# Full stack:  docker compose -f docker-compose.dev.yml up -d
+# up -d        → postgres + backend + frontend (без bootstrap)
+# bootstrap    → docker compose -f docker-compose.dev.yml --profile bootstrap run --rm db-bootstrap
 # DB only:     docker compose -f docker-compose.dev.yml --profile debug up -d postgres
-# Bootstrap:   docker compose -f docker-compose.dev.yml run --rm db-bootstrap
 #
 # Full stack requires COMPOSE_PROFILES=full (set in .env.docker.example).
 
@@ -11,6 +11,7 @@ services:
     profiles:
       - debug
       - full
+      - bootstrap
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-bank_local_user}
@@ -79,8 +80,7 @@ services:
 
   db-bootstrap:
     profiles:
-      - debug
-      - full
+      - bootstrap
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -93,8 +93,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-bank_local_password}
       DB_ADMIN_USER: ${DB_USER:-bank_local_user}
       DB_ADMIN_PASSWORD: ${DB_PASSWORD:-bank_local_password}
-      BOOTSTRAP_API_URL: http://backend:3001
+      BOOTSTRAP_USE_TEMP_BACKEND: "true"
       DATASET_DIR: /test-data/uploads
+      BALANCE_DATASET_FILES: ${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}
     volumes:
       - ./test-data:/test-data:ro
       - ./backend/src:/app/src

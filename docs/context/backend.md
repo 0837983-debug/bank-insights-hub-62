@@ -1,6 +1,6 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-06-09 (Docker CI/CD — GitHub Actions publish to Docker Hub)  
+> **Последнее обновление**: 2026-06-15 (Migration 079 — dashboard config gaps)  
 > **Обновляет**: Backend Agent после каждого изменения
 
 > **Архивированный код:** Старые сервисы и скрипты перемещены в `archive/`. См. `archive/ARCHIVED_FILES.md`.
@@ -59,8 +59,9 @@ backend/src/
 | Upload | `routes/uploadRoutes.ts` | Загрузка файлов (balance, fin_results) |
 | Validation | `services/upload/validationService.ts` | Валидация данных + агрегатная проверка знака для balance (АКТИВЫ >=90% отрицательные, ПАССИВЫ >=90% положительные) |
 | Ingestion | `services/upload/ingestionService.ts` | Загрузка STG→ODS + REFRESH MV (`loadToSTG`, `loadFinResultsToSTG`, `transformSTGToODS`, `transformFinResultsSTGToODS`, `refreshBalanceMaterializedViews`, `refreshFinResultsMaterializedViews`) |
-| Local DB Bootstrap (bash) | `scripts/bootstrap-local-db.sh` | Legacy bootstrap для macOS/Linux (brew/apt, миграции, dataset через Upload API) |
-| Local DB Bootstrap (TS) | `src/scripts/bootstrap-local-db.ts` | Кроссплатформенный bootstrap (Docker/Windows, без установки PostgreSQL; curated migrations + Upload API seed) |
+| Local DB Bootstrap (bash) | `scripts/bootstrap-local-db.sh` | Legacy bootstrap для macOS/Linux (brew/apt, миграции 001–079, 3 balance CSV + 3 fin_results CSV через Upload API, verify p1/p2/p3) |
+| Local DB Bootstrap (TS) | `src/scripts/bootstrap-local-db.ts` | Кроссплатформенный bootstrap (Docker/Windows; curated migrations из `bootstrapCuratedMigrations.ts` 001–079; 3 balance CSV + 3 fin_results CSV; `verifyHeaderDatesContract`) |
+| Bootstrap curated migrations | `src/scripts/bootstrapCuratedMigrations.ts` | Единый список `BOOTSTRAP_CURATED_MIGRATIONS` (001–079); bash-копия в `scripts/bootstrap-local-db.sh` |
 | Dev Data Sanitization | `scripts/sanitize-and-seed-dev-db.sh` | Безопасная очистка чувствительных данных в `stg/ods/ing/log` + пересев из `test-data/uploads` с защитами от prod и ручным флагом `ALLOW_DATA_RESET=true`; по умолчанию загружает 3 balance периода (2024-12, 2025-01, 2025-02) и валидирует наличие `p1/p2/p3` в `mart.v_p_dates` |
 
 ## API Endpoints
@@ -161,7 +162,9 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ VIEW mart.v_p_dates для дат периодов (миграции 056, 057) — header_dates через SQL Builder
 - ✅ periodService и его unit-тест перенесены в `archive/backend/src/services/mart/base/` и удалены из runtime-кода `backend/`
 - ✅ Локальный bootstrap БД через `scripts/bootstrap-local-db.sh` (macOS-first, optional Linux branch, миграции + dataset через Upload API)
-- ✅ Docker dev stack: `docker-compose.dev.yml`, `backend/Dockerfile.dev`, `npm run bootstrap:local-db` (`src/scripts/bootstrap-local-db.ts`)
+- ✅ Docker dev stack: `docker-compose.dev.yml`, `backend/Dockerfile.dev`, `npm run bootstrap:local-db` (`src/scripts/bootstrap-local-db.ts`); `db-bootstrap` — профиль `bootstrap` only (не стартует при `up -d`)
+- ✅ Bootstrap curated migrations расширены до **079** (header, KPI query 067, balance section, table_balance wrap_json, fin_results_table fields)
+- ✅ Bootstrap загружает **3** balance CSV (`BALANCE_DATASET_FILES`) и **3** fin_results CSV (`FIN_RESULTS_DATASET_FILES`, default: `fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv`; legacy override: `FIN_RESULTS_DATASET_FILE`) и проверяет контракт `header_dates` (p1/p2/p3 на разных датах в `mart.v_p_dates`)
 - ✅ Docker prod backend: `backend/Dockerfile` (multi-stage build → `node dist/server.js`, healthcheck `/api/health`), `docker-compose.prod.yml`, `.env.prod.example`
 - ✅ Docker CI/CD: `.github/workflows/docker-publish.yml` — build + push `ayreon208/bank-insights-backend` и `ayreon208/bank-insights-frontend` (`:latest` + `:<git-sha>`) на push в `main` и tags `v*`
 - ✅ Darwin bootstrap fix: скрипт больше не пропускает `brew services start` только из-за наличия `psql`; при отсутствии server-формулы пытается установить `postgresql@16`
@@ -171,6 +174,7 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ В upload pipeline добавлен авто-refresh `mart.mv_kpi_derived` после обновления `mart.mv_kpi_balance` / `mart.mv_kpi_fin_results`
 - ✅ Добавлен `scripts/sanitize-and-seed-dev-db.sh`: безопасный idempotent sanitize/reset только для `stg/ods/ing/log`, загрузка только тестовых CSV из `test-data/uploads`, затем refresh всех MART MV
 - ✅ `scripts/sanitize-and-seed-dev-db.sh` теперь гарантирует strict flow для `header_dates`: минимум 3 периода (`p1/p2/p3`) на разных датах через множественную загрузку balance CSV и пост-валидацию `mart.v_p_dates`
+- ✅ Миграция **079** (`079_fix_dashboard_config_gaps.sql`): `table_balance.wrap_json=TRUE`; `fin_results_table` — алиасы `previousValue`/`ytdValue` + 9 `component_fields` (зеркало `table_pnl`)
 - ✅ Добавлена миграция 072: восстановлены API query_id `assets_table` и `liabilities_table` (совместимость Stage 5 QA после перехода на `table_balance_*`)
 
 ### В работе:
@@ -202,7 +206,7 @@ cd backend && npm run bootstrap:local-db
 
 # Docker dev stack
 docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml run --rm db-bootstrap
+docker compose -f docker-compose.dev.yml --profile bootstrap run --rm db-bootstrap
 
 # Docker prod stack (requires frontend/Dockerfile from Stage 2 frontend-agent)
 cp .env.prod.example .env

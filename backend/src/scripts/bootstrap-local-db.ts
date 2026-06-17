@@ -4,6 +4,7 @@ import { readFile } from "fs/promises";
 import { basename, dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { Client, type ClientConfig } from "pg";
+import { BOOTSTRAP_CURATED_MIGRATIONS } from "./bootstrapCuratedMigrations.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,60 +30,25 @@ const BOOTSTRAP_API_URL =
 
 const DATASET_DIR =
   process.env.DATASET_DIR ?? join(PROJECT_ROOT, "test-data/uploads");
-const BALANCE_DATASET_FILE =
-  process.env.BALANCE_DATASET_FILE ?? "capital_2025-01.csv";
-const FIN_RESULTS_DATASET_FILE =
-  process.env.FIN_RESULTS_DATASET_FILE ?? "fin_results_2025-01.csv";
-
-const CURATED_MIGRATIONS = [
-  "001_create_schemas.sql",
-  "005_create_formats_table.sql",
-  "006_load_formats_data.sql",
-  "007_create_config_schema.sql",
-  "008_create_config_history_table.sql",
-  "009_migrate_layout_data.sql",
-  "012_insert_component_fields_for_cards.sql",
-  "013_add_component_fields_metadata.sql",
-  "018_create_upload_tables.sql",
-  "019_create_component_queries.sql",
-  "020_remove_component_id_from_queries.sql",
-  "021_add_header_component.sql",
-  "022_add_button_components.sql",
-  "023_create_layout_views.sql",
-  "024_add_layout_query_config.sql",
-  "026_create_fin_results_tables.sql",
-  "027_create_fin_results_ods_mart.sql",
-  "028_add_fin_results_to_dashboard.sql",
-  "028_fix_fin_results_unique_index.sql",
-  "030_add_field_type.sql",
-  "031_migrate_field_types.sql",
-  "032_add_calculated_fields.sql",
-  "033_update_layout_view_field_type.sql",
-  "034_fix_field_types.sql",
-  "035_remove_deprecated_columns.sql",
-  "036_add_display_group.sql",
-  "037_set_display_groups.sql",
-  "038_update_layout_view_display_group.sql",
-  "040_create_field_mappings.sql",
-  "041_mart_tables_to_mv.sql",
-  "042_add_technical_name.sql",
-  "043_update_mart_mv_three_names.sql",
-  "044_mv_kpi_fin_results_add_chod.sql",
-  "045_mv_kpi_fin_results_add_aggregates.sql",
-  "046_mv_kpi_balance_use_tech_name.sql",
-  "047_create_kpi_derived_mv.sql",
-  "048_create_kpi_all_mv.sql",
-  "049_fix_kpi_derived.sql",
-  "050_add_kpi_card_function.sql",
-  "051_create_kpi_cards.sql",
-  "052_update_v_kpi_all_and_query.sql",
-  "053_add_query_id_to_components.sql",
-  "054_set_kpi_data_source_key.sql",
-  "055_add_layout_id_to_v_kpi_all.sql",
-  "056_create_v_p_dates.sql",
-  "057_update_header_dates_query.sql",
-  "058_dedup_v_kpi_all.sql",
-] as const;
+const DEFAULT_BALANCE_DATASET_FILES =
+  "capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv";
+const BALANCE_DATASET_FILES = (
+  process.env.BALANCE_DATASET_FILES ?? DEFAULT_BALANCE_DATASET_FILES
+)
+  .split(",")
+  .map((file) => file.trim())
+  .filter((file) => file.length > 0);
+const DEFAULT_FIN_RESULTS_DATASET_FILES =
+  "fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv";
+const FIN_RESULTS_DATASET_FILES =
+  process.env.FIN_RESULTS_DATASET_FILE !== undefined
+    ? [process.env.FIN_RESULTS_DATASET_FILE.trim()].filter(
+        (file) => file.length > 0
+      )
+    : (process.env.FIN_RESULTS_DATASET_FILES ?? DEFAULT_FIN_RESULTS_DATASET_FILES)
+        .split(",")
+        .map((file) => file.trim())
+        .filter((file) => file.length > 0);
 
 let backendProcess: ChildProcess | null = null;
 let ownsTemporaryBackend = false;
@@ -254,7 +220,7 @@ async function applyCompatibilityFix051(client: Client): Promise<void> {
 async function runMigrations(): Promise<void> {
   log("Running curated migration strategy for local bootstrap");
 
-  for (const migrationFile of CURATED_MIGRATIONS) {
+  for (const migrationFile of BOOTSTRAP_CURATED_MIGRATIONS) {
     const migrationPath = join(MIGRATION_DIR, migrationFile);
     if (!existsSync(migrationPath)) {
       fail(`Missing required curated migration: ${migrationFile}`);
@@ -276,7 +242,7 @@ async function runMigrations(): Promise<void> {
         DROP SCHEMA IF EXISTS log CASCADE;
       `);
 
-      for (const migrationFile of CURATED_MIGRATIONS) {
+      for (const migrationFile of BOOTSTRAP_CURATED_MIGRATIONS) {
         if (migrationFile === "021_add_header_component.sql") {
           await applyCompatibilityFix021(client);
         }
@@ -417,6 +383,61 @@ async function uploadDataset(
   log(`Upload completed for ${targetTable}`);
 }
 
+async function uploadBalanceDatasets(apiUrl: string): Promise<void> {
+  if (BALANCE_DATASET_FILES.length < 3) {
+    fail(
+      `At least 3 BALANCE_DATASET_FILES are required to build strict p1/p2/p3 flow (configured: ${BALANCE_DATASET_FILES.length})`
+    );
+  }
+
+  for (const datasetFile of BALANCE_DATASET_FILES) {
+    await uploadDataset(apiUrl, join(DATASET_DIR, datasetFile), "balance");
+  }
+}
+
+async function uploadFinResultsDatasets(apiUrl: string): Promise<void> {
+  for (const datasetFile of FIN_RESULTS_DATASET_FILES) {
+    await uploadDataset(apiUrl, join(DATASET_DIR, datasetFile), "fin_results");
+  }
+}
+
+async function verifyHeaderDatesContract(): Promise<void> {
+  const result = await withClient(
+    createClientConfig(DB_USER, DB_PASSWORD, DB_NAME),
+    async (client) =>
+      client.query<{
+        p1_date: string | null;
+        p2_date: string | null;
+        p3_date: string | null;
+      }>(`
+        WITH flags AS (
+          SELECT
+            MAX(CASE WHEN is_p1 THEN period_date END) AS p1_date,
+            MAX(CASE WHEN is_p2 THEN period_date END) AS p2_date,
+            MAX(CASE WHEN is_p3 THEN period_date END) AS p3_date
+          FROM mart.v_p_dates
+        )
+        SELECT p1_date, p2_date, p3_date
+        FROM flags
+        WHERE p1_date IS NOT NULL
+          AND p2_date IS NOT NULL
+          AND p3_date IS NOT NULL
+          AND p1_date <> p2_date
+          AND p1_date <> p3_date
+          AND p2_date <> p3_date;
+      `)
+  );
+
+  if (result.rowCount === 0 || !result.rows[0]) {
+    fail(
+      "Strict header_dates contract is not satisfied (p1/p2/p3 must exist on different dates)"
+    );
+  }
+
+  const { p1_date, p2_date, p3_date } = result.rows[0];
+  log(`Verified strict header_dates contract: ${p1_date}|${p2_date}|${p3_date}`);
+}
+
 async function stopTemporaryBackend(): Promise<void> {
   if (!ownsTemporaryBackend || !backendProcess) {
     return;
@@ -447,16 +468,9 @@ async function main(): Promise<void> {
     await runMigrations();
 
     const apiUrl = await ensureBackendForUpload();
-    await uploadDataset(
-      apiUrl,
-      join(DATASET_DIR, BALANCE_DATASET_FILE),
-      "balance"
-    );
-    await uploadDataset(
-      apiUrl,
-      join(DATASET_DIR, FIN_RESULTS_DATASET_FILE),
-      "fin_results"
-    );
+    await uploadBalanceDatasets(apiUrl);
+    await uploadFinResultsDatasets(apiUrl);
+    await verifyHeaderDatesContract();
 
     log("Bootstrap completed successfully");
     log("Connection settings:");

@@ -25,7 +25,7 @@ docker compose version
 
 | Файл | Назначение |
 |------|------------|
-| `docker-compose.dev.yml` | Dev: postgres + backend + frontend (+ профиль `debug`) |
+| `docker-compose.dev.yml` | Dev: postgres + backend + frontend (профили `debug`, `bootstrap`) |
 | `docker-compose.prod.yml` | Prod: образы Docker Hub + postgres (или external RDS) |
 | `.env.docker.example` | Шаблон `.env` для dev |
 | `.env.prod.example` | Шаблон `.env` для prod |
@@ -56,14 +56,38 @@ cp .env.docker.example .env
 
 В `.env` должно быть `COMPOSE_PROFILES=full` (уже задано в примере).
 
-### 2. Запуск
+### 2. Запуск стека
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml run --rm db-bootstrap
 ```
 
-### 3. Проверка
+Команда `up -d` поднимает только **postgres**, **backend** и **frontend** (профиль `full`). Сервис `db-bootstrap` **не** стартует автоматически — его нужно запустить отдельно (шаг 3).
+
+Проверка, что bootstrap не в списке running-сервисов:
+
+```bash
+docker compose -f docker-compose.dev.yml ps   # db-bootstrap не должен быть Up
+```
+
+### 3. Bootstrap (миграции + seed)
+
+```bash
+docker compose -f docker-compose.dev.yml --profile bootstrap run --rm db-bootstrap
+```
+
+> **⚠️ Деструктивная операция.** Bootstrap выполняет `DROP SCHEMA` для `sec`, `config`, `dict`, `stg`, `ods`, `mart`, `ing`, `log` и заново применяет curated migrations + загрузку тестовых CSV. Все локальные данные в этих схемах будут удалены. Повторный bootstrap безопасен для dev, но не запускайте его на prod-like БД.
+
+По умолчанию загружаются **3 balance-файла** (периоды p1/p2/p3 для header_dates) и **3 fin_results-файла** (те же периоды для KPI финансового результата):
+
+```env
+BALANCE_DATASET_FILES=capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv
+FIN_RESULTS_DATASET_FILES=fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv
+```
+
+Значения заданы в `.env.docker.example`; переопределите в `.env` при необходимости. Для загрузки одного fin_results-файла (legacy) задайте `FIN_RESULTS_DATASET_FILE` вместо `FIN_RESULTS_DATASET_FILES`.
+
+### 4. Проверка
 
 | Сервис | URL |
 |--------|-----|
@@ -71,7 +95,7 @@ docker compose -f docker-compose.dev.yml run --rm db-bootstrap
 | Layout data | `http://localhost:3001/api/data?query_id=layout` |
 | Frontend | `http://localhost:8080` |
 
-**E2E smoke** (`e2e/docker-smoke.spec.ts`): тесты пропускаются по умолчанию. Чтобы прогнать smoke после поднятия стека и bootstrap:
+**E2E smoke** (`e2e/docker-smoke.spec.ts`): тесты пропускаются по умолчанию. Предусловие: стек поднят и выполнен bootstrap (`--profile bootstrap run --rm db-bootstrap`):
 
 ```bash
 E2E_DOCKER_MODE=true npx playwright test e2e/docker-smoke.spec.ts --reporter=list
@@ -79,7 +103,7 @@ E2E_DOCKER_MODE=true npx playwright test e2e/docker-smoke.spec.ts --reporter=lis
 
 Без `E2E_DOCKER_MODE=true` файл не падает — все кейсы gracefully skip (удобно на машинах без Docker).
 
-### 4. Остановка
+### 5. Остановка
 
 ```bash
 docker compose -f docker-compose.dev.yml down
@@ -265,7 +289,9 @@ docker compose -f docker-compose.prod.yml exec backend node -e "
 |---------|---------|
 | `COMPOSE_PROFILES=full` поднимает лишние сервисы в debug | Уберите `COMPOSE_PROFILES=full` из `.env` |
 | Bootstrap не может достучаться до API | В full stack дождитесь `backend` healthy; в debug запустите `npm run dev` в backend |
-| Порт 5432 занят | Измените `DB_PORT` в `.env` (например `5433:5432` в compose) |
+| Порт 5432 занят (часто на **Windows** — локальный PostgreSQL) | В `.env` задайте `DB_PORT=5433` (хост-порт; внутри контейнера postgres остаётся 5432). Перезапустите: `docker compose -f docker-compose.dev.yml down && docker compose -f docker-compose.dev.yml up -d` |
+| `db-bootstrap` не найден при `run --rm` без профиля | Используйте `--profile bootstrap`: `docker compose -f docker-compose.dev.yml --profile bootstrap run --rm db-bootstrap` |
+| Дашборд пустой / KPI `invalid config` / header только p1 | Выполните bootstrap с 3 balance-файлами (`BALANCE_DATASET_FILES` в `.env`) |
 | Prod frontend 502 на `/api` | Проверьте health backend: `docker compose -f docker-compose.prod.yml ps` |
 | Windows: медленный volume mount | Используйте WSL2 backend в Docker Desktop |
 
@@ -274,4 +300,5 @@ docker compose -f docker-compose.prod.yml exec backend node -e "
 - [Настройка Backend](/BACKEND_SETUP)
 - [Локальная БД и sanitize/seed](/guides/local-db)
 - [Настройка окружения](/development/setup)
-- [План Docker](/plans/current/DOCKER_CROSS_PLATFORM_SETUP)
+- [План Docker bootstrap (полный дашборд)](/plans/current/DOCKER_BOOTSTRAP_FULL_DASHBOARD)
+- [План Docker (кроссплатформенный setup)](/plans/current/DOCKER_CROSS_PLATFORM_SETUP)
