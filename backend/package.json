@@ -11,7 +11,8 @@
     "test:ui": "vitest --ui",
     "migrate": "tsx src/scripts/run-migrations.ts",
     "migrate-data": "tsx src/scripts/migrate-layout-data.ts",
-    "load-data": "tsx src/scripts/load-table-data.ts"
+    "load-data": "tsx src/scripts/load-table-data.ts",
+    "bootstrap:local-db": "tsx src/scripts/bootstrap-local-db.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

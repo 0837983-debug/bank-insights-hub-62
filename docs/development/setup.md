@@ -8,7 +8,56 @@ related:
 
 # Настройка окружения для разработки
 
-## Backend Setup
+## Docker (рекомендуется)
+
+Кроссплатформенный путь для Windows, macOS и Linux. Подробное руководство: [Docker: dev и prod](/guides/docker).
+
+### Dev: полный стек
+
+```bash
+cp .env.docker.example .env
+docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml run --rm db-bootstrap
+```
+
+| Сервис | URL |
+|--------|-----|
+| Backend | `http://localhost:3001` |
+| Frontend | `http://localhost:8080` |
+| PostgreSQL | `localhost:5432` (volume `pgdata`) |
+
+### Dev: debug-профиль (только БД в Docker)
+
+Для отладки backend/frontend через IDE без контейнеров app-слоя:
+
+```bash
+# Уберите COMPOSE_PROFILES=full из .env
+docker compose -f docker-compose.dev.yml --profile debug up -d postgres
+cd backend && npm install && npm run bootstrap:local-db
+cd backend && npm run dev          # терминал 1
+npm install && npm run dev           # терминал 2, корень репозитория
+```
+
+### Prod: локальная проверка или VPS
+
+```bash
+cp .env.prod.example .env
+docker compose -f docker-compose.prod.yml pull    # или --build для локальной сборки
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml run --rm db-bootstrap
+```
+
+Frontend на порту `HTTP_PORT` (по умолчанию 80), API через nginx: `http://localhost/api/health`.
+
+Для RDS: `COMPOSE_PROFILES=external-db` и `DB_HOST=<rds-endpoint>` в `.env` — см. [миграцию на RDS](/guides/docker#миграция-на-rds-external-db).
+
+### Legacy без Docker
+
+На macOS/Linux без Docker используйте bash-скрипты — см. раздел [Backend Setup](#backend-setup-legacy) ниже и [BACKEND_SETUP](/BACKEND_SETUP).
+
+---
+
+## Backend Setup (legacy)
 
 ### 1. Установка зависимостей
 
@@ -160,6 +209,8 @@ npm run format
 
 ## См. также
 
+- [Docker: dev и prod](/guides/docker)
+- [Настройка Backend](/BACKEND_SETUP)
 - [Быстрый старт](/getting-started/quick-start)
 - [Структура проекта](/getting-started/project-structure)
 - [База данных](/database/)

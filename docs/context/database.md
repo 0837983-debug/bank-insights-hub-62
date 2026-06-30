@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-05-28 (sanitize+seed гарантирует минимум 3 периода для strict API flow)  
+> **Последнее обновление**: 2026-06-15 (Migration 079 — table_balance wrap_json + fin_results_table fields)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -8,15 +8,19 @@
 - **Тип**: PostgreSQL (AWS RDS)
 - **SSL**: Required
 - **Конфигурация**: `backend/src/config/database.ts`
-- **Локальный bootstrap**: `scripts/bootstrap-local-db.sh` (macOS/Homebrew основной путь, Debian/Ubuntu дополнительный)
+- **Локальный bootstrap (legacy)**: `scripts/bootstrap-local-db.sh` (macOS/Homebrew основной путь, Debian/Ubuntu дополнительный)
+- **Локальный bootstrap (Docker/кроссплатформенный)**: `backend/src/scripts/bootstrap-local-db.ts` (`npm run bootstrap:local-db`, сервис `db-bootstrap` в `docker-compose.dev.yml`)
 
 ### Локальный bootstrap (идемпотентный)
 
+- Bash-скрипт (`scripts/bootstrap-local-db.sh`) и TS-скрипт (`bootstrap-local-db.ts`) используют одинаковую curated migration strategy: список **001–079** из `bootstrapCuratedMigrations.ts` (compatibility fixes 021/028/051, schema overrides для upload).
+- TS-скрипт **не устанавливает** PostgreSQL (предполагает уже запущенный контейнер/сервер); подходит для Docker и Windows.
 - Скрипт гарантирует существование роли/БД через проверки `pg_roles` и `pg_database`.
-- Миграции применяются повторно через существующий `npm run migrate` (DDL/seed с `IF NOT EXISTS` / upsert-паттернами в проекте).
+- Миграции применяются через curated list (не через `npm run migrate`); перед применением сбрасываются managed schemas (`config`, `dict`, `stg`, `ods`, `mart`, `ing`, `log`, `sec`).
 - Минимальный dataset загружается через существующий Upload pipeline (`POST /api/upload`) из:
-  - `test-data/uploads/capital_2025-01.csv`
+  - `test-data/uploads/capital_seed_2024-12.csv`, `capital_2025-01.csv`, `capital_seed_2025-02.csv` (env: `BALANCE_DATASET_FILES`, comma-separated)
   - `test-data/uploads/fin_results_2025-01.csv`
+- После upload bootstrap проверяет strict контракт `header_dates`: в `mart.v_p_dates` должны существовать `p1`, `p2`, `p3` на **разных** датах (`verifyHeaderDatesContract` / `verify_header_dates_contract`).
 - Для локальной БД создается extension `pgcrypto` через `CREATE EXTENSION IF NOT EXISTS`.
 - Для безопасной замены real-data в dev есть `scripts/sanitize-and-seed-dev-db.sh`:
   - требует `ALLOW_DATA_RESET=true`;
@@ -301,8 +305,18 @@ SELECT period_date FROM mart.v_p_dates WHERE is_p1 OR is_p2 OR is_p3;
 | `header_dates` | Список дат из v_p_dates с флагами isP1/isP2/isP3 (миграция 057) |
 | `assets_table` | Таблица активов |
 | `liabilities_table` | Таблица пассивов |
-| `fin_results_table` | Таблица финансовых результатов |
+| `fin_results_table` | Таблица финансовых результатов (миграция 028; fields и алиасы `previousValue`/`ytdValue` — миграция 079) |
+| `table_balance` | Таблица баланса (`wrap_json=TRUE`, миграция 079) |
+| `table_pnl` | Таблица P&L (секция финреза) |
 | `kpis` | KPI для карточек (из mart.v_kpi_all с component_id) |
+
+**fin_results_table (миграция 079):**
+- `wrap_json`: не применяется (query уже с `wrap_json=TRUE` с миграции 028)
+- `component_fields`: 9 полей — dimensions `class`, `category`, `item`, `subitem`; measure `value` (`currency_rub`); calculated sub_columns под `value`: `ppChange`, `ytdChange`, `ppChangeAbsolute`, `ytdChangeAbsolute` (база `previousValue` / `ytdValue`)
+- Query aliases: `previousValue` (p2), `ytdValue` (p3) — единый контракт с `table_pnl` / `table_balance`
+
+**table_balance (миграция 079):**
+- `wrap_json=TRUE` — исправляет ошибку `wrap_json=false: query must have wrapJson=true` при вызове API
 
 Примечание: `assets_table` и `liabilities_table` поддерживаются отдельной миграцией совместимости `072_restore_assets_liabilities_query_ids.sql` (после рефакторинга на `table_balance_*`).
 

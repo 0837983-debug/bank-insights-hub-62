@@ -17,8 +17,8 @@ DB_PASSWORD="${DB_PASSWORD:-bank_local_password}"
 DB_ADMIN_USER="${DB_ADMIN_USER:-${USER:-postgres}}"
 BOOTSTRAP_PORT="${BOOTSTRAP_PORT:-3001}"
 
-BALANCE_DATASET_FILE="${BALANCE_DATASET_FILE:-capital_2025-01.csv}"
-FIN_RESULTS_DATASET_FILE="${FIN_RESULTS_DATASET_FILE:-fin_results_2025-01.csv}"
+BALANCE_DATASET_FILES="${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}"
+FIN_RESULTS_DATASET_FILES="${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}"
 
 BACKEND_PID=""
 
@@ -251,6 +251,7 @@ run_migrations() {
 
     local migration_dir="${BACKEND_DIR}/src/migrations"
     local migration_file=""
+    # Sync with backend/src/scripts/bootstrapCuratedMigrations.ts
     local curated_migrations=(
       "001_create_schemas.sql"
       "005_create_formats_table.sql"
@@ -299,6 +300,28 @@ run_migrations() {
       "056_create_v_p_dates.sql"
       "057_update_header_dates_query.sql"
       "058_dedup_v_kpi_all.sql"
+      "059_update_upload_mappings_allow_negative.sql"
+      "060_update_mart_balance_sign.sql"
+      "061_update_kpi_derived_sign.sql"
+      "062_fix_assets_sign_fallback_and_derived_refresh.sql"
+      "063_add_balance_section_and_balanc_table.sql"
+      "063_fix_assets_table_class_filter.sql"
+      "064_rename_assets_table_component_to_balance_table.sql"
+      "065_rename_balance_table_to_table_balance.sql"
+      "066_bind_header_to_main_dashboard.sql"
+      "067_upsert_kpis_query_config_from_v_kpi_all.sql"
+      "068_add_assets_button_for_table_balance.sql"
+      "069_add_liabilities_button_for_table_balance.sql"
+      "070_remove_class_column_from_balance_filter_buttons.sql"
+      "071_add_table_balance_change_subcolumns.sql"
+      "072_restore_assets_liabilities_query_ids.sql"
+      "073_remove_class_from_table_balance.sql"
+      "074_restore_class_and_cleanup_assets_liabilities.sql"
+      "075_add_table_pnl_configs.sql"
+      "076_bind_table_pnl_to_existing_section.sql"
+      "077_cleanup_legacy_and_add_pnl_cards.sql"
+      "078_move_table_pnl_to_fin_results_section.sql"
+      "079_fix_dashboard_config_gaps.sql"
     )
 
     for migration_file in "${curated_migrations[@]}"; do
@@ -455,6 +478,85 @@ upload_dataset() {
   log "Upload completed for ${target_table}"
 }
 
+upload_balance_datasets() {
+  local raw_list="${BALANCE_DATASET_FILES}"
+  local dataset_file
+  local uploaded_count=0
+
+  IFS=',' read -r -a balance_files <<< "${raw_list}"
+
+  for dataset_file in "${balance_files[@]}"; do
+    dataset_file="${dataset_file#"${dataset_file%%[![:space:]]*}"}"
+    dataset_file="${dataset_file%"${dataset_file##*[![:space:]]}"}"
+    if [[ -z "${dataset_file}" ]]; then
+      continue
+    fi
+    upload_dataset "${DATASET_DIR}/${dataset_file}" "balance"
+    ((uploaded_count++))
+  done
+
+  if (( uploaded_count < 3 )); then
+    fail "At least 3 BALANCE_DATASET_FILES are required to build strict p1/p2/p3 flow (uploaded: ${uploaded_count})"
+  fi
+}
+
+upload_fin_results_datasets() {
+  local raw_list
+  local dataset_file
+  local fin_results_files
+
+  if [[ -v FIN_RESULTS_DATASET_FILE ]]; then
+    upload_dataset "${DATASET_DIR}/${FIN_RESULTS_DATASET_FILE}" "fin_results"
+    return
+  fi
+
+  raw_list="${FIN_RESULTS_DATASET_FILES}"
+  IFS=',' read -r -a fin_results_files <<< "${raw_list}"
+
+  for dataset_file in "${fin_results_files[@]}"; do
+    dataset_file="${dataset_file#"${dataset_file%%[![:space:]]*}"}"
+    dataset_file="${dataset_file%"${dataset_file##*[![:space:]]}"}"
+    if [[ -z "${dataset_file}" ]]; then
+      continue
+    fi
+    upload_dataset "${DATASET_DIR}/${dataset_file}" "fin_results"
+  done
+}
+
+verify_header_dates_contract() {
+  local check_result
+  check_result="$(
+    PGPASSWORD="${DB_PASSWORD}" psql -tA \
+      -h "${DB_HOST}" \
+      -p "${DB_PORT}" \
+      -U "${DB_USER}" \
+      -d "${DB_NAME}" \
+      -c "
+        WITH flags AS (
+          SELECT
+            MAX(CASE WHEN is_p1 THEN period_date END) AS p1_date,
+            MAX(CASE WHEN is_p2 THEN period_date END) AS p2_date,
+            MAX(CASE WHEN is_p3 THEN period_date END) AS p3_date
+          FROM mart.v_p_dates
+        )
+        SELECT p1_date || '|' || p2_date || '|' || p3_date
+        FROM flags
+        WHERE p1_date IS NOT NULL
+          AND p2_date IS NOT NULL
+          AND p3_date IS NOT NULL
+          AND p1_date <> p2_date
+          AND p1_date <> p3_date
+          AND p2_date <> p3_date;
+      "
+  )"
+
+  if [[ -z "${check_result}" ]]; then
+    fail "Strict header_dates contract is not satisfied (p1/p2/p3 must exist on different dates)"
+  fi
+
+  log "Verified strict header_dates contract: ${check_result}"
+}
+
 main() {
   require_cmd curl
   require_cmd npm
@@ -481,8 +583,9 @@ main() {
   ensure_role_and_db
   run_migrations
   start_temporary_backend
-  upload_dataset "${DATASET_DIR}/${BALANCE_DATASET_FILE}" "balance"
-  upload_dataset "${DATASET_DIR}/${FIN_RESULTS_DATASET_FILE}" "fin_results"
+  upload_balance_datasets
+  upload_fin_results_datasets
+  verify_header_dates_contract
 
   log "Bootstrap completed successfully"
   log "Connection settings:"

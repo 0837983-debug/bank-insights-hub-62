@@ -1,0 +1,73 @@
+# Publish backend and frontend images to Docker Hub.
+#
+# Triggers: push to main, version tags v* (e.g. v1.0.0).
+# Images:   ayreon208/bank-insights-backend, ayreon208/bank-insights-frontend
+# Tags:     :latest and :<git-commit-sha> on every run.
+#
+# --- GitHub Actions secrets (repo → Settings → Secrets and variables → Actions) ---
+# DOCKERHUB_USERNAME  Docker Hub account login (e.g. ayreon208)
+# DOCKERHUB_TOKEN     Access token from https://hub.docker.com/settings/security
+#                     Create token with Read & Write permissions; do not use account password.
+#
+# --- Production deploy on VPS (after images are published) ---
+# 1. docker login -u ayreon208
+# 2. cp .env.prod.example .env   # set DB_PASSWORD and other secrets
+# 3. docker compose -f docker-compose.prod.yml pull
+# 4. docker compose -f docker-compose.prod.yml up -d
+# 5. docker compose -f docker-compose.prod.yml run --rm db-bootstrap
+#
+# Pin to a specific build: TAG=<git-commit-sha> docker compose -f docker-compose.prod.yml pull
+
+name: Docker Publish
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  BACKEND_IMAGE: ayreon208/bank-insights-backend
+  FRONTEND_IMAGE: ayreon208/bank-insights-frontend
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=/api
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}

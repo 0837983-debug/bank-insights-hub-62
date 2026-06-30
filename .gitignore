@@ -12,6 +12,30 @@ dist
 dist-ssr
 *.local
 
+# Envs
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.*.example
+
+# Docker local overrides
+.env.prod
+
+# Bootstrap / start-servers
+.tmp/
+.backend.pid
+.frontend.pid
+.docs.pid
+backend.log
+frontend.log
+docs.log
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

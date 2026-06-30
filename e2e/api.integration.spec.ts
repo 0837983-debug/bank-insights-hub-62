@@ -11,6 +11,20 @@ test.describe("API Integration Tests", () => {
     return { p1, p2, p3 };
   }
 
+  async function getHeaderDates(request: any) {
+    const response = await request.get(
+      `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${encodeURIComponent("{}")}`
+    );
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const periods = mapPeriodsFromHeaderRows(rows);
+    expect(periods.p1).toBeTruthy();
+    expect(periods.p2).toBeTruthy();
+    expect(periods.p3).toBeTruthy();
+    return periods;
+  }
+
   test.describe("Health Check", () => {
     test("should return health status", async ({ request }) => {
       const response = await request.get(`${API_BASE_URL}/health`);
@@ -26,21 +40,6 @@ test.describe("API Integration Tests", () => {
   });
 
   test.describe("KPI Endpoints", () => {
-    // Получаем даты периодов для использования в kpis запросе
-    async function getHeaderDates(request: any) {
-      const response = await request.get(
-        `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${encodeURIComponent("{}")}`
-      );
-      expect(response.ok()).toBeTruthy();
-      const data = await response.json();
-      const rows = Array.isArray(data?.rows) ? data.rows : [];
-      const periods = mapPeriodsFromHeaderRows(rows);
-      expect(periods.p1).toBeTruthy();
-      expect(periods.p2).toBeTruthy();
-      expect(periods.p3).toBeTruthy();
-      return periods;
-    }
-
     test("should fetch all KPIs via /api/data", async ({ request }) => {
       // Старый endpoint /api/kpis удалён, используем новый /api/data?query_id=kpis
       const headerDates = await getHeaderDates(request);
@@ -48,6 +47,7 @@ test.describe("API Integration Tests", () => {
         p1: headerDates.p1,
         p2: headerDates.p2,
         p3: headerDates.p3,
+        layout_id: "main_dashboard",
       });
 
       const response = await request.get(
@@ -148,6 +148,7 @@ test.describe("API Integration Tests", () => {
         p1: headerDates.p1,
         p2: headerDates.p2,
         p3: headerDates.p3,
+        layout_id: "main_dashboard",
       });
       
       // Пробуем новый endpoint
@@ -178,6 +179,7 @@ test.describe("API Integration Tests", () => {
         p1: headerDates.p1,
         p2: headerDates.p2,
         p3: headerDates.p3,
+        layout_id: "main_dashboard",
       });
       
       // Пробуем новый endpoint

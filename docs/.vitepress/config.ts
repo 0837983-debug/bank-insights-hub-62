@@ -186,6 +186,7 @@ export default defineConfig({
           text: 'Руководства',
           items: [
             { text: 'Обзор', link: '/guides/' },
+            { text: 'Docker: dev и prod', link: '/guides/docker' },
             { text: 'Добавление нового источника данных', link: '/guides/adding-data-source' },
             { text: 'Загрузка файлов', link: '/guides/file-upload' },
             { text: 'Загрузка данных и валидация', link: '/guides/file-upload-validation' },

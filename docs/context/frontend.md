@@ -1,6 +1,6 @@
 # Frontend Context
 
-> **Последнее обновление**: 2026-02-09 (J1+J2: UI выбора периодов из header_dates)  
+> **Последнее обновление**: 2026-06-09 (Docker prod: Dockerfile + nginx, build verified)  
 > **Обновляет**: Frontend Agent после каждого изменения
 
 ## Текущая архитектура
@@ -271,9 +271,37 @@ formatValue(value, format)
 
 ## API интеграция
 
-- Base URL: `http://localhost:3001/api`
+- Base URL: `import.meta.env.VITE_API_URL` (fallback: `http://localhost:3001/api`)
 - Конфигурация: `src/lib/api.ts`
 - Хуки: `src/hooks/useAPI.ts`
+
+### VITE_API_URL по окружениям
+
+| Окружение | Значение | Как задаётся |
+|-----------|----------|--------------|
+| Локальная разработка | `http://localhost:3001/api` | `.env` |
+| Docker dev | `http://localhost:3001/api` | `docker-compose.dev.yml` → env `VITE_API_URL` |
+| Docker prod | `/api` | build-arg в `frontend/Dockerfile`; nginx проксирует на `backend:3001` |
+
+В prod фронтенд обращается к API по относительному пути `/api` — nginx (`frontend/nginx.conf`) проксирует запросы на backend внутри compose-сети.
+
+## Docker
+
+| Файл | Назначение |
+|------|------------|
+| `frontend/Dockerfile.dev` | Dev: Node 20, `npm run dev`, hot-reload через volume mount |
+| `frontend/Dockerfile` | Prod: multi-stage — `npm run build` → `nginx:alpine` |
+| `frontend/nginx.conf` | Prod: static из `/usr/share/nginx/html`, `/api/` → `http://backend:3001/api/` |
+
+Build context для обоих Dockerfile — корень репозитория (`.`).
+
+```bash
+# Dev (через compose)
+docker compose -f docker-compose.dev.yml up -d frontend
+
+# Prod build (локально)
+docker build -f frontend/Dockerfile -t bank-insights-frontend .
+```
 
 ### queryId vs dataSourceKey
 
@@ -421,6 +449,7 @@ export function transformTableData(
 - ✅ J3.4: KPI загрузка через componentId, обновлён интерфейс KPIMetric (2026-02-09)
 - ✅ KPI grid: 7 колонок на широких экранах (2xl), уменьшенный gap и шрифт изменений (2026-02-09)
 - ✅ J1+J2: UI выбора периодов (DatePicker), даты из header_dates API (2026-02-09)
+- ✅ Docker prod: `frontend/Dockerfile` (vite build → nginx), `frontend/nginx.conf` с `/api` proxy (2026-06-08)
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)
