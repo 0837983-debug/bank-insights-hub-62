@@ -185,6 +185,16 @@
 - ✅ Полный дашборд в bootstrap — `DOCKER_BOOTSTRAP_FULL_DASHBOARD` (migrations 059–078, 3 balance-периода, профиль `bootstrap`, docs)
 - ✅ Фиксы конфигурации дашборда — `DOCKER_DASHBOARD_CONFIG_FIXES` (wrap_json table_balance, component_fields fin_results_table, 3-period fin_results seed; PO ACCEPTED)
 
+### C.0+ — Следующие шаги после Docker (ветка `feature/infra`, merge отложен) ⏸️
+
+| Приоритет | План | Смысл |
+|-----------|------|-------|
+| ~~P0~~ ✅ | `APP_SHELL_NAV` | Единая навигация Дашборд / Upload / Dev Tools + active state |
+| P1 | `DB_MIGRATE_INCREMENTAL` | migrate / seed / reset + `schema_migrations`, prod-safe накат |
+| P2 | `ADMIN_COMPONENT_LIBRARY` | Admin UI: CRUD библиотеки компонентов + preview |
+| P3 | `ADMIN_LAYOUT_BUILDER` | User UI: сборка layout из библиотеки |
+| Backlog | J.1 + J.2 + кварталы | Группировка дат, селектор периодов (не в текущем спринте) |
+
 ### C.1 — Подготовка к деплою ⏸️
 **Смысл:** код готов к production.
 - Аудит зависимостей (уязвимости, лишние пакеты).
@@ -536,6 +546,16 @@
 | I | Будущее | ⏸️ Низкий приоритет |
 
 ## Рекомендуемый порядок
+
+**Текущий спринт (после Docker demo, ветка `feature/infra`):**
+
+1. ~~**APP_SHELL_NAV**~~ ✅ — навигация (быстрый UX)
+2. **DB_MIGRATE_INCREMENTAL** — migrate/seed/reset
+3. **ADMIN_COMPONENT_LIBRARY** — библиотека компонентов
+4. **ADMIN_LAYOUT_BUILDER** — сборка дашборда
+5. *Backlog:* J.1 + J.2 + кварталы; merge в `main` — когда удобно
+
+**Исторический порядок (до Docker):**
 
 1. **T.1-T.3** — Актуализация тестов (стабилизация базы)
 2. **B.0-B.5** — Новые источники данных:

@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useLayout, useAllKPIs, useGetData } from "@/hooks/useAPI";
 import { KPICard } from "@/components/KPICard";
-import { Header } from "@/components/Header";
 import { DatePicker } from "@/components/DatePicker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -533,39 +532,31 @@ export default function DynamicDashboard() {
     }
   }, [layout]);
 
-  // Рендерим legacy Header только если header компонент не найден в layout (обратная совместимость)
-  const shouldRenderLegacyHeader = !headerComponent;
-
+  // Рендерим header из layout над секциями (навигация — в AppShell)
   if (layoutError || kpisError) {
     return (
-      <div className="min-h-screen bg-background">
-        {shouldRenderLegacyHeader && <Header />}
-        <div className="container mx-auto p-6">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Ошибка загрузки данных</AlertTitle>
-            <AlertDescription>
-              {layoutError
-                ? `Не удалось загрузить layout: ${layoutError instanceof Error ? layoutError.message : "Unknown error"}`
-                : `Не удалось загрузить KPI: ${kpisError instanceof Error ? kpisError.message : "Unknown error"}`}
-            </AlertDescription>
-          </Alert>
-        </div>
+      <div className="container mx-auto p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Ошибка загрузки данных</AlertTitle>
+          <AlertDescription>
+            {layoutError
+              ? `Не удалось загрузить layout: ${layoutError instanceof Error ? layoutError.message : "Unknown error"}`
+              : `Не удалось загрузить KPI: ${kpisError instanceof Error ? kpisError.message : "Unknown error"}`}
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   if (layoutLoading || kpisLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        {shouldRenderLegacyHeader && <Header />}
-        <div className="container mx-auto p-6 space-y-8">
-          <Skeleton className="h-8 w-64" />
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
-          </div>
+      <div className="container mx-auto p-6 space-y-8">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
         </div>
       </div>
     );
@@ -573,15 +564,12 @@ export default function DynamicDashboard() {
 
   if (!layout || !kpis) {
     return (
-      <div className="min-h-screen bg-background">
-        {shouldRenderLegacyHeader && <Header />}
-        <div className="container mx-auto p-6">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Нет данных</AlertTitle>
-            <AlertDescription>Не удалось загрузить данные для отображения.</AlertDescription>
-          </Alert>
-        </div>
+      <div className="container mx-auto p-6">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Нет данных</AlertTitle>
+          <AlertDescription>Не удалось загрузить данные для отображения.</AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -593,9 +581,7 @@ export default function DynamicDashboard() {
 
   if (sectionsWithContent.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
-        {shouldRenderLegacyHeader && <Header />}
-        {/* Рендерим header из layout над секциями */}
+      <>
         {headerComponent && (
           <header className="border-b border-border bg-card sticky top-0 z-50">
             <div className="container mx-auto px-6 py-4">
@@ -624,14 +610,12 @@ export default function DynamicDashboard() {
             </AlertDescription>
           </Alert>
         </main>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {shouldRenderLegacyHeader && <Header />}
-      {/* Рендерим header из layout над секциями */}
+    <>
       {headerComponent && (
         <header className="border-b border-border bg-card sticky top-0 z-50">
           <div className="container mx-auto px-6 py-4">
@@ -702,6 +686,6 @@ export default function DynamicDashboard() {
           );
         })}
       </main>
-    </div>
+    </>
   );
 }

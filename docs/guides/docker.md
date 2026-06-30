@@ -297,6 +297,7 @@ docker compose -f docker-compose.prod.yml exec backend node -e "
 
 ## См. также
 
+- [Запуск для заказчика — dev и prod](/guides/customer-docker-run) — пошаговая инструкция из git и через Docker Hub
 - [Настройка Backend](/BACKEND_SETUP)
 - [Локальная БД и sanitize/seed](/guides/local-db)
 - [Настройка окружения](/development/setup)
