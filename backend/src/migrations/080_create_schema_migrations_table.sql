@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+  filename VARCHAR(255) PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -6,8 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BACKEND_DIR="${PROJECT_ROOT}/backend"
 DATASET_DIR="${PROJECT_ROOT}/test-data/uploads"
-LOG_DIR="${PROJECT_ROOT}/.tmp"
-BACKEND_BOOTSTRAP_LOG="${LOG_DIR}/backend-bootstrap.log"
 
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-5432}"
@@ -15,12 +13,9 @@ DB_NAME="${DB_NAME:-bankdb_local}"
 DB_USER="${DB_USER:-bank_local_user}"
 DB_PASSWORD="${DB_PASSWORD:-bank_local_password}"
 DB_ADMIN_USER="${DB_ADMIN_USER:-${USER:-postgres}}"
-BOOTSTRAP_PORT="${BOOTSTRAP_PORT:-3001}"
 
 BALANCE_DATASET_FILES="${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}"
 FIN_RESULTS_DATASET_FILES="${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}"
-
-BACKEND_PID=""
 
 log() {
   printf '[bootstrap-local-db] %s\n' "$1"
@@ -31,21 +26,11 @@ fail() {
   exit 1
 }
 
-cleanup() {
-  if [[ -n "${BACKEND_PID}" ]] && kill -0 "${BACKEND_PID}" >/dev/null 2>&1; then
-    log "Stopping temporary backend process (${BACKEND_PID})"
-    kill "${BACKEND_PID}" >/dev/null 2>&1 || true
-    wait "${BACKEND_PID}" 2>/dev/null || true
-  fi
-}
-
 on_error() {
-  cleanup
   fail "Bootstrap failed at line ${1}"
 }
 
 trap 'on_error ${LINENO}' ERR
-trap cleanup EXIT
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -244,323 +229,29 @@ END
   fi
 }
 
-run_migrations() {
-  log "Running curated migration strategy for local bootstrap"
+run_npm_reset() {
+  log "Running npm run db:reset (DROP + migrate + seed via runCuratedMigrations)"
   (
     cd "${BACKEND_DIR}"
-
-    local migration_dir="${BACKEND_DIR}/src/migrations"
-    local migration_file=""
-    # Sync with backend/src/scripts/bootstrapCuratedMigrations.ts
-    local curated_migrations=(
-      "001_create_schemas.sql"
-      "005_create_formats_table.sql"
-      "006_load_formats_data.sql"
-      "007_create_config_schema.sql"
-      "008_create_config_history_table.sql"
-      "009_migrate_layout_data.sql"
-      "012_insert_component_fields_for_cards.sql"
-      "013_add_component_fields_metadata.sql"
-      "018_create_upload_tables.sql"
-      "019_create_component_queries.sql"
-      "020_remove_component_id_from_queries.sql"
-      "021_add_header_component.sql"
-      "022_add_button_components.sql"
-      "023_create_layout_views.sql"
-      "024_add_layout_query_config.sql"
-      "026_create_fin_results_tables.sql"
-      "027_create_fin_results_ods_mart.sql"
-      "028_add_fin_results_to_dashboard.sql"
-      "028_fix_fin_results_unique_index.sql"
-      "030_add_field_type.sql"
-      "031_migrate_field_types.sql"
-      "032_add_calculated_fields.sql"
-      "033_update_layout_view_field_type.sql"
-      "034_fix_field_types.sql"
-      "035_remove_deprecated_columns.sql"
-      "036_add_display_group.sql"
-      "037_set_display_groups.sql"
-      "038_update_layout_view_display_group.sql"
-      "040_create_field_mappings.sql"
-      "041_mart_tables_to_mv.sql"
-      "042_add_technical_name.sql"
-      "043_update_mart_mv_three_names.sql"
-      "044_mv_kpi_fin_results_add_chod.sql"
-      "045_mv_kpi_fin_results_add_aggregates.sql"
-      "046_mv_kpi_balance_use_tech_name.sql"
-      "047_create_kpi_derived_mv.sql"
-      "048_create_kpi_all_mv.sql"
-      "049_fix_kpi_derived.sql"
-      "050_add_kpi_card_function.sql"
-      "051_create_kpi_cards.sql"
-      "052_update_v_kpi_all_and_query.sql"
-      "053_add_query_id_to_components.sql"
-      "054_set_kpi_data_source_key.sql"
-      "055_add_layout_id_to_v_kpi_all.sql"
-      "056_create_v_p_dates.sql"
-      "057_update_header_dates_query.sql"
-      "058_dedup_v_kpi_all.sql"
-      "059_update_upload_mappings_allow_negative.sql"
-      "060_update_mart_balance_sign.sql"
-      "061_update_kpi_derived_sign.sql"
-      "062_fix_assets_sign_fallback_and_derived_refresh.sql"
-      "063_add_balance_section_and_balanc_table.sql"
-      "063_fix_assets_table_class_filter.sql"
-      "064_rename_assets_table_component_to_balance_table.sql"
-      "065_rename_balance_table_to_table_balance.sql"
-      "066_bind_header_to_main_dashboard.sql"
-      "067_upsert_kpis_query_config_from_v_kpi_all.sql"
-      "068_add_assets_button_for_table_balance.sql"
-      "069_add_liabilities_button_for_table_balance.sql"
-      "070_remove_class_column_from_balance_filter_buttons.sql"
-      "071_add_table_balance_change_subcolumns.sql"
-      "072_restore_assets_liabilities_query_ids.sql"
-      "073_remove_class_from_table_balance.sql"
-      "074_restore_class_and_cleanup_assets_liabilities.sql"
-      "075_add_table_pnl_configs.sql"
-      "076_bind_table_pnl_to_existing_section.sql"
-      "077_cleanup_legacy_and_add_pnl_cards.sql"
-      "078_move_table_pnl_to_fin_results_section.sql"
-      "079_fix_dashboard_config_gaps.sql"
-    )
-
-    for migration_file in "${curated_migrations[@]}"; do
-      if [[ ! -f "${migration_dir}/${migration_file}" ]]; then
-        fail "Missing required curated migration: ${migration_file}"
-      fi
-    done
-
-    log "Resetting managed schemas for deterministic bootstrap"
-    PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-      -h "${DB_HOST}" \
-      -p "${DB_PORT}" \
-      -U "${DB_USER}" \
-      -d "${DB_NAME}" \
-      -c "DROP SCHEMA IF EXISTS sec CASCADE; DROP SCHEMA IF EXISTS config CASCADE; DROP SCHEMA IF EXISTS dict CASCADE; DROP SCHEMA IF EXISTS stg CASCADE; DROP SCHEMA IF EXISTS ods CASCADE; DROP SCHEMA IF EXISTS mart CASCADE; DROP SCHEMA IF EXISTS ing CASCADE; DROP SCHEMA IF EXISTS log CASCADE;"
-
-    for migration_file in "${curated_migrations[@]}"; do
-      if [[ "${migration_file}" == "021_add_header_component.sql" ]]; then
-        log "Applying compatibility fix for layout_component_mapping schema"
-        PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-          -h "${DB_HOST}" \
-          -p "${DB_PORT}" \
-          -U "${DB_USER}" \
-          -d "${DB_NAME}" <<'SQL'
-ALTER TABLE config.layout_component_mapping
-  ADD COLUMN IF NOT EXISTS parent_component_id VARCHAR(200);
-ALTER TABLE config.layout_component_mapping
-  ALTER COLUMN instance_id DROP NOT NULL;
-SQL
-      fi
-
-      if [[ "${migration_file}" == "028_add_fin_results_to_dashboard.sql" ]]; then
-        log "Seeding default main_dashboard layout for fin_results migration"
-        PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-          -h "${DB_HOST}" \
-          -p "${DB_PORT}" \
-          -U "${DB_USER}" \
-          -d "${DB_NAME}" \
-          -c "INSERT INTO config.layouts (id, name, description, status, is_active, is_default, created_by, created_at) VALUES ('main_dashboard', 'Main Dashboard', 'Bootstrap default layout', 'published', TRUE, TRUE, 'bootstrap', CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET is_active = EXCLUDED.is_active, updated_at = CURRENT_TIMESTAMP;"
-      fi
-
-      if [[ "${migration_file}" == "051_create_kpi_cards.sql" ]]; then
-        log "Applying compatibility fix for component_fields constraints"
-        PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-          -h "${DB_HOST}" \
-          -p "${DB_PORT}" \
-          -U "${DB_USER}" \
-          -d "${DB_NAME}" \
-          -c "ALTER TABLE config.component_fields ALTER COLUMN data_type DROP NOT NULL;"
-        PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-          -h "${DB_HOST}" \
-          -p "${DB_PORT}" \
-          -U "${DB_USER}" \
-          -d "${DB_NAME}" <<'SQL'
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'uq_lcm_layout_component'
-  ) THEN
-    ALTER TABLE config.layout_component_mapping
-      ADD CONSTRAINT uq_lcm_layout_component UNIQUE (layout_id, component_id);
-  END IF;
-END
-$$;
-SQL
-        PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-          -h "${DB_HOST}" \
-          -p "${DB_PORT}" \
-          -U "${DB_USER}" \
-          -d "${DB_NAME}" \
-          -c "SELECT setval(pg_get_serial_sequence('config.layout_component_mapping', 'id'), COALESCE((SELECT MAX(id) FROM config.layout_component_mapping), 0) + 1, false);"
-      fi
-
-      log "Applying migration: ${migration_file}"
-      PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-        -h "${DB_HOST}" \
-        -p "${DB_PORT}" \
-        -U "${DB_USER}" \
-        -d "${DB_NAME}" \
-        -f "${migration_dir}/${migration_file}"
-    done
-
-    log "Applying local schema overrides for upload datasets"
-    PGPASSWORD="${DB_PASSWORD}" psql -v ON_ERROR_STOP=1 \
-      -h "${DB_HOST}" \
-      -p "${DB_PORT}" \
-      -U "${DB_USER}" \
-      -d "${DB_NAME}" \
-      -c "ALTER TABLE stg.fin_results_upload ALTER COLUMN data_source TYPE VARCHAR(255); ALTER TABLE ods.fin_results ALTER COLUMN data_source TYPE VARCHAR(255);"
-  )
-}
-
-wait_for_backend() {
-  local attempts=45
-  local attempt=1
-
-  while (( attempt <= attempts )); do
-    if curl --silent --show-error --fail "http://127.0.0.1:${BOOTSTRAP_PORT}/api-docs" >/dev/null 2>&1; then
-      log "Temporary backend is ready on port ${BOOTSTRAP_PORT}"
-      return 0
-    fi
-
-    sleep 1
-    ((attempt++))
-  done
-
-  fail "Backend did not become ready on port ${BOOTSTRAP_PORT}. See ${BACKEND_BOOTSTRAP_LOG}"
-}
-
-start_temporary_backend() {
-  mkdir -p "${LOG_DIR}"
-  log "Starting temporary backend for upload pipeline"
-  (
-    cd "${BACKEND_DIR}"
-    # Force local bootstrap connection params even if .env has cloud DATABASE_URL.
     DATABASE_URL="" \
     DB_HOST="${DB_HOST}" \
     DB_PORT="${DB_PORT}" \
     DB_NAME="${DB_NAME}" \
     DB_USER="${DB_USER}" \
     DB_PASSWORD="${DB_PASSWORD}" \
-    FRONTEND_URL="http://127.0.0.1:65535" \
-    PORT="${BOOTSTRAP_PORT}" \
-    npm run dev
-  ) >"${BACKEND_BOOTSTRAP_LOG}" 2>&1 &
-  BACKEND_PID="$!"
-
-  wait_for_backend
-}
-
-upload_dataset() {
-  local file_path="$1"
-  local target_table="$2"
-
-  [[ -f "${file_path}" ]] || fail "Dataset file not found: ${file_path}"
-
-  log "Uploading $(basename "${file_path}") as ${target_table}"
-  local response
-  response="$(
-    curl --silent --show-error --fail \
-      -X POST "http://127.0.0.1:${BOOTSTRAP_PORT}/api/upload" \
-      -F "file=@${file_path}" \
-      -F "targetTable=${target_table}"
-  )"
-
-  local compact_response
-  compact_response="$(printf '%s' "${response}" | tr -d '[:space:]')"
-  if [[ "${compact_response}" != *"\"status\":\"completed\""* ]]; then
-    fail "Upload for ${target_table} did not complete successfully. Response: ${response}"
-  fi
-
-  log "Upload completed for ${target_table}"
-}
-
-upload_balance_datasets() {
-  local raw_list="${BALANCE_DATASET_FILES}"
-  local dataset_file
-  local uploaded_count=0
-
-  IFS=',' read -r -a balance_files <<< "${raw_list}"
-
-  for dataset_file in "${balance_files[@]}"; do
-    dataset_file="${dataset_file#"${dataset_file%%[![:space:]]*}"}"
-    dataset_file="${dataset_file%"${dataset_file##*[![:space:]]}"}"
-    if [[ -z "${dataset_file}" ]]; then
-      continue
-    fi
-    upload_dataset "${DATASET_DIR}/${dataset_file}" "balance"
-    ((uploaded_count++))
-  done
-
-  if (( uploaded_count < 3 )); then
-    fail "At least 3 BALANCE_DATASET_FILES are required to build strict p1/p2/p3 flow (uploaded: ${uploaded_count})"
-  fi
-}
-
-upload_fin_results_datasets() {
-  local raw_list
-  local dataset_file
-  local fin_results_files
-
-  if [[ -v FIN_RESULTS_DATASET_FILE ]]; then
-    upload_dataset "${DATASET_DIR}/${FIN_RESULTS_DATASET_FILE}" "fin_results"
-    return
-  fi
-
-  raw_list="${FIN_RESULTS_DATASET_FILES}"
-  IFS=',' read -r -a fin_results_files <<< "${raw_list}"
-
-  for dataset_file in "${fin_results_files[@]}"; do
-    dataset_file="${dataset_file#"${dataset_file%%[![:space:]]*}"}"
-    dataset_file="${dataset_file%"${dataset_file##*[![:space:]]}"}"
-    if [[ -z "${dataset_file}" ]]; then
-      continue
-    fi
-    upload_dataset "${DATASET_DIR}/${dataset_file}" "fin_results"
-  done
-}
-
-verify_header_dates_contract() {
-  local check_result
-  check_result="$(
-    PGPASSWORD="${DB_PASSWORD}" psql -tA \
-      -h "${DB_HOST}" \
-      -p "${DB_PORT}" \
-      -U "${DB_USER}" \
-      -d "${DB_NAME}" \
-      -c "
-        WITH flags AS (
-          SELECT
-            MAX(CASE WHEN is_p1 THEN period_date END) AS p1_date,
-            MAX(CASE WHEN is_p2 THEN period_date END) AS p2_date,
-            MAX(CASE WHEN is_p3 THEN period_date END) AS p3_date
-          FROM mart.v_p_dates
-        )
-        SELECT p1_date || '|' || p2_date || '|' || p3_date
-        FROM flags
-        WHERE p1_date IS NOT NULL
-          AND p2_date IS NOT NULL
-          AND p3_date IS NOT NULL
-          AND p1_date <> p2_date
-          AND p1_date <> p3_date
-          AND p2_date <> p3_date;
-      "
-  )"
-
-  if [[ -z "${check_result}" ]]; then
-    fail "Strict header_dates contract is not satisfied (p1/p2/p3 must exist on different dates)"
-  fi
-
-  log "Verified strict header_dates contract: ${check_result}"
+    DB_ADMIN_USER="${DB_ADMIN_USER}" \
+    DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-}" \
+    DATASET_DIR="${DATASET_DIR}" \
+    BALANCE_DATASET_FILES="${BALANCE_DATASET_FILES}" \
+    FIN_RESULTS_DATASET_FILES="${FIN_RESULTS_DATASET_FILES}" \
+    BOOTSTRAP_USE_TEMP_BACKEND=true \
+    ALLOW_DATA_RESET=true \
+    npm run db:reset
+  )
 }
 
 main() {
-  require_cmd curl
   require_cmd npm
-  require_cmd sed
 
   if [[ ! -d "${BACKEND_DIR}" ]]; then
     fail "Backend directory not found: ${BACKEND_DIR}"
@@ -581,11 +272,7 @@ main() {
 
   wait_for_postgres
   ensure_role_and_db
-  run_migrations
-  start_temporary_backend
-  upload_balance_datasets
-  upload_fin_results_datasets
-  verify_header_dates_contract
+  run_npm_reset
 
   log "Bootstrap completed successfully"
   log "Connection settings:"

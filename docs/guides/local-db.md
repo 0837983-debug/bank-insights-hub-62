@@ -56,6 +56,16 @@ cd backend && npm run dev
 - `http://localhost:3001/api/data?query_id=header_dates`
 - `http://localhost:3001/api/data?query_id=kpis`
 
+## Docker: пересев без bash-скриптов
+
+Если БД в Docker (см. [Docker: dev и prod](/guides/docker)), вместо `sanitize-and-seed-dev-db.sh` используйте:
+
+```bash
+docker compose -f docker-compose.dev.yml --profile seed run --rm db-seed
+```
+
+Канонический путь — сервис `db-seed` в compose (volume `./test-data` задаётся в YAML). На хосте без Docker: `cd backend && npm run db:seed` при работающем backend.
+
 ## Что нельзя делать
 
 - Нельзя запускать sanitize/reseed без `ALLOW_DATA_RESET=true`.

@@ -190,7 +190,8 @@
 | Приоритет | План | Смысл |
 |-----------|------|-------|
 | ~~P0~~ ✅ | `APP_SHELL_NAV` | Единая навигация Дашборд / Upload / Dev Tools + active state |
-| P1 | `DB_MIGRATE_INCREMENTAL` | migrate / seed / reset + `schema_migrations`, prod-safe накат |
+| ~~P1~~ ✅ | `DB_MIGRATE_INCREMENTAL` | migrate / seed / reset + `schema_migrations`, prod-safe накат |
+| ~~P1.5~~ ✅ | `DB_SEED_VOLUME_FIX` | Сервис `db-seed` в compose — seed без CLI `-v` и абсолютных путей (QA ✅, PO ✅) |
 | P2 | `ADMIN_COMPONENT_LIBRARY` | Admin UI: CRUD библиотеки компонентов + preview |
 | P3 | `ADMIN_LAYOUT_BUILDER` | User UI: сборка layout из библиотеки |
 | Backlog | J.1 + J.2 + кварталы | Группировка дат, селектор периодов (не в текущем спринте) |
@@ -550,10 +551,11 @@
 **Текущий спринт (после Docker demo, ветка `feature/infra`):**
 
 1. ~~**APP_SHELL_NAV**~~ ✅ — навигация (быстрый UX)
-2. **DB_MIGRATE_INCREMENTAL** — migrate/seed/reset
-3. **ADMIN_COMPONENT_LIBRARY** — библиотека компонентов
-4. **ADMIN_LAYOUT_BUILDER** — сборка дашборда
-5. *Backlog:* J.1 + J.2 + кварталы; merge в `main` — когда удобно
+2. ~~**DB_MIGRATE_INCREMENTAL**~~ ✅ — migrate/seed/reset
+3. ~~**DB_SEED_VOLUME_FIX**~~ ✅ — `db-seed` в compose (быстрый fix документации/compose)
+4. **ADMIN_COMPONENT_LIBRARY** — библиотека компонентов
+5. **ADMIN_LAYOUT_BUILDER** — сборка дашборда
+6. *Backlog:* J.1 + J.2 + кварталы; merge в `main` — когда удобно
 
 **Исторический порядок (до Docker):**
 

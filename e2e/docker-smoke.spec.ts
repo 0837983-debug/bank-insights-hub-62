@@ -9,10 +9,14 @@
  * Run:
  *   E2E_DOCKER_MODE=true npx playwright test e2e/docker-smoke.spec.ts --reporter=list
  *
+ * The "db:reset" test runs `docker compose --profile bootstrap run --rm db-bootstrap`
+ * (npm run db:reset) and then asserts dashboard APIs — allow ~5–10 min.
+ *
  * Skip behaviour:
  *   When E2E_DOCKER_MODE is not "true", all tests in this file are skipped gracefully.
  *   Use this on machines without Docker or when the compose stack is not running.
  */
+import { execSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 
 const DOCKER_MODE = process.env.E2E_DOCKER_MODE === "true";
@@ -21,6 +25,9 @@ const API_BASE_URL =
   process.env.E2E_DOCKER_API_URL ?? "http://localhost:3001/api";
 const FRONTEND_URL =
   process.env.E2E_DOCKER_FRONTEND_URL ?? "http://localhost:8080";
+const COMPOSE_FILE =
+  process.env.E2E_DOCKER_COMPOSE_FILE ?? "docker-compose.dev.yml";
+const DB_RESET_TIMEOUT_MS = 10 * 60 * 1000;
 
 function mapPeriodsFromHeaderRows(rows: Array<Record<string, unknown>>) {
   const p1 = rows.find((row) => row.isP1)?.periodDate;
@@ -51,6 +58,81 @@ async function getHeaderPeriods(request: import("@playwright/test").APIRequestCo
 function assertNoWrapJsonError(data: unknown) {
   const serialized = JSON.stringify(data);
   expect(serialized).not.toMatch(/wrap_json|wrapJson/i);
+}
+
+function runDockerDbReset() {
+  execSync(
+    `docker compose -f ${COMPOSE_FILE} --profile bootstrap run --rm db-bootstrap`,
+    {
+      cwd: process.cwd(),
+      stdio: "pipe",
+      encoding: "utf-8",
+      timeout: DB_RESET_TIMEOUT_MS,
+    }
+  );
+}
+
+async function assertDashboardApisOk(
+  request: import("@playwright/test").APIRequestContext
+) {
+  const healthResponse = await request.get(`${API_BASE_URL}/health`);
+  expect(healthResponse.status()).toBeLessThan(600);
+  const healthData = await healthResponse.json();
+  expect(healthData.services?.backend?.status).toBe("ok");
+  expect(healthData.status).toMatch(/^(ok|degraded)$/);
+
+  const layoutParams = JSON.stringify({ layout_id: "main_dashboard" });
+  const layoutResponse = await request.get(
+    `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(layoutParams)}`
+  );
+  expect(layoutResponse.ok()).toBeTruthy();
+  const layoutData = await layoutResponse.json();
+  expect(Array.isArray(layoutData.sections)).toBe(true);
+  expect(layoutData.sections.length).toBeGreaterThan(0);
+
+  const periods = await getHeaderPeriods(request);
+
+  const kpiParams = JSON.stringify({
+    p1: periods.p1,
+    p2: periods.p2,
+    p3: periods.p3,
+    layout_id: "main_dashboard",
+  });
+  const kpiResponse = await request.get(
+    `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(kpiParams)}`
+  );
+  expect(kpiResponse.ok()).toBeTruthy();
+  const kpiData = await kpiResponse.json();
+  expect(kpiData?.error).not.toBe("invalid config");
+  const kpis = Array.isArray(kpiData) ? kpiData : (kpiData.rows ?? []);
+  expect(kpis.length).toBeGreaterThan(0);
+
+  const tableParams = JSON.stringify({
+    p1: periods.p1,
+    p2: periods.p2,
+    p3: periods.p3,
+  });
+  const balanceResponse = await request.get(
+    `${API_BASE_URL}/data?query_id=table_balance&component_Id=table_balance&parametrs=${encodeURIComponent(tableParams)}`
+  );
+  expect(balanceResponse.ok()).toBeTruthy();
+  const balanceData = await balanceResponse.json();
+  assertNoWrapJsonError(balanceData);
+  expect(balanceData?.error).toBeUndefined();
+  expect(
+    Array.isArray(balanceData?.rows) ? balanceData.rows.length : 0
+  ).toBeGreaterThan(0);
+
+  const finResultsResponse = await request.get(
+    `${API_BASE_URL}/data?query_id=fin_results_table&component_Id=fin_results_table&parametrs=${encodeURIComponent(tableParams)}`
+  );
+  expect(finResultsResponse.ok()).toBeTruthy();
+  const finResultsData = await finResultsResponse.json();
+  assertNoWrapJsonError(finResultsData);
+  expect(finResultsData?.error).toBeUndefined();
+  expect(
+    Array.isArray(finResultsData?.rows) ? finResultsData.rows.length : 0
+  ).toBeGreaterThan(0);
 }
 
 test.describe("Docker dev stack smoke", () => {
@@ -299,5 +381,12 @@ test.describe("Docker dev stack smoke", () => {
     await page.waitForLoadState("domcontentloaded");
     await expect(page).toHaveTitle(/Операционные метрики небанковского банка/);
     await expect(page.locator("body")).toBeVisible();
+  });
+
+  test("after db:reset in Docker — dashboard APIs return valid data", async ({
+    request,
+  }) => {
+    runDockerDbReset();
+    await assertDashboardApisOk(request);
   });
 });
