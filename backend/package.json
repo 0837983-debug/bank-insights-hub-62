@@ -9,10 +9,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "migrate": "tsx src/scripts/run-migrations.ts",
+    "db:migrate": "tsx src/scripts/runCuratedMigrations.ts",
+    "db:seed": "tsx src/scripts/seed-local-db.ts",
+    "db:reset": "tsx src/scripts/reset-local-db.ts",
+    "migrate": "tsx src/scripts/runCuratedMigrations.ts",
     "migrate-data": "tsx src/scripts/migrate-layout-data.ts",
     "load-data": "tsx src/scripts/load-table-data.ts",
-    "bootstrap:local-db": "tsx src/scripts/bootstrap-local-db.ts"
+    "bootstrap:local-db": "tsx src/scripts/reset-local-db.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

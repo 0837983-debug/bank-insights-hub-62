@@ -1,6 +1,6 @@
 # Database Context
 
-> **Последнее обновление**: 2026-06-15 (Migration 079 — table_balance wrap_json + fin_results_table fields)  
+> **Последнее обновление**: 2026-06-30 (Migration 080 — schema_migrations tracking)  
 > **Обновляет**: Backend Agent после изменения схемы
 
 ## Подключение
@@ -9,14 +9,34 @@
 - **SSL**: Required
 - **Конфигурация**: `backend/src/config/database.ts`
 - **Локальный bootstrap (legacy)**: `scripts/bootstrap-local-db.sh` (macOS/Homebrew основной путь, Debian/Ubuntu дополнительный)
-- **Локальный bootstrap (Docker/кроссплатформенный)**: `backend/src/scripts/bootstrap-local-db.ts` (`npm run bootstrap:local-db`, сервис `db-bootstrap` в `docker-compose.dev.yml`)
+- **Локальный bootstrap (Docker/кроссплатформенный)**: `backend/src/scripts/reset-local-db.ts` (`npm run db:reset` / `bootstrap:local-db`, требует `ALLOW_DATA_RESET=true`)
+
+### Инкрементальные миграции
+
+| Команда | Назначение |
+|---------|------------|
+| `npm run db:migrate` | Применить только новые SQL из `BOOTSTRAP_CURATED_MIGRATIONS` (учёт в `public.schema_migrations`) |
+| `npm run db:seed` | Загрузка тестовых CSV через Upload API (без DROP/migrate) |
+| `npm run db:reset` | DROP managed schemas + полный migrate + seed (`ALLOW_DATA_RESET=true`) |
+
+Docker one-shot: `docker compose -f docker-compose.prod.yml run --rm db-migrate` (prod) или `--profile migrate run --rm db-migrate` (dev).
+
+Таблица учёта:
+
+```sql
+CREATE TABLE public.schema_migrations (
+  filename VARCHAR(255) PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Миграция **080** создаёт эту таблицу; runner также вызывает `CREATE TABLE IF NOT EXISTS` перед первым прогоном.
 
 ### Локальный bootstrap (идемпотентный)
 
-- Bash-скрипт (`scripts/bootstrap-local-db.sh`) и TS-скрипт (`bootstrap-local-db.ts`) используют одинаковую curated migration strategy: список **001–079** из `bootstrapCuratedMigrations.ts` (compatibility fixes 021/028/051, schema overrides для upload).
-- TS-скрипт **не устанавливает** PostgreSQL (предполагает уже запущенный контейнер/сервер); подходит для Docker и Windows.
-- Скрипт гарантирует существование роли/БД через проверки `pg_roles` и `pg_database`.
-- Миграции применяются через curated list (не через `npm run migrate`); перед применением сбрасываются managed schemas (`config`, `dict`, `stg`, `ods`, `mart`, `ing`, `log`, `sec`).
+- Bash-скрипт (`scripts/bootstrap-local-db.sh`) устанавливает PostgreSQL (macOS/Linux) и делегирует reset/seed в `npm run db:reset`; TS runner (`runCuratedMigrations.ts`) — единый список **001–080** из `bootstrapCuratedMigrations.ts`.
+- TS `db:reset` **не устанавливает** PostgreSQL (предполагает уже запущенный контейнер/сервер); подходит для Docker и Windows.
+- `db:reset` сбрасывает managed schemas (`config`, `dict`, `stg`, `ods`, `mart`, `ing`, `log`, `sec`) и `public.schema_migrations`; `db:migrate` — только новые файлы без DROP.
 - Минимальный dataset загружается через существующий Upload pipeline (`POST /api/upload`) из:
   - `test-data/uploads/capital_seed_2024-12.csv`, `capital_2025-01.csv`, `capital_seed_2025-02.csv` (env: `BALANCE_DATASET_FILES`, comma-separated)
   - `test-data/uploads/fin_results_2025-01.csv`
@@ -330,7 +350,8 @@ SELECT period_date FROM mart.v_p_dates WHERE is_p1 OR is_p2 OR is_p3;
 
 - Расположение: `backend/src/migrations/`
 - Формат: `NNN_description.sql`
-- Запуск: `npm run migrate`
+- Инкрементальный запуск: `npm run db:migrate` (`runCuratedMigrations.ts`, учёт в `public.schema_migrations`)
+- Полный reset (dev): `ALLOW_DATA_RESET=true npm run db:reset`
 
 ## Аудит-поля
 

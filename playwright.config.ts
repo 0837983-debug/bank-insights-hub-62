@@ -9,7 +9,7 @@ import { defineConfig, devices } from "@playwright/test";
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const isDockerSmokeRun = process.argv.some((arg) =>
-  arg.includes("docker-smoke")
+  arg.includes("docker-smoke") || arg.includes("docker-db-seed")
 );
 const isApiOnlyRun = process.argv.some((arg) =>
   arg.includes("api.integration")

@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AppShell } from "@/components/AppShell";
 import DevTools from "./pages/DevTools";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import FileUpload from "./pages/FileUpload";
@@ -41,9 +42,11 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<DynamicDashboard />} />
-            <Route path="/dev-tools" element={<DevTools />} />
-            <Route path="/upload" element={<FileUpload />} />
+            <Route element={<AppShell />}>
+              <Route path="/" element={<DynamicDashboard />} />
+              <Route path="/dev-tools" element={<DevTools />} />
+              <Route path="/upload" element={<FileUpload />} />
+            </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

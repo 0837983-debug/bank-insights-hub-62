@@ -1,6 +1,8 @@
 /**
- * Скрипт для выполнения одиночной миграции
- * Использование: tsx src/scripts/run-single-migration.ts <migration_file>
+ * DEV ONLY — runs a single migration file without schema_migrations tracking.
+ * Prefer `npm run db:migrate` for normal incremental migrations.
+ *
+ * Usage: tsx src/scripts/run-single-migration.ts <migration_file>
  */
 import { readFile } from "fs/promises";
 import { join, dirname } from "path";
@@ -13,6 +15,9 @@ const __dirname = dirname(__filename);
 async function runSingleMigration(migrationFile: string) {
   const client = await pool.connect();
   try {
+    console.warn(
+      "[DEV ONLY] This script bypasses schema_migrations tracking. Use npm run db:migrate in normal workflows."
+    );
     console.log(`Starting migration: ${migrationFile}...`);
 
     const migrationPath = join(__dirname, "../migrations", migrationFile);
@@ -32,7 +37,9 @@ async function runSingleMigration(migrationFile: string) {
 const migrationFile = process.argv[2];
 if (!migrationFile) {
   console.error("Usage: tsx src/scripts/run-single-migration.ts <migration_file>");
-  console.error("Example: tsx src/scripts/run-single-migration.ts 026_create_fin_results_tables.sql");
+  console.error(
+    "Example: tsx src/scripts/run-single-migration.ts 026_create_fin_results_tables.sql"
+  );
   process.exit(1);
 }
 

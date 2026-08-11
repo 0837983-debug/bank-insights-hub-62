@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, AlertCircle, RotateCcw, FileSpreadsheet, TrendingUp } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Header } from "@/components/Header";
 import { FileUploader, type FileUploaderRef } from "@/components/upload/FileUploader";
 import { UploadProgress } from "@/components/upload/UploadProgress";
 import { UploadStagesProgress } from "@/components/upload/UploadStagesProgress";
@@ -165,9 +164,7 @@ export default function FileUpload() {
   })();
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container mx-auto px-6 py-8 max-w-4xl">
+    <main className="container mx-auto px-6 py-8 max-w-4xl">
         <h1 className="text-3xl font-bold mb-6">Загрузка файлов</h1>
 
         <div className="space-y-6">
@@ -317,6 +314,5 @@ export default function FileUpload() {
           <UploadHistory limit={10} />
         </div>
       </main>
-    </div>
   );
 }

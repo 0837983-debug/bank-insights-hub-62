@@ -187,6 +187,7 @@ export default defineConfig({
           items: [
             { text: 'Обзор', link: '/guides/' },
             { text: 'Docker: dev и prod', link: '/guides/docker' },
+            { text: 'Запуск для заказчика', link: '/guides/customer-docker-run' },
             { text: 'Добавление нового источника данных', link: '/guides/adding-data-source' },
             { text: 'Загрузка файлов', link: '/guides/file-upload' },
             { text: 'Загрузка данных и валидация', link: '/guides/file-upload-validation' },

@@ -1,6 +1,6 @@
 # Backend Context
 
-> **Последнее обновление**: 2026-06-15 (Migration 079 — dashboard config gaps)  
+> **Последнее обновление**: 2026-07-02 (Docker `db-seed` service — canonical seed path)  
 > **Обновляет**: Backend Agent после каждого изменения
 
 > **Архивированный код:** Старые сервисы и скрипты перемещены в `archive/`. См. `archive/ARCHIVED_FILES.md`.
@@ -59,9 +59,12 @@ backend/src/
 | Upload | `routes/uploadRoutes.ts` | Загрузка файлов (balance, fin_results) |
 | Validation | `services/upload/validationService.ts` | Валидация данных + агрегатная проверка знака для balance (АКТИВЫ >=90% отрицательные, ПАССИВЫ >=90% положительные) |
 | Ingestion | `services/upload/ingestionService.ts` | Загрузка STG→ODS + REFRESH MV (`loadToSTG`, `loadFinResultsToSTG`, `transformSTGToODS`, `transformFinResultsSTGToODS`, `refreshBalanceMaterializedViews`, `refreshFinResultsMaterializedViews`) |
-| Local DB Bootstrap (bash) | `scripts/bootstrap-local-db.sh` | Legacy bootstrap для macOS/Linux (brew/apt, миграции 001–079, 3 balance CSV + 3 fin_results CSV через Upload API, verify p1/p2/p3) |
-| Local DB Bootstrap (TS) | `src/scripts/bootstrap-local-db.ts` | Кроссплатформенный bootstrap (Docker/Windows; curated migrations из `bootstrapCuratedMigrations.ts` 001–079; 3 balance CSV + 3 fin_results CSV; `verifyHeaderDatesContract`) |
-| Bootstrap curated migrations | `src/scripts/bootstrapCuratedMigrations.ts` | Единый список `BOOTSTRAP_CURATED_MIGRATIONS` (001–079); bash-копия в `scripts/bootstrap-local-db.sh` |
+| Local DB Bootstrap (bash) | `scripts/bootstrap-local-db.sh` | Legacy bootstrap для macOS/Linux (brew/apt, затем `ALLOW_DATA_RESET=true npm run db:reset`) |
+| Bootstrap curated migrations | `src/scripts/bootstrapCuratedMigrations.ts` | Единый список `BOOTSTRAP_CURATED_MIGRATIONS` (001–080); bash делегирует в `npm run db:reset` |
+| Curated migrations runner | `src/scripts/runCuratedMigrations.ts` | Инкрементальные миграции по `public.schema_migrations`; compatibility fixes 021/028/051; `npm run db:migrate` |
+| Local DB seed | `src/scripts/seed-local-db.ts` | Upload тестовых CSV через Upload API + `verifyHeaderDatesContract`; `npm run db:seed` (без DROP/migrate) |
+| Local DB reset | `src/scripts/reset-local-db.ts` | DROP managed schemas + migrate + seed; требует `ALLOW_DATA_RESET=true`; `npm run db:reset` |
+| Local DB Bootstrap (TS) | `src/scripts/bootstrap-local-db.ts` | Thin wrapper → `reset-local-db` (deprecated; alias `bootstrap:local-db`) |
 | Dev Data Sanitization | `scripts/sanitize-and-seed-dev-db.sh` | Безопасная очистка чувствительных данных в `stg/ods/ing/log` + пересев из `test-data/uploads` с защитами от prod и ручным флагом `ALLOW_DATA_RESET=true`; по умолчанию загружает 3 balance периода (2024-12, 2025-01, 2025-02) и валидирует наличие `p1/p2/p3` в `mart.v_p_dates` |
 
 ## API Endpoints
@@ -162,8 +165,10 @@ export async function getSomeData(params: SomeParams): Promise<SomeResult> {
 - ✅ VIEW mart.v_p_dates для дат периодов (миграции 056, 057) — header_dates через SQL Builder
 - ✅ periodService и его unit-тест перенесены в `archive/backend/src/services/mart/base/` и удалены из runtime-кода `backend/`
 - ✅ Локальный bootstrap БД через `scripts/bootstrap-local-db.sh` (macOS-first, optional Linux branch, миграции + dataset через Upload API)
-- ✅ Docker dev stack: `docker-compose.dev.yml`, `backend/Dockerfile.dev`, `npm run bootstrap:local-db` (`src/scripts/bootstrap-local-db.ts`); `db-bootstrap` — профиль `bootstrap` only (не стартует при `up -d`)
-- ✅ Bootstrap curated migrations расширены до **079** (header, KPI query 067, balance section, table_balance wrap_json, fin_results_table fields)
+- ✅ Docker dev stack: `docker-compose.dev.yml`, `backend/Dockerfile.dev`; `db-bootstrap` → `npm run db:reset` (`ALLOW_DATA_RESET=true`, профиль `bootstrap`); `db-migrate` → `npm run db:migrate` (профиль `migrate`); `db-seed` → `npm run db:seed` (профиль `seed`, volume `./test-data:/test-data:ro`)
+- ✅ Bootstrap curated migrations расширены до **080** (`schema_migrations` tracking table)
+- ✅ Разделение DB lifecycle: `db:migrate` (инкрементально), `db:seed` (upload only), `db:reset` (`ALLOW_DATA_RESET=true`, DROP + migrate + seed)
+- ✅ Единый runner `runCuratedMigrations.ts`; удалены deprecated `run-migrations.ts`, `run-field-type-migrations.ts`
 - ✅ Bootstrap загружает **3** balance CSV (`BALANCE_DATASET_FILES`) и **3** fin_results CSV (`FIN_RESULTS_DATASET_FILES`, default: `fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv`; legacy override: `FIN_RESULTS_DATASET_FILE`) и проверяет контракт `header_dates` (p1/p2/p3 на разных датах в `mart.v_p_dates`)
 - ✅ Docker prod backend: `backend/Dockerfile` (multi-stage build → `node dist/server.js`, healthcheck `/api/health`), `docker-compose.prod.yml`, `.env.prod.example`
 - ✅ Docker CI/CD: `.github/workflows/docker-publish.yml` — build + push `ayreon208/bank-insights-backend` и `ayreon208/bank-insights-frontend` (`:latest` + `:<git-sha>`) на push в `main` и tags `v*`
@@ -193,7 +198,13 @@ cd backend && npm run test
 cd backend && npm run dev
 
 # Миграции
-cd backend && npm run migrate
+cd backend && npm run db:migrate
+
+# Seed (upload test CSV, schema must exist)
+cd backend && npm run db:seed
+
+# Full dev reset (destructive)
+ALLOW_DATA_RESET=true cd backend && npm run db:reset
 
 # Build
 cd backend && npm run build
@@ -201,18 +212,22 @@ cd backend && npm run build
 # Локальный bootstrap БД + минимальный dataset (legacy bash, macOS/Linux)
 bash scripts/bootstrap-local-db.sh
 
-# Кроссплатформенный bootstrap (Docker / Windows / без brew)
-cd backend && npm run bootstrap:local-db
+# Кроссплатформенный bootstrap (alias db:reset; requires ALLOW_DATA_RESET=true)
+ALLOW_DATA_RESET=true cd backend && npm run bootstrap:local-db
 
 # Docker dev stack
 docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml --profile bootstrap run --rm db-bootstrap
+docker compose -f docker-compose.dev.yml --profile bootstrap run --rm db-bootstrap   # db:reset (destructive)
+docker compose -f docker-compose.dev.yml --profile migrate run --rm db-migrate         # incremental only
+docker compose -f docker-compose.dev.yml --profile seed run --rm db-seed               # upload test CSV (schema must exist)
 
 # Docker prod stack (requires frontend/Dockerfile from Stage 2 frontend-agent)
 cp .env.prod.example .env
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml run --rm db-bootstrap
+docker compose -f docker-compose.prod.yml run --rm db-bootstrap   # first-time / dev-like only
+docker compose -f docker-compose.prod.yml run --rm db-migrate     # apply new SQL on prod
+docker compose -f docker-compose.prod.yml --profile seed run --rm db-seed   # re-upload test CSV only
 
 # Prod with external RDS (disables bundled postgres)
 # In .env: COMPOSE_PROFILES=external-db, DB_HOST=<rds-endpoint>
@@ -245,7 +260,9 @@ docker login -u ayreon208
 cp .env.prod.example .env          # задать DB_PASSWORD и прочие секреты
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml run --rm db-bootstrap
+docker compose -f docker-compose.prod.yml run --rm db-bootstrap   # empty/dev-like DB only
+docker compose -f docker-compose.prod.yml run --rm db-migrate     # incremental migrations on prod
+docker compose -f docker-compose.prod.yml --profile seed run --rm db-seed   # re-upload test CSV only
 ```
 
 Закрепить конкретную сборку: `TAG=<git-commit-sha> docker compose -f docker-compose.prod.yml pull`.

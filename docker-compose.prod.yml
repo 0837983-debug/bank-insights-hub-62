@@ -1,5 +1,7 @@
 # Prod deploy:  docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
-# Bootstrap:    docker compose -f docker-compose.prod.yml run --rm db-bootstrap
+# Bootstrap:    docker compose -f docker-compose.prod.yml run --rm db-bootstrap  (db:reset, destructive)
+# Seed:         docker compose -f docker-compose.prod.yml --profile seed run --rm db-seed  (upload test CSV only)
+# Migrate:      docker compose -f docker-compose.prod.yml run --rm db-migrate     (incremental, safe for prod)
 # RDS / external: set DB_HOST in .env, use COMPOSE_PROFILES=external-db (disables bundled postgres)
 #
 # Requires frontend/Dockerfile (Stage 2 frontend-agent) for full build.
@@ -87,8 +89,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-change_me_prod_password}
       DB_ADMIN_USER: ${DB_ADMIN_USER:-bank_prod_user}
       DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:-change_me_prod_password}
+      ALLOW_DATA_RESET: "true"
       BOOTSTRAP_API_URL: http://backend:3001
       DATASET_DIR: /test-data/uploads
+      BALANCE_DATASET_FILES: ${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}
+      FIN_RESULTS_DATASET_FILES: ${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}
     volumes:
       - ./test-data:/test-data:ro
     depends_on:
@@ -97,7 +102,53 @@ services:
         required: false
       backend:
         condition: service_healthy
-    command: ["npm", "run", "bootstrap:local-db"]
+    command: ["npm", "run", "db:reset"]
+    restart: "no"
+
+  db-migrate:
+    image: ayreon208/bank-insights-backend:${TAG:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bank-insights-db-migrate-prod
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-bankdb_prod}
+      DB_USER: ${DB_USER:-bank_prod_user}
+      DB_PASSWORD: ${DB_PASSWORD:-change_me_prod_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    command: ["npm", "run", "db:migrate"]
+    restart: "no"
+
+  db-seed:
+    profiles:
+      - seed
+    image: ayreon208/bank-insights-backend:${TAG:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bank-insights-db-seed-prod
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-bankdb_prod}
+      DB_USER: ${DB_USER:-bank_prod_user}
+      DB_PASSWORD: ${DB_PASSWORD:-change_me_prod_password}
+      BOOTSTRAP_USE_TEMP_BACKEND: "true"
+      DATASET_DIR: /test-data/uploads
+      BALANCE_DATASET_FILES: ${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}
+      FIN_RESULTS_DATASET_FILES: ${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}
+    volumes:
+      - ./test-data:/test-data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    command: ["npm", "run", "db:seed"]
     restart: "no"
 
   # Marker service: activates external-db profile without starting bundled postgres

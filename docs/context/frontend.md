@@ -1,6 +1,6 @@
 # Frontend Context
 
-> **Последнее обновление**: 2026-06-09 (Docker prod: Dockerfile + nginx, build verified)  
+> **Последнее обновление**: 2026-06-30 (AppShell — единая навигация на всех страницах)  
 > **Обновляет**: Frontend Agent после каждого изменения
 
 ## Текущая архитектура
@@ -19,6 +19,8 @@ src/
 │   ├── ui/              # shadcn/ui (НЕ редактировать!)
 │   ├── upload/          # Компоненты загрузки
 │   ├── Header.tsx
+│   ├── AppShell.tsx   # Layout: Header + Outlet
+│   ├── NavLink.tsx    # NavLink с activeClassName
 │   ├── KPICard.tsx
 │   ├── FinancialTable.tsx
 │   └── ...
@@ -46,7 +48,9 @@ src/
 | DatePicker | `components/DatePicker.tsx` | Выбор периодов (до 3 дат из header_dates API) |
 | KPICard | `components/KPICard.tsx` | Карточка KPI (grid до 7 в строку на 2xl) |
 | FinancialTable | `components/FinancialTable.tsx` | Таблица с данными |
-| Header | `components/Header.tsx` | Шапка навигации |
+| AppShell | `components/AppShell.tsx` | Обёртка layout: Header + `<Outlet />` для страниц |
+| Header | `components/Header.tsx` | Шапка с навигацией (Дашборд, Загрузка, Dev Tools) |
+| NavLink | `components/NavLink.tsx` | Обёртка react-router NavLink с `activeClassName` |
 | FileUpload | `pages/FileUpload.tsx` | Загрузка файлов (2 кнопки: Баланс, Финрез) |
 | FileUploader | `components/upload/FileUploader.tsx` | Выбор файла (drag-n-drop, forwardRef) |
 
@@ -114,7 +118,41 @@ import { cn } from '@/lib/utils';
 )} />
 ```
 
-### data-testid для E2E
+### AppShell — единая навигация
+
+Все основные маршруты (`/`, `/upload`, `/dev-tools`) обёрнуты в `AppShell` через nested routes в `App.tsx`:
+
+```tsx
+<Route element={<AppShell />}>
+  <Route path="/" element={<DynamicDashboard />} />
+  <Route path="/upload" element={<FileUpload />} />
+  <Route path="/dev-tools" element={<DevTools />} />
+</Route>
+```
+
+- `AppShell` рендерит `<Header />` + `<Outlet />`
+- Страницы **не** дублируют `<Header />` локально
+- `DynamicDashboard` может дополнительно рендерить layout-header (DatePicker) из БД
+
+### NavLink — активная вкладка
+
+```tsx
+<NavLink
+  to="/upload"
+  className="px-3 py-2 text-sm ..."
+  activeClassName="text-foreground bg-muted font-semibold"
+  data-testid="nav-link-upload"
+>
+  Загрузка файлов
+</NavLink>
+```
+
+### data-testid для навигации:
+- `app-shell` — корневой layout
+- `app-header` — шапка
+- `header-nav` — блок навигации
+- `nav-link-dashboard`, `nav-link-upload`, `nav-link-dev-tools` — пункты меню
+
 ```typescript
 // Добавляй data-testid для важных элементов
 <div data-testid="kpi-card-revenue">
@@ -450,6 +488,7 @@ export function transformTableData(
 - ✅ KPI grid: 7 колонок на широких экранах (2xl), уменьшенный gap и шрифт изменений (2026-02-09)
 - ✅ J1+J2: UI выбора периодов (DatePicker), даты из header_dates API (2026-02-09)
 - ✅ Docker prod: `frontend/Dockerfile` (vite build → nginx), `frontend/nginx.conf` с `/api` proxy (2026-06-08)
+- ✅ AppShell: единая навигация на `/`, `/upload`, `/dev-tools`, active state для NavLink (2026-06-30)
 
 ### В работе:
 - 🔄 E2E тесты (актуализация)

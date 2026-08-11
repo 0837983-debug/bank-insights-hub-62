@@ -1,7 +1,7 @@
 /**
  * Curated migration list for local DB bootstrap (DROP SCHEMA + re-apply).
- * Keep in sync with scripts/bootstrap-local-db.sh (see comment there).
- * Range: 001–079.
+ * Single source of truth — bash `scripts/bootstrap-local-db.sh` delegates to `npm run db:reset`.
+ * Range: 001–080.
  */
 export const BOOTSTRAP_CURATED_MIGRATIONS = [
   "001_create_schemas.sql",
@@ -73,4 +73,5 @@ export const BOOTSTRAP_CURATED_MIGRATIONS = [
   "077_cleanup_legacy_and_add_pnl_cards.sql",
   "078_move_table_pnl_to_fin_results_section.sql",
   "079_fix_dashboard_config_gaps.sql",
+  "080_create_schema_migrations_table.sql",
 ] as const;
