@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toErrorMessage } from "@/lib/error-catalog";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -27,7 +28,7 @@ export default function LoginPage() {
       await login(username.trim(), password);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка входа");
+      setError(toErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -63,7 +64,11 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p data-testid="login-error" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
 
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? "Вход..." : "Войти"}

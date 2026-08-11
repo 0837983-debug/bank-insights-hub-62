@@ -12,6 +12,7 @@ import { UploadHistory } from "@/components/upload/UploadHistory";
 import { useFileUpload, useUploadStatus, useRollbackUpload, generateSessionId } from "@/hooks/useFileUpload";
 import { useUploadProgress } from "@/hooks/useUploadProgress";
 import { APIError } from "@/lib/api";
+import { toErrorMessage } from "@/lib/error-catalog";
 import type { AggregatedValidationError } from "@/lib/api";
 
 export default function FileUpload() {
@@ -253,8 +254,8 @@ export default function FileUpload() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Ошибка загрузки</AlertTitle>
-                  <AlertDescription>
-                    {error instanceof Error ? error.message : "Произошла ошибка при загрузке файла"}
+                  <AlertDescription data-testid="upload-error">
+                    {toErrorMessage(error)}
                     {error instanceof APIError && error.data && typeof error.data === 'object' && 'error' in error.data && (
                       <div className="mt-2 text-sm">
                         {String((error.data as any).error)}

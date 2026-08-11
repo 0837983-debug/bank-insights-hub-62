@@ -50,11 +50,15 @@ async function authFetch<T>(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    const errorData = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      error?: string;
+    };
     throw new APIError(
-      errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+      errorData.code || `HTTP ${response.status}: ${response.statusText}`,
       response.status,
-      errorData
+      errorData,
+      errorData.code
     );
   }
 

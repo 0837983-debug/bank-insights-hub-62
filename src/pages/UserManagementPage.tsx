@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { toErrorMessage } from "@/lib/error-catalog";
 
 const ROLE_LABELS: Record<Role, string> = {
   super_admin: "Супер-админ",
@@ -60,7 +61,7 @@ export default function UserManagementPage() {
       setUsers(data.users);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки пользователей");
+      setError(toErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -86,7 +87,7 @@ export default function UserManagementPage() {
       setNewRole("viewer");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка создания");
+      setError(toErrorMessage(err));
     } finally {
       setCreating(false);
     }
@@ -98,7 +99,7 @@ export default function UserManagementPage() {
       setMessage("Роль обновлена");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка смены роли");
+      setError(toErrorMessage(err));
     }
   }
 
@@ -108,7 +109,7 @@ export default function UserManagementPage() {
       setMessage(u.isActive ? "Пользователь заблокирован" : "Пользователь разблокирован");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка изменения статуса");
+      setError(toErrorMessage(err));
     }
   }
 
@@ -119,7 +120,7 @@ export default function UserManagementPage() {
       setMessage("Пользователь удалён");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка удаления");
+      setError(toErrorMessage(err));
     }
   }
 
@@ -132,7 +133,7 @@ export default function UserManagementPage() {
           : "Пароль сброшен"
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка сброса пароля");
+      setError(toErrorMessage(err));
     }
   }
 
@@ -140,8 +141,16 @@ export default function UserManagementPage() {
     <div className="container mx-auto p-6">
       <h1 className="mb-4 text-2xl font-semibold">Управление аккаунтами</h1>
 
-      {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-      {message && <p className="mb-3 text-sm text-green-600">{message}</p>}
+      {error && (
+        <p data-testid="users-error" className="mb-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p data-testid="users-message" className="mb-3 text-sm text-green-600">
+          {message}
+        </p>
+      )}
 
       {/* Форма создания */}
       <form onSubmit={handleCreate} className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border p-4">
@@ -158,7 +167,7 @@ export default function UserManagementPage() {
         <div className="space-y-1">
           <Label>Роль</Label>
           <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-44" data-testid="role-select">
               <SelectValue placeholder="Роль" />
             </SelectTrigger>
             <SelectContent>
@@ -223,6 +232,7 @@ export default function UserManagementPage() {
                       size="sm"
                       disabled={u.role === "super_admin" || (me?.id === u.id)}
                       onClick={() => handleToggleActive(u)}
+                      data-testid={`btn-toggle-${u.username}`}
                     >
                       {u.isActive ? "Заблокировать" : "Разблокировать"}
                     </Button>
@@ -230,6 +240,7 @@ export default function UserManagementPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleResetPassword(u)}
+                      data-testid={`btn-reset-${u.username}`}
                     >
                       Сброс пароля
                     </Button>
@@ -238,6 +249,7 @@ export default function UserManagementPage() {
                       size="sm"
                       disabled={me?.id === u.id}
                       onClick={() => handleDelete(u)}
+                      data-testid={`btn-delete-${u.username}`}
                     >
                       Удалить
                     </Button>
