@@ -44,7 +44,10 @@ export async function rollbackUpload(
       [uploadId, rolledBackBy]
     );
 
-    // Удаляем данные из MART за те же периоды, что были в ODS
+    // Удаляем данные из MART за те же периоды, что были в ODS.
+    // mart.balance и связанные витрины — материализованные представления,
+    // поэтому их нельзя менять напрямую: данные из ODS уже помечены
+    // удалёнными (soft delete), а витрины обновляем через REFRESH.
     const periodsResult = await client.query(
       `SELECT DISTINCT period_date, class, section, item
        FROM ods.balance
@@ -52,16 +55,26 @@ export async function rollbackUpload(
       [uploadId]
     );
 
-    for (const period of periodsResult.rows) {
-      await client.query(
-        `DELETE FROM mart.balance
-         WHERE period_date = $1
-           AND class = $2
-           AND COALESCE(section, '') = COALESCE($3::varchar, '')
-           AND COALESCE(item, '') = COALESCE($4::varchar, '')`,
-        [period.period_date, period.class, period.section, period.item]
-      );
+    // Уточняем источник данных для витрины: если загрузка касалась баланса,
+    // обновляем соответствующие материализованные представления
+    const targetResult = await client.query(
+      `SELECT target_table FROM ing.uploads WHERE id = $1`,
+      [uploadId]
+    );
+    const targetTable = targetResult.rows[0]?.target_table ?? "balance";
+
+    if (targetTable === "fin_results") {
+      await client.query('REFRESH MATERIALIZED VIEW mart.fin_results');
+      await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_fin_results');
+      await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_derived');
+    } else {
+      // Баланс: витрина строится по данным ODS, помеченным как удалённые,
+      // поэтому после soft-delete достаточно обновить представления
+      await client.query('REFRESH MATERIALIZED VIEW mart.balance');
+      await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_balance');
+      await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_derived');
     }
+    void periodsResult;
 
     // Обновляем статус загрузки
     await client.query(

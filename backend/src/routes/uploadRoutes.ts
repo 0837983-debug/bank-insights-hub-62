@@ -2,9 +2,10 @@
  * API endpoints для загрузки файлов
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { pool } from "../config/database.js";
+import { AppError, AppErrorCode } from "../types/errors.js";
 import { parseFile, validateFileStructure, getRowValue } from "../services/upload/fileParserService.js";
 import {
   validateData,
@@ -81,7 +82,8 @@ const upload = multer({
     if (checkFileExtension(file.originalname, allowedExtensions)) {
       cb(null, true);
     } else {
-      cb(new Error("Неподдерживаемый формат файла. Поддерживаются: CSV, XLSX"));
+      // Бросаем доменную ошибку, чтобы errorHandler вернул корректный 4xx-код
+      cb(new AppError(AppErrorCode.UPLOAD_BAD_FORMAT));
     }
   },
 });
@@ -185,11 +187,11 @@ router.get('/progress/:sessionId', (req: Request, res: Response) => {
  * GET /api/upload/:uploadId
  * Получение статуса загрузки
  */
-router.get("/:uploadId", async (req: Request, res: Response) => {
+router.get("/:uploadId", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const uploadId = parseInt(req.params.uploadId);
     if (isNaN(uploadId)) {
-      return res.status(400).json({ error: "Неверный ID загрузки" });
+      throw new AppError(AppErrorCode.UPLOAD_PARAM_REQUIRED);
     }
 
     const client = await pool.connect();
@@ -204,7 +206,7 @@ router.get("/:uploadId", async (req: Request, res: Response) => {
       );
 
       if (result.rows.length === 0) {
-        return res.status(404).json({ error: "Загрузка не найдена" });
+        throw new AppError(AppErrorCode.UPLOAD_NOT_FOUND);
       }
 
       const upload = result.rows[0];
@@ -227,9 +229,8 @@ router.get("/:uploadId", async (req: Request, res: Response) => {
     } finally {
       client.release();
     }
-  } catch (error: any) {
-    console.error("Error fetching upload status:", error);
-    return res.status(500).json({ error: "Ошибка получения статуса загрузки" });
+  } catch (error: unknown) {
+    next(error);
   }
 });
 
@@ -237,11 +238,11 @@ router.get("/:uploadId", async (req: Request, res: Response) => {
  * GET /api/upload/:uploadId/sheets
  * Получение списка листов для XLSX файла
  */
-router.get("/:uploadId/sheets", async (req: Request, res: Response) => {
+router.get("/:uploadId/sheets", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const uploadId = parseInt(req.params.uploadId);
     if (isNaN(uploadId)) {
-      return res.status(400).json({ error: "Неверный ID загрузки" });
+      throw new AppError(AppErrorCode.UPLOAD_PARAM_REQUIRED);
     }
 
     const client = await pool.connect();
@@ -252,13 +253,13 @@ router.get("/:uploadId/sheets", async (req: Request, res: Response) => {
       );
 
       if (result.rows.length === 0) {
-        return res.status(404).json({ error: "Загрузка не найдена" });
+        throw new AppError(AppErrorCode.UPLOAD_NOT_FOUND);
       }
 
       const upload = result.rows[0];
       
       if (upload.file_type !== "xlsx") {
-        return res.status(400).json({ error: "Файл не является XLSX" });
+        throw new AppError(AppErrorCode.UPLOAD_BAD_FORMAT);
       }
 
       // Парсим файл для получения списка листов
@@ -274,9 +275,8 @@ router.get("/:uploadId/sheets", async (req: Request, res: Response) => {
     } finally {
       client.release();
     }
-  } catch (error: any) {
-    console.error("Error fetching sheets:", error);
-    return res.status(500).json({ error: "Ошибка получения списка листов" });
+  } catch (error: unknown) {
+    next(error);
   }
 });
 
@@ -284,37 +284,25 @@ router.get("/:uploadId/sheets", async (req: Request, res: Response) => {
  * POST /api/upload
  * Загрузка файла
  */
-router.post("/", (req: Request, res: Response, next: any) => {
-  upload.single("file")(req, res, (err: any) => {
+router.post("/", (req: Request, res: Response, next: NextFunction) => {
+  upload.single("file")(req, res, (err: unknown) => {
     if (err) {
       console.error("Multer error:", err);
-      if (err instanceof multer.MulterError) {
-        if (err.code === "LIMIT_FILE_SIZE") {
-          return res.status(400).json({ error: "Размер файла превышает максимальный (50MB)" });
-        }
-        if (err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE") {
-          return res.status(400).json({ error: "Неверное количество файлов" });
-        }
-        return res.status(400).json({ error: `Ошибка загрузки файла: ${err.message}` });
-      }
-      if (err.message) {
-        return res.status(400).json({ error: err.message });
-      }
-      return res.status(400).json({ error: "Ошибка загрузки файла" });
+      // Multer-ошибки обрабатываются единым errorHandler
+      next(err);
+      return;
     }
     next();
   });
-}, async (req: Request, res: Response) => {
+}, async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log("Upload request body:", req.body);
     console.log("Upload request file:", req.file);
     if (!req.file) {
-      console.error("No file in request");
-      return res.status(400).json({ error: "Файл не был загружен" });
+      throw new AppError(AppErrorCode.UPLOAD_NO_FILE);
     }
     if (req.file.size === 0) {
-      console.error("Empty file in request");
-      return res.status(400).json({ error: "Файл пустой" });
+      throw new AppError(AppErrorCode.UPLOAD_EMPTY);
     }
 
     const { targetTable, sheetName, sessionId: clientSessionId } = req.body;
@@ -327,15 +315,14 @@ router.post("/", (req: Request, res: Response, next: any) => {
     });
 
     if (!targetTable) {
-      return res.status(400).json({ error: "Параметр targetTable обязателен" });
+      throw new AppError(AppErrorCode.UPLOAD_PARAM_REQUIRED);
     }
 
     // Проверяем поддерживаемую таблицу
     const supportedTables = ["balance", "fin_results"];
     if (!supportedTables.includes(targetTable)) {
-      return res.status(400).json({
-        error: `Неподдерживаемая таблица: ${targetTable}. Поддерживаются: ${supportedTables.join(", ")}`,
-      });
+      throw new AppError(AppErrorCode.UPLOAD_PARAM_REQUIRED, undefined,
+        `Неподдерживаемая таблица: ${targetTable}`);
     }
 
     const fileBuffer = req.file.buffer;
@@ -344,9 +331,7 @@ router.post("/", (req: Request, res: Response, next: any) => {
     const fileType = getFileType(originalFilename);
 
     if (!fileType) {
-      return res.status(400).json({
-        error: "Неподдерживаемый формат файла. Поддерживаются: CSV, XLSX",
-      });
+      throw new AppError(AppErrorCode.UPLOAD_BAD_FORMAT);
     }
 
     const client = await pool.connect();
@@ -402,10 +387,11 @@ router.post("/", (req: Request, res: Response, next: any) => {
           errorMessage: parseError.message || "Ошибка парсинга файла",
         }]));
         await updateUploadStatus(uploadId, "failed");
+        // Возвращаем бизнес-ответ с валидационными ошибками (это данные, не сырая ошибка)
         return res.status(400).json({
           uploadId,
           status: "failed",
-          error: parseError.message || "Ошибка парсинга файла",
+          error: "Не удалось обработать файл",
         });
       }
 
@@ -580,17 +566,13 @@ router.post("/", (req: Request, res: Response, next: any) => {
       if (uploadId) {
         await updateUploadStatus(uploadId, "failed");
       }
-
-      return res.status(500).json({
-        error: error.message || "Ошибка обработки загрузки",
-        uploadId: uploadId || null,
-      });
+      next(error);
     } finally {
       client.release();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in upload endpoint:", error);
-    return res.status(500).json({ error: "Ошибка загрузки файла" });
+    next(error);
   }
 });
 
@@ -598,11 +580,11 @@ router.post("/", (req: Request, res: Response, next: any) => {
  * POST /api/upload/:uploadId/rollback
  * Откат загрузки
  */
-router.post("/:uploadId/rollback", async (req: Request, res: Response) => {
+router.post("/:uploadId/rollback", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const uploadId = parseInt(req.params.uploadId);
     if (isNaN(uploadId)) {
-      return res.status(400).json({ error: "Неверный ID загрузки" });
+      throw new AppError(AppErrorCode.UPLOAD_PARAM_REQUIRED);
     }
 
     const { rolledBackBy } = req.body || {};
@@ -616,16 +598,15 @@ router.post("/:uploadId/rollback", async (req: Request, res: Response) => {
       });
     } catch (error: any) {
       if (error.message.includes("не найдена")) {
-        return res.status(404).json({ error: error.message });
+        throw new AppError(AppErrorCode.UPLOAD_NOT_FOUND, undefined, error);
       }
       if (error.message.includes("уже была откачена")) {
-        return res.status(400).json({ error: error.message });
+        throw new AppError(AppErrorCode.UPLOAD_PROCESSING, undefined, error);
       }
       throw error;
     }
-  } catch (error: any) {
-    console.error("Error rolling back upload:", error);
-    return res.status(500).json({ error: "Ошибка отката загрузки" });
+  } catch (error: unknown) {
+    next(error);
   }
 });
 
@@ -633,7 +614,7 @@ router.post("/:uploadId/rollback", async (req: Request, res: Response) => {
  * GET /api/uploads
  * История загрузок
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { targetTable, status, limit = 50, offset = 0 } = req.query;
 
@@ -690,9 +671,8 @@ router.get("/", async (req: Request, res: Response) => {
     } finally {
       client.release();
     }
-  } catch (error: any) {
-    console.error("Error fetching upload history:", error);
-    return res.status(500).json({ error: "Ошибка получения истории загрузок" });
+  } catch (error: unknown) {
+    next(error);
   }
 });
 

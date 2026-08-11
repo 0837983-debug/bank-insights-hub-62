@@ -2,9 +2,10 @@
  * Маршруты аутентификации: login, refresh, logout, me.
  * Refresh-токен хранится в httpOnly cookie и в теле запроса.
  */
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { authenticate } from "../middleware/authenticate.js";
 import * as authService from "../services/auth/authService.js";
+import { AppError, AppErrorCode } from "../types/errors.js";
 
 const router = Router();
 
@@ -29,33 +30,30 @@ function extractRefreshToken(req: Request): string | undefined {
 }
 
 /** Вход. */
-router.post("/login", async (req: Request, res: Response) => {
+router.post("/login", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { username, password } = req.body as {
       username?: string;
       password?: string;
     };
     if (!username || !password) {
-      res.status(400).json({ error: "Имя пользователя и пароль обязательны" });
-      return;
+      throw new AppError(AppErrorCode.USER_REQUIRED_FIELD);
     }
 
     const { auth, refreshToken } = await authService.login({ username, password });
     res.cookie("refresh_token", refreshToken, refreshCookieOptions());
     res.json(auth);
   } catch (error) {
-    const status = error instanceof authService.AuthError ? error.status : 500;
-    res.status(status).json({ error: error instanceof Error ? error.message : "Ошибка входа" });
+    next(error);
   }
 });
 
 /** Обновление сессии. */
-router.post("/refresh", async (req: Request, res: Response) => {
+router.post("/refresh", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refreshToken = extractRefreshToken(req);
     if (!refreshToken) {
-      res.status(401).json({ error: "Отсутствует refresh-токен" });
-      return;
+      throw new AppError(AppErrorCode.AUTH_REFRESH_MISSING);
     }
 
     const { auth, refreshToken: newRefresh } = await authService.refresh(refreshToken);
@@ -63,16 +61,18 @@ router.post("/refresh", async (req: Request, res: Response) => {
     res.json(auth);
   } catch (error) {
     res.clearCookie("refresh_token", { path: "/api/auth" });
-    const status = error instanceof authService.AuthError ? error.status : 500;
-    res.status(status).json({ error: error instanceof Error ? error.message : "Ошибка обновления" });
+    next(error);
   }
 });
 
 /** Выход. */
-router.post("/logout", async (req: Request, res: Response) => {
+router.post("/logout", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refreshToken = extractRefreshToken(req);
     await authService.logout(refreshToken);
+  } catch (error) {
+    next(error);
+    return;
   } finally {
     res.clearCookie("refresh_token", { path: "/api/auth" });
   }

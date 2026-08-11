@@ -4,6 +4,7 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import { hasRole, type Role } from "../config/auth.js";
+import { AppError, AppErrorCode } from "../types/errors.js";
 
 /**
  * Создаёт middleware, требующий роль не ниже заданной.
@@ -13,11 +14,11 @@ export function authorize(required: Role) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = req.user;
     if (!user) {
-      res.status(401).json({ error: "Требуется авторизация" });
+      next(new AppError(AppErrorCode.AUTH_UNAUTHORIZED));
       return;
     }
     if (!hasRole(user.role, required)) {
-      res.status(403).json({ error: "Недостаточно прав" });
+      next(new AppError(AppErrorCode.AUTH_FORBIDDEN));
       return;
     }
     next();

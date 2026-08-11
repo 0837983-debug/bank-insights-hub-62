@@ -3,12 +3,13 @@
  * Пароли генерируются системой и показываются один раз.
  * Создание супер-админа через интерфейс ЗАПРЕЩЕНО (защита от эскалации прав).
  */
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { requireSuperAdmin } from "../middleware/authorize.js";
 import { parseRole, type Role } from "../config/auth.js";
 import * as repo from "../services/auth/userRepository.js";
 import { hashPassword, generateStrongPassword } from "../services/auth/passwordService.js";
 import { revokeAllUserTokens } from "../services/auth/userRepository.js";
+import { AppError, AppErrorCode } from "../types/errors.js";
 
 const router = Router();
 
@@ -16,12 +17,12 @@ const router = Router();
 router.use(requireSuperAdmin());
 
 /** Список пользователей. */
-router.get("/", async (_req: Request, res: Response) => {
+router.get("/", async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await repo.listUsers();
     res.json({ users });
   } catch (error) {
-    res.status(500).json({ error: "Ошибка получения списка пользователей" });
+    next(error);
   }
 });
 
@@ -29,7 +30,7 @@ router.get("/", async (_req: Request, res: Response) => {
  * Создание пользователя.
  * Пароль генерируется и возвращается один раз (если не передан явно).
  */
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { username, password, role } = req.body as {
       username?: string;
@@ -38,27 +39,23 @@ router.post("/", async (req: Request, res: Response) => {
     };
 
     if (!username || typeof username !== "string") {
-      res.status(400).json({ error: "Имя пользователя обязательно" });
-      return;
+      throw new AppError(AppErrorCode.USER_REQUIRED_FIELD);
     }
 
     const parsedRole = parseRole(role);
     if (!parsedRole) {
-      res.status(400).json({ error: "Недопустимая роль" });
-      return;
+      throw new AppError(AppErrorCode.USER_INVALID_ROLE);
     }
 
     // Запрет создания супер-админа через интерфейс
     if (parsedRole === "super_admin") {
-      res.status(400).json({ error: "Создание супер-админа через интерфейс запрещено" });
-      return;
+      throw new AppError(AppErrorCode.USER_SUPER_ADMIN_FORBIDDEN);
     }
 
     // Проверка уникальности имени
     const existing = await repo.findByUsername(username);
     if (existing) {
-      res.status(409).json({ error: "Пользователь с таким именем уже существует" });
-      return;
+      throw new AppError(AppErrorCode.USER_ALREADY_EXISTS);
     }
 
     // Генерация сложного пароля, если не задан явно
@@ -70,58 +67,52 @@ router.post("/", async (req: Request, res: Response) => {
     // Пароль возвращается ТОЛЬКО здесь (однократный показ)
     res.status(201).json({ user, generatedPassword: plainPassword });
   } catch (error) {
-    res.status(500).json({ error: "Ошибка создания пользователя" });
+    next(error);
   }
 });
 
 /** Смена роли (кроме роли на супер-админа). */
-router.patch("/:id/role", async (req: Request, res: Response) => {
+router.patch("/:id/role", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     const { role } = req.body as { role?: string };
 
     const parsedRole = parseRole(role);
     if (!parsedRole) {
-      res.status(400).json({ error: "Недопустимая роль" });
-      return;
+      throw new AppError(AppErrorCode.USER_INVALID_ROLE);
     }
     if (parsedRole === "super_admin") {
-      res.status(400).json({ error: "Назначение роли супер-админа через интерфейс запрещено" });
-      return;
+      throw new AppError(AppErrorCode.USER_SUPER_ADMIN_FORBIDDEN);
     }
 
     const user = await repo.updateRole(id, parsedRole);
     if (!user) {
-      res.status(404).json({ error: "Пользователь не найден" });
-      return;
+      throw new AppError(AppErrorCode.USER_NOT_FOUND);
     }
     res.json({ user });
   } catch (error) {
-    res.status(500).json({ error: "Ошибка смены роли" });
+    next(error);
   }
 });
 
 /** Блокировка/разблокировка пользователя. */
-router.patch("/:id/active", async (req: Request, res: Response) => {
+router.patch("/:id/active", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     const { isActive } = req.body as { isActive?: boolean };
 
     if (typeof isActive !== "boolean") {
-      res.status(400).json({ error: "Поле isActive обязательно" });
-      return;
+      throw new AppError(AppErrorCode.USER_ACTIVE_REQUIRED);
     }
 
     // Нельзя заблокировать самого себя
     if (req.user && req.user.id === id) {
-      res.status(400).json({ error: "Нельзя заблокировать самого себя" });
-      return;
+      throw new AppError(AppErrorCode.USER_SELF_ACTION);
     }
 
     const user = await repo.setActive(id, isActive);
     if (!user) {
-      res.status(404).json({ error: "Пользователь не найден" });
-      return;
+      throw new AppError(AppErrorCode.USER_NOT_FOUND);
     }
 
     // При блокировке отзываем все сессии пользователя
@@ -131,41 +122,38 @@ router.patch("/:id/active", async (req: Request, res: Response) => {
 
     res.json({ user });
   } catch (error) {
-    res.status(500).json({ error: "Ошибка изменения статуса" });
+    next(error);
   }
 });
 
 /** Удаление пользователя. */
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
 
     // Нельзя удалить самого себя
     if (req.user && req.user.id === id) {
-      res.status(400).json({ error: "Нельзя удалить самого себя" });
-      return;
+      throw new AppError(AppErrorCode.USER_SELF_ACTION);
     }
 
     const deleted = await repo.deleteUser(id);
     if (!deleted) {
-      res.status(404).json({ error: "Пользователь не найден" });
-      return;
+      throw new AppError(AppErrorCode.USER_NOT_FOUND);
     }
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: "Ошибка удаления пользователя" });
+    next(error);
   }
 });
 
 /** Сброс пароля: генерация нового, показ один раз. */
-router.post("/:id/reset-password", async (req: Request, res: Response) => {
+router.post("/:id/reset-password", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
 
     const existing = await repo.findById(id);
     if (!existing) {
-      res.status(404).json({ error: "Пользователь не найден" });
-      return;
+      throw new AppError(AppErrorCode.USER_NOT_FOUND);
     }
 
     const plainPassword = generateStrongPassword();
@@ -177,7 +165,7 @@ router.post("/:id/reset-password", async (req: Request, res: Response) => {
 
     res.json({ generatedPassword: plainPassword });
   } catch (error) {
-    res.status(500).json({ error: "Ошибка сброса пароля" });
+    next(error);
   }
 });
 

@@ -3,6 +3,7 @@
  */
 import { AUTH } from "../../config/auth.js";
 import type { AuthUser, AuthResponse } from "../../types/auth.js";
+import { AppError, AppErrorCode } from "../../types/errors.js";
 import { hashPassword, verifyPassword } from "./passwordService.js";
 import {
   getRefreshTtlDays,
@@ -11,15 +12,6 @@ import {
   verifyRefreshToken,
 } from "./tokenService.js";
 import * as repo from "./userRepository.js";
-
-/** Класс ошибки домена авторизации. */
-export class AuthError extends Error {
-  status: number;
-  constructor(message: string, status = 401) {
-    super(message);
-    this.status = status;
-  }
-}
 
 /**
  * Гарантирует наличие супер-админа при первом запуске.
@@ -44,12 +36,12 @@ export async function login(params: {
 }): Promise<{ auth: AuthResponse; refreshToken: string }> {
   const user = await repo.findByUsername(params.username);
   if (!user || !user.isActive) {
-    throw new AuthError("Неверное имя пользователя или пароль");
+    throw new AppError(AppErrorCode.AUTH_INVALID_CREDENTIALS);
   }
 
   const valid = await verifyPassword(params.password, user.passwordHash);
   if (!valid) {
-    throw new AuthError("Неверное имя пользователя или пароль");
+    throw new AppError(AppErrorCode.AUTH_INVALID_CREDENTIALS);
   }
 
   const accessToken = signAccessToken({
@@ -88,18 +80,18 @@ export async function refresh(refreshToken: string): Promise<{
   try {
     payload = verifyRefreshToken(refreshToken);
   } catch {
-    throw new AuthError("Refresh-токен недействителен", 401);
+    throw new AppError(AppErrorCode.AUTH_TOKEN_EXPIRED);
   }
 
   const userId = Number(payload.sub);
   const user = await repo.findById(userId);
   if (!user || !user.isActive) {
-    throw new AuthError("Пользователь не найден или заблокирован", 401);
+    throw new AppError(AppErrorCode.AUTH_USER_BLOCKED);
   }
 
   const valid = await repo.isRefreshTokenValid(userId, refreshToken);
   if (!valid) {
-    throw new AuthError("Сессия истекла или уже использована", 401);
+    throw new AppError(AppErrorCode.AUTH_TOKEN_EXPIRED);
   }
 
   // Отзываем старый refresh (ротация токенов), выдаём новую пару

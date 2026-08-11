@@ -1,15 +1,16 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { buildQueryFromId } from "../services/queryBuilder/builder.js";
 import { loadQueryConfig } from "../services/queryBuilder/queryLoader.js";
 import { pool } from "../config/database.js";
+import { AppError, AppErrorCode, mapBuilderError } from "../types/errors.js";
 
 const router = Router();
 
 /**
  * GET /api/sql-builder/query-ids
- * Get list of available query IDs
+ * Получение списка доступных идентификаторов запросов.
  */
-router.get("/query-ids", async (req, res) => {
+router.get("/query-ids", async (_req: Request, res: Response, next: NextFunction) => {
   const client = await pool.connect();
   try {
     const result = await client.query(
@@ -27,9 +28,8 @@ router.get("/query-ids", async (req, res) => {
         config: row.config_json || null,
       })),
     });
-  } catch (error: any) {
-    console.error("Error fetching query IDs:", error);
-    return res.status(500).json({ error: "Failed to fetch query IDs" });
+  } catch (error) {
+    next(error);
   } finally {
     client.release();
   }
@@ -37,66 +37,58 @@ router.get("/query-ids", async (req, res) => {
 
 /**
  * GET /api/sql-builder/config/:query_id
- * Get config_json for a query (for prefilling params in DevTools)
+ * Получение config_json для запроса (для предзаполнения параметров).
  */
-router.get("/config/:query_id", async (req, res) => {
+router.get("/config/:query_id", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { query_id } = req.params;
     const queryConfig = await loadQueryConfig(query_id);
     if (!queryConfig) {
-      return res.status(404).json({ error: "Query config not found" });
+      throw new AppError(AppErrorCode.NOT_FOUND_DATA);
     }
     return res.json({ config: queryConfig.config });
-  } catch (error: any) {
-    console.error("Error fetching query config:", error);
-    return res.status(500).json({ error: "Failed to fetch config" });
+  } catch (error) {
+    next(error);
   }
 });
 
 /**
  * POST /api/sql-builder
- * Build SQL query from query_id and paramsJson
- * Body: { query_id: string, params: Record<string, any> }
- * Returns: { sql: string, params: any[] }
+ * Сборка SQL-запроса по query_id и params.
+ * Тело: { query_id: string, params: Record<string, unknown> }
+ * Ответ: { sql: string, params: unknown[], config }
  */
-router.post("/", async (req, res) => {
+router.post("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { query_id, params } = req.body;
+    const { query_id, params } = req.body as {
+      query_id?: string;
+      params?: Record<string, unknown>;
+    };
 
     if (!query_id || typeof query_id !== "string") {
-      return res.status(400).json({ error: "query_id is required and must be a string" });
+      throw new AppError(AppErrorCode.QUERY_INVALID_PARAMS);
     }
 
     if (!params || typeof params !== "object") {
-      return res.status(400).json({ error: "params is required and must be an object" });
+      throw new AppError(AppErrorCode.QUERY_INVALID_PARAMS);
     }
 
-    // Преобразуем params в JSON строку для builder
     const paramsJson = JSON.stringify(params);
 
-    // Загружаем конфиг для возврата
     const queryConfig = await loadQueryConfig(query_id);
     if (!queryConfig) {
-      return res.status(400).json({ error: "invalid config" });
+      throw new AppError(AppErrorCode.QUERY_INVALID_CONFIG);
     }
 
-    // Build query
-    try {
-      const sql = await buildQueryFromId(query_id, paramsJson);
-      // buildQueryFromId возвращает только SQL строку (уже с подставленными значениями)
-      // Возвращаем в формате, совместимом со старым API, плюс конфиг
-      return res.json({
-        sql,
-        params: [], // Параметры уже подставлены в SQL
-        config: queryConfig.config, // Возвращаем JSON конфиг
-      });
-    } catch (error: any) {
-      // Возвращаем детальное сообщение об ошибке
-      return res.status(400).json({ error: error.message || "invalid config" });
-    }
-  } catch (error: any) {
-    console.error("Error building SQL query:", error);
-    return res.status(500).json({ error: "Failed to build SQL query" });
+    const sql = await buildQueryFromId(query_id, paramsJson).catch(mapBuilderError);
+
+    return res.json({
+      sql,
+      params: [],
+      config: queryConfig.config,
+    });
+  } catch (error) {
+    next(error);
   }
 });
 

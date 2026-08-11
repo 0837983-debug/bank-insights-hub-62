@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../services/auth/tokenService.js";
 import { findById } from "../services/auth/userRepository.js";
 import type { RequestUser } from "../types/auth.js";
+import { AppError, AppErrorCode } from "../types/errors.js";
 
 /** Расширение объекта Request полем user (глобально для всего приложения). */
 declare global {
@@ -35,7 +36,7 @@ export async function authenticate(
   try {
     const token = extractBearerToken(req);
     if (!token) {
-      res.status(401).json({ error: "Требуется авторизация" });
+      next(new AppError(AppErrorCode.AUTH_UNAUTHORIZED));
       return;
     }
 
@@ -44,7 +45,7 @@ export async function authenticate(
 
     // Пользователь не найден или заблокирован — отклоняем
     if (!user || !user.isActive) {
-      res.status(401).json({ error: "Пользователь не найден или заблокирован" });
+      next(new AppError(AppErrorCode.AUTH_USER_BLOCKED));
       return;
     }
 
@@ -55,6 +56,6 @@ export async function authenticate(
     };
     next();
   } catch {
-    res.status(401).json({ error: "Токен недействителен или истёк" });
+    next(new AppError(AppErrorCode.AUTH_TOKEN_EXPIRED));
   }
 }

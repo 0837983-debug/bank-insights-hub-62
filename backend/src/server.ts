@@ -8,6 +8,7 @@ import routes from "./routes/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { whitelistAuth } from "./middleware/whitelistAuth.js";
 import { ensureSuperAdmin } from "./services/auth/authService.js";
+import { AppError, AppErrorCode, ERROR_CATALOG } from "./types/errors.js";
 
 dotenv.config();
 
@@ -29,10 +30,13 @@ app.use(cookieParser());
 // Ограничение частоты запросов на вход (защита от перебора паролей)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 минут
-  max: 20,
+  // Максимум попыток входа. Значение переопределяется через env (для E2E/отладки
+  // можно увеличить, чтобы тесты не упирались в лимит). По умолчанию — 20.
+  max: Number(process.env.AUTH_LOGIN_MAX ?? "20"),
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Слишком много попыток входа. Повторите позже" },
+  // Сообщение из карты ошибок (код RATE_LIMITED)
+  message: { code: AppErrorCode.AUTH_RATE_LIMITED, ...ERROR_CATALOG[AppErrorCode.AUTH_RATE_LIMITED] },
 });
 app.use("/api/auth/login", authLimiter);
 
@@ -236,8 +240,8 @@ app.use("/api", whitelistAuth);
 app.use("/api", routes);
 
 // 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ error: "Route not found" });
+app.use((_req, _res, next) => {
+  next(new AppError(AppErrorCode.NOT_FOUND_ROUTE));
 });
 
 // Error handler
