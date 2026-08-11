@@ -5,9 +5,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
+import { AuthProvider } from "@/context/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import DevTools from "./pages/DevTools";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import FileUpload from "./pages/FileUpload";
+import LoginPage from "./pages/LoginPage";
+import UserManagementPage from "./pages/UserManagementPage";
 import NotFound from "./pages/NotFound";
 
 // Очищаем кэш браузера при загрузке модуля
@@ -37,21 +41,38 @@ const queryClient = new QueryClient({
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<DynamicDashboard />} />
-              <Route path="/dev-tools" element={<DevTools />} />
-              <Route path="/upload" element={<FileUpload />} />
-            </Route>
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Вход без оболочки */}
+              <Route path="/login" element={<LoginPage />} />
+
+              {/* Защищённые маршруты внутри оболочки */}
+              <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+                <Route path="/" element={<DynamicDashboard />} />
+                <Route path="/upload" element={<FileUpload />} />
+                <Route path="/users" element={
+                  <ProtectedRoute requiredRole="super_admin">
+                    <UserManagementPage />
+                  </ProtectedRoute>
+                } />
+                {/* DevTools доступен только супер-админу */}
+                <Route path="/dev-tools" element={
+                  <ProtectedRoute requiredRole="super_admin">
+                    <DevTools />
+                  </ProtectedRoute>
+                } />
+              </Route>
+
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };

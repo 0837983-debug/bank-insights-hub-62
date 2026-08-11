@@ -1,6 +1,7 @@
-import { Building2Icon, BellIcon, SettingsIcon } from "lucide-react";
+import { Building2Icon, BellIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
+import { useAuth } from "@/context/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,11 +15,16 @@ const navLinkClassName =
   "px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors";
 const navLinkActiveClassName = "text-foreground bg-muted font-semibold";
 
-const navItems = [
+interface NavItem {
+  to: string;
+  label: string;
+  testId: string;
+}
+
+const navItems: NavItem[] = [
   { to: "/", label: "Дашборд", testId: "nav-link-dashboard" },
   { to: "/upload", label: "Загрузка файлов", testId: "nav-link-upload" },
-  { to: "/dev-tools", label: "Dev Tools", testId: "nav-link-dev-tools" },
-] as const;
+];
 
 function NavSeparator() {
   return (
@@ -29,6 +35,17 @@ function NavSeparator() {
 }
 
 export const Header = () => {
+  const { user, isSuperAdmin, logout } = useAuth();
+
+  // Пункты навигации зависят от роли пользователя
+  const dynamicNavItems = [...navItems];
+  if (isSuperAdmin) {
+    dynamicNavItems.push(
+      { to: "/users", label: "Аккаунты", testId: "nav-link-users" },
+      { to: "/dev-tools", label: "Dev Tools", testId: "nav-link-dev-tools" }
+    );
+  }
+
   return (
     <header className="border-b border-border bg-card sticky top-0 z-50" data-testid="app-header">
       <div className="container mx-auto px-6 py-4">
@@ -52,7 +69,7 @@ export const Header = () => {
               className="hidden md:flex items-center gap-1 ml-4 pl-4 border-l border-border"
               data-testid="header-nav"
             >
-              {navItems.map((item, index) => (
+              {dynamicNavItems.map((item, index) => (
                 <span key={item.to} className="flex items-center gap-1">
                   {index > 0 && <NavSeparator />}
                   <NavLink
@@ -70,6 +87,11 @@ export const Header = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {user && (
+              <span className="hidden sm:block text-sm text-muted-foreground">
+                {user.username}
+              </span>
+            )}
             <Button variant="ghost" size="icon" data-testid="btn-header-notifications">
               <BellIcon className="w-5 h-5" />
             </Button>
@@ -85,6 +107,11 @@ export const Header = () => {
                 <DropdownMenuItem>Настройки дашборда</DropdownMenuItem>
                 <DropdownMenuItem>Экспорт в PDF</DropdownMenuItem>
                 <DropdownMenuItem>Обновить данные</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => void logout()}>
+                  <LogOutIcon className="mr-2 h-4 w-4" />
+                  Выйти
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

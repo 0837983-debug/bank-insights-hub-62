@@ -4,6 +4,8 @@
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
+import { getAccessToken, setAccessToken } from "./auth-storage";
+
 // API Error class
 export class APIError extends Error {
   constructor(
@@ -16,19 +18,49 @@ export class APIError extends Error {
   }
 }
 
+/** Пытается обновить сессию через /auth/refresh (refresh в httpOnly-cookie). */
+async function tryRefreshSession(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as { accessToken?: string };
+    if (data.accessToken) {
+      setAccessToken(data.accessToken);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // Generic fetch wrapper with error handling
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  // Формируем заголовки с учётом авторизации
+  const headers = new Headers(options?.headers);
+  headers.set("Content-Type", "application/json");
+  const token = getAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const doFetch = (): Promise<Response> =>
+    fetch(url, { ...options, headers, cache: "no-store" });
+
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-      cache: "no-store",
-    });
+    let response = await doFetch();
+
+    // Если сессия истекла (401) и это не сам auth-запрос — пробуем обновить и повторить
+    if (response.status === 401 && !endpoint.startsWith("/auth/")) {
+      const refreshed = await tryRefreshSession();
+      if (refreshed) {
+        headers.set("Authorization", `Bearer ${getAccessToken() ?? ""}`);
+        response = await doFetch();
+      }
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

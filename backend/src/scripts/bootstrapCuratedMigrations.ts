@@ -74,4 +74,5 @@ export const BOOTSTRAP_CURATED_MIGRATIONS = [
   "078_move_table_pnl_to_fin_results_section.sql",
   "079_fix_dashboard_config_gaps.sql",
   "080_create_schema_migrations_table.sql",
+  "081_create_auth_tables.sql",
 ] as const;
