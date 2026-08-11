@@ -11,9 +11,17 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     cors: true,
     // Разрешённые хосты для dev-сервера (чтобы Vite не блокировал запросы)
-    allowedHosts: ["localhost", "127.0.0.1", "cifra.pastbin.pro"],
+    allowedHosts: ["localhost", "127.0.0.1", "frontend", "frontend:8080", "cifra.pastbin.pro"],
     hmr: {
       host: "localhost",
+    },
+    // Проксирование API: браузер ходит на /api своего origin,
+    // а vite-сервер перенаправляет запрос на backend (внутри docker-сети).
+    proxy: {
+      "/api": {
+        target: process.env.VITE_PROXY_TARGET || "http://backend:3001",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
