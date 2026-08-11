@@ -27,6 +27,8 @@ const backendDevCommand =
  */
 export default defineConfig({
   testDir: "./e2e",
+  /* Один вход администратора на весь прогон — токен сохраняется в .auth */
+  globalSetup: "./e2e/global-setup.ts",
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

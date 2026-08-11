@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
@@ -26,8 +26,8 @@ test.describe("API Integration Tests", () => {
   }
 
   test.describe("Health Check", () => {
-    test("should return health status", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/health`);
+    test("should return health status", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/health`);
 
       expect(response.ok()).toBeTruthy();
       expect(response.status()).toBe(200);
@@ -40,9 +40,9 @@ test.describe("API Integration Tests", () => {
   });
 
   test.describe("KPI Endpoints", () => {
-    test("should fetch all KPIs via /api/data", async ({ request }) => {
+    test("should fetch all KPIs via /api/data", async ({ authedRequest }) => {
       // Старый endpoint /api/kpis удалён, используем новый /api/data?query_id=kpis
-      const headerDates = await getHeaderDates(request);
+      const headerDates = await getHeaderDates(authedRequest);
       const paramsJson = JSON.stringify({
         p1: headerDates.p1,
         p2: headerDates.p2,
@@ -50,7 +50,7 @@ test.describe("API Integration Tests", () => {
         layout_id: "main_dashboard",
       });
 
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(paramsJson)}`
       );
 
@@ -73,40 +73,40 @@ test.describe("API Integration Tests", () => {
       }
     });
 
-    test("old /api/kpis endpoint should return 404", async ({ request }) => {
+    test("old /api/kpis endpoint should return 404", async ({ authedRequest }) => {
       // Старый endpoint должен возвращать 404
-      const response = await request.get(`${API_BASE_URL}/kpis`);
+      const response = await authedRequest.get(`${API_BASE_URL}/kpis`);
       expect([404, 400]).toContain(response.status());
       const data = await response.json();
-      expect(data).toHaveProperty("error");
+      expect(data).toHaveProperty("code");
     });
 
-    test.skip("should fetch KPI categories", async ({ request }) => {
+    test.skip("should fetch KPI categories", async ({ authedRequest }) => {
       // Этот endpoint больше не существует, пропускаем тест
       // Если в будущем понадобится категоризация, можно будет реализовать через /api/data
     });
 
-    test.skip("should fetch KPIs by category", async ({ request }) => {
+    test.skip("should fetch KPIs by category", async ({ authedRequest }) => {
       // Этот endpoint больше не существует, пропускаем тест
     });
 
-    test.skip("should fetch single KPI by ID", async ({ request }) => {
+    test.skip("should fetch single KPI by ID", async ({ authedRequest }) => {
       // Этот endpoint больше не существует, пропускаем тест
       // Можно получить конкретный KPI через фильтрацию в /api/data
     });
 
-    test("old /api/kpis/:id endpoint should return 404", async ({ request }) => {
+    test("old /api/kpis/:id endpoint should return 404", async ({ authedRequest }) => {
       // Старый endpoint должен возвращать 404
-      const response = await request.get(`${API_BASE_URL}/kpis/nonexistent-id-12345`);
+      const response = await authedRequest.get(`${API_BASE_URL}/kpis/nonexistent-id-12345`);
       expect([404, 400]).toContain(response.status());
     });
   });
 
   test.describe("Layout Endpoint", () => {
-    test("should fetch layout structure", async ({ request }) => {
+    test("should fetch layout structure", async ({ authedRequest }) => {
       // Новый формат: /api/data?query_id=layout
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
       );
 
@@ -140,10 +140,10 @@ test.describe("API Integration Tests", () => {
   });
 
   test.describe("Table Data Endpoints", () => {
-    test("should handle table data request", async ({ request }) => {
+    test("should handle table data request", async ({ authedRequest }) => {
       // Старый endpoint /api/table-data может быть удален или изменен
       // Используем новый формат /api/data?query_id=...
-      const headerDates = await getHeaderDates(request);
+      const headerDates = await getHeaderDates(authedRequest);
       const paramsJson = JSON.stringify({
         p1: headerDates.p1,
         p2: headerDates.p2,
@@ -152,7 +152,7 @@ test.describe("API Integration Tests", () => {
       });
       
       // Пробуем новый endpoint
-      const newResponse = await request.get(
+      const newResponse = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(paramsJson)}`
       );
 
@@ -165,16 +165,16 @@ test.describe("API Integration Tests", () => {
         expect(Array.isArray(data.rows)).toBe(true);
       } else {
         // Если новый endpoint не работает, проверяем старый (может быть удален)
-        const oldResponse = await request.get(`${API_BASE_URL}/table-data/income`);
+        const oldResponse = await authedRequest.get(`${API_BASE_URL}/table-data/income`);
         const status = oldResponse.status();
         expect([404, 400, 500].includes(status)).toBe(true);
       }
     });
 
-    test("should handle table data with groupBy param", async ({ request }) => {
+    test("should handle table data with groupBy param", async ({ authedRequest }) => {
       // Старый endpoint /api/table-data может быть удален
       // Используем новый формат /api/data?query_id=...
-      const headerDates = await getHeaderDates(request);
+      const headerDates = await getHeaderDates(authedRequest);
       const paramsJson = JSON.stringify({
         p1: headerDates.p1,
         p2: headerDates.p2,
@@ -183,7 +183,7 @@ test.describe("API Integration Tests", () => {
       });
       
       // Пробуем новый endpoint
-      const newResponse = await request.get(
+      const newResponse = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(paramsJson)}`
       );
 
@@ -200,7 +200,7 @@ test.describe("API Integration Tests", () => {
         }
       } else {
         // Если новый endpoint не работает, проверяем старый (может быть удален)
-        const oldResponse = await request.get(
+        const oldResponse = await authedRequest.get(
           `${API_BASE_URL}/table-data/income?groupBy=product_line`
         );
         const status = oldResponse.status();
@@ -208,9 +208,9 @@ test.describe("API Integration Tests", () => {
       }
     });
 
-    test("should return error for non-existent table", async ({ request }) => {
+    test("should return error for non-existent table", async ({ authedRequest }) => {
       // Проверяем новый endpoint с несуществующим query_id
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=nonexistent_table&component_Id=test`
       );
 
@@ -221,8 +221,8 @@ test.describe("API Integration Tests", () => {
   });
 
   test.describe("Chart Data Endpoints", () => {
-    test("should fetch chart data if available", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/chart-data/mau_trend`);
+    test("should fetch chart data if available", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/chart-data/mau_trend`);
 
       // Chart data might not be available, so accept both success and error
       if (response.ok()) {
@@ -237,12 +237,12 @@ test.describe("API Integration Tests", () => {
         const status = response.status();
         expect([404, 500].includes(status)).toBe(true);
         const errorData = await response.json();
-        expect(errorData).toHaveProperty("error");
+        expect(errorData).toHaveProperty("code");
       }
     });
 
-    test("should return 404 for non-existent chart", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/chart-data/nonexistent-chart-123`);
+    test("should return 404 for non-existent chart", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/chart-data/nonexistent-chart-123`);
 
       const status = response.status();
       expect([404, 500].includes(status)).toBe(true);
@@ -250,15 +250,15 @@ test.describe("API Integration Tests", () => {
   });
 
   test.describe("Error Handling", () => {
-    test("should return 404 for non-existent endpoint", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/nonexistent-endpoint`);
+    test("should return 404 for non-existent endpoint", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/nonexistent-endpoint`);
 
       expect(response.status()).toBe(404);
     });
 
-    test("should handle invalid table ID gracefully", async ({ request }) => {
+    test("should handle invalid table ID gracefully", async ({ authedRequest }) => {
       // Проверяем новый endpoint с невалидным query_id
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=invalid_table_id&component_Id=test`
       );
 
@@ -269,15 +269,15 @@ test.describe("API Integration Tests", () => {
   });
 
   test.describe("Response Format", () => {
-    test("should return JSON content type", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/health`);
+    test("should return JSON content type", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/health`);
 
       const contentType = response.headers()["content-type"];
       expect(contentType).toContain("application/json");
     });
 
-    test("should have CORS headers", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/health`);
+    test("should have CORS headers", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/health`);
 
       // CORS headers should be present (backend uses cors middleware)
       const headers = response.headers();

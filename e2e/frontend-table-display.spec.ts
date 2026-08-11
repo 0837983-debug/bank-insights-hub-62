@@ -1,9 +1,12 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
+import { loginAsAdmin } from "./helpers/auth.js";
 
 const FRONTEND_URL = "http://localhost:8080";
 
 test.describe("Frontend - Table Display", () => {
   test.beforeEach(async ({ page }) => {
+    // Требуется авторизация — входим админом (dev-лимит позволяет многократные входы)
+    await loginAsAdmin(page);
     // Переходим на главную страницу
     await page.goto(FRONTEND_URL);
     

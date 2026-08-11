@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
@@ -23,8 +23,8 @@ test.describe("GET /api/data - getData endpoint", () => {
   }
 
   test.describe("Successful requests", () => {
-    test("should return data for header_dates query", async ({ request }) => {
-      const response = await request.get(
+    test("should return data for header_dates query", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -50,11 +50,11 @@ test.describe("GET /api/data - getData endpoint", () => {
       }
     });
 
-    test("should return data for assets_table query with params", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should return data for assets_table query with params", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
 
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
@@ -83,70 +83,70 @@ test.describe("GET /api/data - getData endpoint", () => {
     });
 
     // POST запросы к /api/data удалены, используем только GET
-    test.skip("should accept POST request with query_id and params in body", async ({ request }) => {
+    test.skip("should accept POST request with query_id and params in body", async ({ authedRequest }) => {
       // POST endpoint удален, используем GET вместо этого
       test.skip();
     });
 
-    test.skip("should return data for assets_table via POST", async ({ request }) => {
+    test.skip("should return data for assets_table via POST", async ({ authedRequest }) => {
       // POST endpoint удален, используем GET вместо этого
       test.skip();
     });
   });
 
   test.describe("Error handling - invalid params", () => {
-    test("should return 400 for missing required params", async ({ request }) => {
+    test("should return 400 for missing required params", async ({ authedRequest }) => {
       // assets_table требует параметры p1, p2, p3 через parametrs
       const paramsStr = encodeURIComponent(JSON.stringify({})); // Пустые параметры
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toMatch(/invalid params|missing required|invalid config/i);
+      expect(error).toHaveProperty("code");
+      expect(error.code).toMatch(/QUERY_INVALID_PARAMS|QUERY_INVALID_CONFIG/i);
     });
 
-    test("should return 400 for invalid query_id", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 for invalid query_id", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=non_existent_query&component_Id=test`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toMatch(/invalid config|not found/i);
+      expect(error).toHaveProperty("code");
+      expect(error.code).toMatch(/QUERY_INVALID_CONFIG/i);
     });
 
-    test("should return 400 for missing query_id", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 for missing query_id", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?component_Id=test`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
+      expect(error).toHaveProperty("code");
     });
 
-    test("should return 400 for invalid params format in GET", async ({ request }) => {
+    test("should return 400 for invalid params format in GET", async ({ authedRequest }) => {
       // Некорректный JSON в query string
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=invalid_json`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
+      expect(error).toHaveProperty("code");
     });
   });
 
   test.describe("Error handling - SQL errors", () => {
-    test("should return 500 for SQL execution errors", async ({ request }) => {
+    test("should return 500 for SQL execution errors", async ({ authedRequest }) => {
       // Попытка использовать несуществующую таблицу через невалидный конфиг
       // Для этого нужно создать тестовый конфиг с невалидным SQL или использовать существующий
       // с параметрами, которые приведут к SQL ошибке
@@ -166,7 +166,7 @@ test.describe("GET /api/data - getData endpoint", () => {
       test.skip();
     });
 
-    test("should handle database connection errors gracefully", async ({ request }) => {
+    test("should handle database connection errors gracefully", async ({ authedRequest }) => {
       // Этот тест требует остановки БД, что сложно сделать в E2E тестах
       // Проверяем, что endpoint обрабатывает ошибки
       // В реальном сценарии ошибки подключения обрабатываются через errorHandler
@@ -175,10 +175,10 @@ test.describe("GET /api/data - getData endpoint", () => {
   });
 
   test.describe("Response format", () => {
-    test("should return JSON array for table queries", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should return JSON array for table queries", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
@@ -191,8 +191,8 @@ test.describe("GET /api/data - getData endpoint", () => {
       expect(Array.isArray(responseData.rows)).toBe(true);
     });
 
-    test("should return valid JSON structure", async ({ request }) => {
-      const response = await request.get(
+    test("should return valid JSON structure", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -210,9 +210,9 @@ test.describe("GET /api/data - getData endpoint", () => {
   });
 
   test.describe("Edge cases", () => {
-    test("should handle empty params object", async ({ request }) => {
+    test("should handle empty params object", async ({ authedRequest }) => {
       const paramsStr = encodeURIComponent(JSON.stringify({}));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${paramsStr}`
       );
 
@@ -220,19 +220,19 @@ test.describe("GET /api/data - getData endpoint", () => {
       expect(response.ok()).toBeTruthy();
     });
 
-    test("should handle query_id with special characters", async ({ request }) => {
+    test("should handle query_id with special characters", async ({ authedRequest }) => {
       // Попытка использовать query_id с недопустимыми символами
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=invalid-query-id-123&component_Id=test`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
+      expect(error).toHaveProperty("code");
     });
 
-    test("should handle very large params object", async ({ request }) => {
+    test("should handle very large params object", async ({ authedRequest }) => {
       // Создаем большой объект параметров
       const largeParams: Record<string, string> = {};
       for (let i = 0; i < 100; i++) {
@@ -240,7 +240,7 @@ test.describe("GET /api/data - getData endpoint", () => {
       }
 
       const paramsStr = encodeURIComponent(JSON.stringify(largeParams));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${paramsStr}`
       );
 

@@ -1,13 +1,14 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
+import { loginAsAdmin } from "./helpers/auth.js";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
 test.describe("Header Component - Backend", () => {
   test.describe("Component configuration", () => {
-    test("should have header component in config.components", async ({ request }) => {
+    test("should have header component in config.components", async ({ authedRequest }) => {
       // Проверяем через новый API /api/data?query_id=layout
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
       );
 
@@ -23,9 +24,9 @@ test.describe("Header Component - Backend", () => {
       expect(headerComponent?.componentId || headerComponent?.id).toBe("header");
     });
 
-    test("should have data_source_key = header_dates for header component", async ({ request }) => {
+    test("should have data_source_key = header_dates for header component", async ({ authedRequest }) => {
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
       );
 
@@ -42,9 +43,9 @@ test.describe("Header Component - Backend", () => {
       }
     });
 
-    test("should have header component in layout_component_mapping", async ({ request }) => {
+    test("should have header component in layout_component_mapping", async ({ authedRequest }) => {
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
       );
 
@@ -61,8 +62,8 @@ test.describe("Header Component - Backend", () => {
   });
 
   test.describe("Data source query", () => {
-    test("should be able to fetch header_dates data via getData", async ({ request }) => {
-      const response = await request.get(
+    test("should be able to fetch header_dates data via getData", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -86,8 +87,8 @@ test.describe("Header Component - Backend", () => {
       expect(firstRow).toHaveProperty("isP3");
     });
 
-    test("should return valid date format from header_dates", async ({ request }) => {
-      const response = await request.get(
+    test("should return valid date format from header_dates", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -110,6 +111,11 @@ test.describe("Header Component - Backend", () => {
 
 test.describe("Header Component - Frontend Integration", () => {
   test.describe("Layout integration", () => {
+    // UI-тесты требуют авторизации — входим админом
+    test.beforeEach(async ({ page }) => {
+      await loginAsAdmin(page);
+    });
+
     test("should render header component from layout", async ({ page }) => {
       // Переходим на главную страницу
       await page.goto("http://localhost:8080/");

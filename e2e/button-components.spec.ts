@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
+import { loginAsAdmin } from "./helpers/auth.js";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
@@ -44,8 +45,8 @@ async function fetchLayout(request: any) {
 
 test.describe("Button Components", () => {
   test.describe("Backend - Layout JSON", () => {
-    test("should not return groupableFields in layout JSON", async ({ request }) => {
-      const layout = await fetchLayout(request);
+    test("should not return groupableFields in layout JSON", async ({ authedRequest }) => {
+      const layout = await fetchLayout(authedRequest);
 
       // Проверяем, что layout содержит компоненты
       expect(layout).toHaveProperty("components");
@@ -73,8 +74,8 @@ test.describe("Button Components", () => {
       }
     });
 
-    test("should return buttons as child components of tables", async ({ request }) => {
-      const layout = await fetchLayout(request);
+    test("should return buttons as child components of tables", async ({ authedRequest }) => {
+      const layout = await fetchLayout(authedRequest);
 
       // Ищем таблицы
       const tableComponents = layout.components?.filter(
@@ -108,8 +109,8 @@ test.describe("Button Components", () => {
       }
     });
 
-    test("should return buttons with data_source_key", async ({ request }) => {
-      const layout = await fetchLayout(request);
+    test("should return buttons with data_source_key", async ({ authedRequest }) => {
+      const layout = await fetchLayout(authedRequest);
 
       // Ищем все кнопки в layout
       const allButtons: any[] = [];
@@ -163,6 +164,11 @@ test.describe("Button Components", () => {
   });
 
   test.describe("Frontend - Button Interaction", () => {
+    // UI-тесты требуют авторизации — входим админом
+    test.beforeEach(async ({ page }) => {
+      await loginAsAdmin(page);
+    });
+
     test("should render buttons for tables", async ({ page }) => {
       // Переходим на главную страницу
       await page.goto("http://localhost:8080/");

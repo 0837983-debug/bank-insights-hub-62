@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -7,7 +7,7 @@ const TEST_DATA_DIR = join(process.cwd(), "test-data", "uploads");
 
 test.describe("Upload API Integration Tests", () => {
   test.describe("POST /api/upload", () => {
-    test("should upload a valid CSV file", async ({ request }) => {
+    test("should upload a valid CSV file", async ({ authedRequest }) => {
       const testFile = readFileSync(join(TEST_DATA_DIR, "capital_2025-01.csv"));
       
       // Create FormData for multipart/form-data
@@ -16,7 +16,7 @@ test.describe("Upload API Integration Tests", () => {
       formData.append("file", blob, "capital_2025-01.csv");
       formData.append("targetTable", "balance");
 
-      const response = await request.post(`${API_BASE_URL}/upload`, {
+      const response = await authedRequest.post(`${API_BASE_URL}/upload`, {
         multipart: {
           file: {
             name: "capital_2025-01.csv",
@@ -46,10 +46,10 @@ test.describe("Upload API Integration Tests", () => {
       }
     });
 
-    test("should reject invalid file format", async ({ request }) => {
+    test("should reject invalid file format", async ({ authedRequest }) => {
       const invalidFile = Buffer.from("This is not a CSV file");
       
-      const response = await request.post(`${API_BASE_URL}/upload`, {
+      const response = await authedRequest.post(`${API_BASE_URL}/upload`, {
         multipart: {
           file: {
             name: "invalid.txt",
@@ -64,10 +64,10 @@ test.describe("Upload API Integration Tests", () => {
       expect([400, 422, 415]).toContain(response.status());
     });
 
-    test("should validate CSV file structure", async ({ request }) => {
+    test("should validate CSV file structure", async ({ authedRequest }) => {
       const invalidFile = readFileSync(join(TEST_DATA_DIR, "capital_2025-01_wrong_structure.csv"));
       
-      const response = await request.post(`${API_BASE_URL}/upload`, {
+      const response = await authedRequest.post(`${API_BASE_URL}/upload`, {
         multipart: {
           file: {
             name: "capital_2025-01_wrong_structure.csv",
@@ -97,10 +97,10 @@ test.describe("Upload API Integration Tests", () => {
       }
     });
 
-    test("should return validation errors for invalid data", async ({ request }) => {
+    test("should return validation errors for invalid data", async ({ authedRequest }) => {
       const invalidDateFile = readFileSync(join(TEST_DATA_DIR, "capital_2025-01_invalid_date.csv"));
       
-      const response = await request.post(`${API_BASE_URL}/upload`, {
+      const response = await authedRequest.post(`${API_BASE_URL}/upload`, {
         multipart: {
           file: {
             name: "capital_2025-01_invalid_date.csv",
@@ -131,11 +131,11 @@ test.describe("Upload API Integration Tests", () => {
   });
 
   test.describe("GET /api/upload/:uploadId", () => {
-    test("should return upload status", async ({ request }) => {
+    test("should return upload status", async ({ authedRequest }) => {
       // First, create an upload
       const testFile = readFileSync(join(TEST_DATA_DIR, "capital_2025-01.csv"));
       
-      const uploadResponse = await request.post(`${API_BASE_URL}/upload`, {
+      const uploadResponse = await authedRequest.post(`${API_BASE_URL}/upload`, {
         multipart: {
           file: {
             name: "capital_2025-01.csv",
@@ -156,11 +156,11 @@ test.describe("Upload API Integration Tests", () => {
       }
 
       // Get upload status - endpoint may be /api/upload/:id or /api/uploads/:id
-      let statusResponse = await request.get(`${API_BASE_URL}/upload/${uploadId}`);
+      let statusResponse = await authedRequest.get(`${API_BASE_URL}/upload/${uploadId}`);
       
       // If 404, try alternative endpoint
       if (statusResponse.status() === 404) {
-        statusResponse = await request.get(`${API_BASE_URL}/uploads/${uploadId}`);
+        statusResponse = await authedRequest.get(`${API_BASE_URL}/uploads/${uploadId}`);
       }
 
       if (statusResponse.ok()) {
@@ -174,8 +174,8 @@ test.describe("Upload API Integration Tests", () => {
       }
     });
 
-    test("should return 404 for non-existent upload", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/upload/999999`);
+    test("should return 404 for non-existent upload", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/upload/999999`);
 
       // Может вернуть 404 или 400 (если ID невалидный)
       expect([400, 404]).toContain(response.status());
@@ -183,11 +183,11 @@ test.describe("Upload API Integration Tests", () => {
   });
 
   test.describe("POST /api/upload/:uploadId/rollback", () => {
-    test("should rollback an upload", async ({ request }) => {
+    test("should rollback an upload", async ({ authedRequest }) => {
       // First, create an upload
       const testFile = readFileSync(join(TEST_DATA_DIR, "capital_2025-01.csv"));
       
-      const uploadResponse = await request.post(`${API_BASE_URL}/upload`, {
+      const uploadResponse = await authedRequest.post(`${API_BASE_URL}/upload`, {
         multipart: {
           file: {
             name: "capital_2025-01.csv",
@@ -217,7 +217,7 @@ test.describe("Upload API Integration Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Rollback the upload
-      const rollbackResponse = await request.post(`${API_BASE_URL}/upload/${uploadId}/rollback`);
+      const rollbackResponse = await authedRequest.post(`${API_BASE_URL}/upload/${uploadId}/rollback`);
 
       // Should accept rollback request
       expect([200, 202]).toContain(rollbackResponse.status());
@@ -229,8 +229,8 @@ test.describe("Upload API Integration Tests", () => {
       expect(["rolled_back", "rolling_back"]).toContain(rollbackData.status);
     });
 
-    test("should return 404 for non-existent upload rollback", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/upload/999999/rollback`);
+    test("should return 404 for non-existent upload rollback", async ({ authedRequest }) => {
+      const response = await authedRequest.post(`${API_BASE_URL}/upload/999999/rollback`);
 
       // Может вернуть 404 или 400 (если ID невалидный)
       expect([400, 404]).toContain(response.status());
@@ -238,8 +238,8 @@ test.describe("Upload API Integration Tests", () => {
   });
 
   test.describe("GET /api/uploads", () => {
-    test("should return upload history", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/uploads`);
+    test("should return upload history", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/uploads`);
 
       // Endpoint should respond (may be 200 or 500 if no uploads yet)
       if (response.ok()) {
@@ -260,8 +260,8 @@ test.describe("Upload API Integration Tests", () => {
       }
     });
 
-    test("should support filtering by status", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/uploads?status=completed`);
+    test("should support filtering by status", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/uploads?status=completed`);
 
       // Endpoint должен работать
       if (response.ok()) {

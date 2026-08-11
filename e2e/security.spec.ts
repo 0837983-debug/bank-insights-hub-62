@@ -1,10 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
 test.describe("Security Tests", () => {
   test.describe("SQL Injection Protection", () => {
-    test("should prevent SQL injection in tableId parameter", async ({ request }) => {
+    test("should prevent SQL injection in tableId parameter", async ({ authedRequest }) => {
       const maliciousInputs = [
         "'; DROP TABLE mart.balance; --",
         "' OR '1'='1",
@@ -19,7 +19,7 @@ test.describe("Security Tests", () => {
           p3: "2024-12-01",
         });
         
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(paramsJson)}`
         );
 
@@ -40,7 +40,7 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test("should prevent SQL injection in query parameters", async ({ request }) => {
+    test("should prevent SQL injection in query parameters", async ({ authedRequest }) => {
       const maliciousInputs = [
         "product_line'; DROP TABLE mart.balance; --",
         "groupBy'; SELECT * FROM pg_user; --",
@@ -55,7 +55,7 @@ test.describe("Security Tests", () => {
           p3: maliciousInput,
         });
         
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(paramsJson)}`
         );
 
@@ -68,7 +68,7 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test("should prevent SQL injection in layout_id parameter", async ({ request }) => {
+    test("should prevent SQL injection in layout_id parameter", async ({ authedRequest }) => {
       const maliciousInputs = [
         "'; DROP TABLE config.layouts; --",
         "' OR '1'='1",
@@ -78,7 +78,7 @@ test.describe("Security Tests", () => {
       for (const maliciousInput of maliciousInputs) {
         // Новый формат: /api/data?query_id=layout&parametrs={...}
         const paramsJson = JSON.stringify({ layout_id: maliciousInput });
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
         );
 
@@ -91,7 +91,7 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test("should prevent SQL injection in KPI query parameters", async ({ request }) => {
+    test("should prevent SQL injection in KPI query parameters", async ({ authedRequest }) => {
       const maliciousInputs = [
         "'; DROP TABLE mart.kpi_metrics; --",
         "category'; DELETE FROM mart.kpi_metrics; --",
@@ -105,7 +105,7 @@ test.describe("Security Tests", () => {
           p2: "2025-11-01",
           p3: "2024-12-01"
         });
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(paramsJson)}`
         );
 
@@ -122,7 +122,7 @@ test.describe("Security Tests", () => {
   // The /api/commands/run endpoint has been disabled for security reasons
 
   test.describe("XSS (Cross-Site Scripting) Protection", () => {
-    test("should sanitize user input in API responses", async ({ request }) => {
+    test("should sanitize user input in API responses", async ({ authedRequest }) => {
       const xssPayloads = [
         "<script>alert('XSS')</script>",
         "<img src=x onerror=alert('XSS')>",
@@ -139,7 +139,7 @@ test.describe("Security Tests", () => {
           p3: "2024-12-01",
         });
         
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(paramsJson)}`
         );
         const body = await response.text();
@@ -182,9 +182,9 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test("should escape HTML in JSON responses", async ({ request }) => {
+    test("should escape HTML in JSON responses", async ({ authedRequest }) => {
       // Старый endpoint /api/kpis удален, используем новый /api/data?query_id=kpis
-      const headerDatesResponse = await request.get(
+      const headerDatesResponse = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
       
@@ -199,7 +199,7 @@ test.describe("Security Tests", () => {
           p3: dates.pyDate || "2024-12-01",
         });
         
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(paramsJson)}`
         );
         
@@ -226,7 +226,7 @@ test.describe("Security Tests", () => {
   });
 
   test.describe("Input Validation", () => {
-    test("should validate and sanitize tableId parameter", async ({ request }) => {
+    test("should validate and sanitize tableId parameter", async ({ authedRequest }) => {
       const invalidInputs = [
         "../../etc/passwd",
         "null",
@@ -247,7 +247,7 @@ test.describe("Security Tests", () => {
           p3: "2024-12-01",
         });
         
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=${encodeURIComponent(input)}&component_Id=test&parametrs=${encodeURIComponent(paramsJson)}`
         );
 
@@ -256,7 +256,7 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test.skip("should limit request size", async ({ request }) => {
+    test.skip("should limit request size", async ({ authedRequest }) => {
       // Skipped: URL encoding of large payloads creates issues
       // This test documents the requirement for rate/size limiting
       const largePayload = "x".repeat(100 * 1024);
@@ -266,13 +266,13 @@ test.describe("Security Tests", () => {
         p3: "2024-12-01",
       });
 
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(paramsJson)}`
       );
       expect([200, 400, 404, 413, 414, 500]).toContain(response.status());
     });
 
-    test("should validate JSON structure", async ({ request }) => {
+    test("should validate JSON structure", async ({ authedRequest }) => {
       // Test with layout endpoint as example since /api/commands/run has been removed
       const invalidPayloads = [
         "not json",
@@ -283,7 +283,7 @@ test.describe("Security Tests", () => {
       // This test is now less relevant since we're using GET endpoints
       // But we can test that invalid query parameters are handled
       for (const payload of invalidPayloads) {
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/layout?layout_id=${encodeURIComponent(payload)}`
         );
 
@@ -292,7 +292,7 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test("should handle special characters safely", async ({ request }) => {
+    test("should handle special characters safely", async ({ authedRequest }) => {
       const specialChars = [
         "\n",
         "\r",
@@ -312,7 +312,7 @@ test.describe("Security Tests", () => {
           p3: "2024-12-01",
         });
         
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(paramsJson)}`
         );
 
@@ -323,7 +323,7 @@ test.describe("Security Tests", () => {
   });
 
   test.describe("Authentication & Authorization", () => {
-    test("should protect sensitive endpoints", async ({ request }) => {
+    test("should protect sensitive endpoints", async ({ authedRequest }) => {
       // The /api/commands/run endpoint has been removed for security reasons
       // This test now documents that sensitive endpoints should require auth
       const sensitiveEndpoints: Array<{ method: string; path: string; data?: any }> = [
@@ -332,7 +332,7 @@ test.describe("Security Tests", () => {
       ];
 
       for (const endpoint of sensitiveEndpoints) {
-        const response = await request.fetch(`${API_BASE_URL}${endpoint.path}`, {
+        const response = await authedRequest.fetch(`${API_BASE_URL}${endpoint.path}`, {
           method: endpoint.method,
           data: endpoint.data,
         });
@@ -344,7 +344,7 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test("should handle rapid requests", async ({ request }) => {
+    test("should handle rapid requests", async ({ authedRequest }) => {
       // Make rapid requests to verify server stability
       const paramsJson = JSON.stringify({
         layout_id: "main_dashboard",
@@ -354,7 +354,7 @@ test.describe("Security Tests", () => {
       });
       
       const requests = Array(10).fill(null).map(() =>
-        request.get(`${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(paramsJson)}`)
+        authedRequest.get(`${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(paramsJson)}`)
       );
 
       const responses = await Promise.all(requests);
@@ -371,10 +371,10 @@ test.describe("Security Tests", () => {
   });
 
   test.describe("Security Headers", () => {
-    test("should include security headers in responses", async ({ request }) => {
+    test("should include security headers in responses", async ({ authedRequest }) => {
       // Use a valid endpoint that exists
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
       );
       const headers = response.headers();
@@ -391,9 +391,9 @@ test.describe("Security Tests", () => {
       expect(response.status()).toBeLessThanOrEqual(500);
     });
 
-    test("should configure CORS properly", async ({ request }) => {
+    test("should configure CORS properly", async ({ authedRequest }) => {
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`,
         { headers: { Origin: "https://evil.com" } }
       );
@@ -407,9 +407,9 @@ test.describe("Security Tests", () => {
       expect(response.status()).toBeLessThanOrEqual(500);
     });
 
-    test("should not expose sensitive server information", async ({ request }) => {
+    test("should not expose sensitive server information", async ({ authedRequest }) => {
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
       );
       const headers = response.headers();
@@ -427,14 +427,14 @@ test.describe("Security Tests", () => {
   });
 
   test.describe("Error Handling", () => {
-    test("should not expose sensitive information in error messages", async ({ request }) => {
+    test("should not expose sensitive information in error messages", async ({ authedRequest }) => {
       const errorScenarios = [
         { method: "GET", path: "/nonexistent-endpoint" },
         { method: "GET", path: "/data?query_id=invalid_query&component_Id=test" },
       ];
 
       for (const scenario of errorScenarios) {
-        const response = await request.fetch(`${API_BASE_URL}${scenario.path}`, {
+        const response = await authedRequest.fetch(`${API_BASE_URL}${scenario.path}`, {
           method: scenario.method,
         });
 
@@ -449,21 +449,22 @@ test.describe("Security Tests", () => {
       }
     });
 
-    test("should return consistent error format", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/nonexistent-endpoint`);
+    test("should return consistent error format", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/nonexistent-endpoint`);
       
       // Should return JSON, not HTML
       const contentType = response.headers()["content-type"];
       expect(contentType).toContain("application/json");
 
       const body = await response.json();
-      // Error response should have error property
-      expect(body).toHaveProperty("error");
+      // Единый формат ошибки — код и человекочитаемое сообщение
+      expect(body).toHaveProperty("code");
+      expect(body).toHaveProperty("message");
     });
   });
 
   test.describe("Path Traversal Protection", () => {
-    test("should prevent path traversal in file operations", async ({ request }) => {
+    test("should prevent path traversal in file operations", async ({ authedRequest }) => {
       const pathTraversalInputs = [
         "../../etc/passwd",
         "../../../etc/shadow",
@@ -476,7 +477,7 @@ test.describe("Security Tests", () => {
           p3: "2024-12-01",
         });
         
-        const response = await request.get(
+        const response = await authedRequest.get(
           `${API_BASE_URL}/data?query_id=${encodeURIComponent(input)}&component_Id=test&parametrs=${encodeURIComponent(paramsJson)}`
         );
 
@@ -490,7 +491,7 @@ test.describe("Security Tests", () => {
   });
 
   test.describe("HTTP Method Validation", () => {
-    test("should reject unsupported HTTP methods", async ({ request }) => {
+    test("should reject unsupported HTTP methods", async ({ authedRequest }) => {
       // Test /api/data endpoint which only accepts GET
       const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
       const url = `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`;
@@ -498,7 +499,7 @@ test.describe("Security Tests", () => {
       const unsupportedMethods = ["PUT", "DELETE", "PATCH"];
 
       for (const method of unsupportedMethods) {
-        const response = await request.fetch(url, {
+        const response = await authedRequest.fetch(url, {
           method: method as any,
         });
 

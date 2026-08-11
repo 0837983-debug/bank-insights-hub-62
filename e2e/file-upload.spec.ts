@@ -1,5 +1,6 @@
-import { test, expect, request } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 import { join } from "path";
+import { loginAsAdmin } from "./helpers/auth.js";
 import * as fs from "fs";
 
 const TEST_DATA_DIR = join(process.cwd(), "test-data", "uploads");
@@ -7,6 +8,7 @@ const API_BASE_URL = "http://localhost:3001/api";
 
 test.describe("File Upload E2E Tests", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
     // Navigate to upload page
     await page.goto("http://localhost:8080/upload");
     await page.waitForLoadState("domcontentloaded");
@@ -317,7 +319,7 @@ test.describe("File Upload E2E Tests", () => {
 });
 
 test.describe("Financial Results Pipeline API Tests", () => {
-  test("should load fin_results data through STG → ODS → MART pipeline", async ({ request }) => {
+  test("should load fin_results data through STG → ODS → MART pipeline", async ({ authedRequest }) => {
     // Upload fin_results file via API
     const testFile = join(TEST_DATA_DIR, "fin_results_2025-01.csv");
     const fileBuffer = fs.readFileSync(testFile);
@@ -327,7 +329,7 @@ test.describe("Financial Results Pipeline API Tests", () => {
     formData.append("targetTable", "fin_results");
     formData.append("periodDate", "2025-01-31");
     
-    const response = await request.post(`${API_BASE_URL}/upload`, {
+    const response = await authedRequest.post(`${API_BASE_URL}/upload`, {
       multipart: {
         file: {
           name: "fin_results_2025-01.csv",
@@ -348,8 +350,8 @@ test.describe("Financial Results Pipeline API Tests", () => {
     expect(result.message).toContain("STG → ODS → MART");
   });
 
-  test("should return upload history including fin_results uploads", async ({ request }) => {
-    const response = await request.get(`${API_BASE_URL}/upload?limit=10`);
+  test("should return upload history including fin_results uploads", async ({ authedRequest }) => {
+    const response = await authedRequest.get(`${API_BASE_URL}/upload?limit=10`);
     
     expect(response.ok()).toBeTruthy();
     

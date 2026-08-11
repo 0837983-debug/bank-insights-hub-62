@@ -1,6 +1,13 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
+import { loginAsAdmin } from "./helpers/auth.js";
 
 test.describe("Basic Site Functionality", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+  });
+
+
+
   test("should load the homepage and display content", async ({ page }) => {
     // Navigate to the homepage
     await page.goto("/");
