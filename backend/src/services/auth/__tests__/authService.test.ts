@@ -5,13 +5,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { hashPassword } from "../passwordService.js";
 import { signRefreshToken } from "../tokenService.js";
 import * as repo from "../userRepository.js";
-import {
-  login,
-  refresh,
-  logout,
-  ensureSuperAdmin,
-  AuthError,
-} from "../authService.js";
+import { login, refresh, logout, ensureSuperAdmin } from "../authService.js";
+import { AppError, AppErrorCode } from "../../../types/errors.js";
 
 // Мокаем репозиторий — тесты не обращаются к БД
 vi.mock("../userRepository.js", () => ({
@@ -37,6 +32,7 @@ const activeUser = {
   role: "super_admin" as const,
   isActive: true,
   createdAt: "2026-08-11T00:00:00.000Z",
+  passwordHash: "hash",
 };
 
 async function makePasswordHash(password: string): Promise<string> {
@@ -60,9 +56,9 @@ describe("authService.login", () => {
     const passwordHash = await makePasswordHash("secret");
     mockedRepo.findByUsername.mockResolvedValue({ ...activeUser, passwordHash });
 
-    await expect(login({ username: "admin", password: "wrong" })).rejects.toThrow(
-      AuthError
-    );
+    await expect(login({ username: "admin", password: "wrong" })).rejects.toMatchObject({
+      code: AppErrorCode.AUTH_INVALID_CREDENTIALS,
+    } as AppError);
     expect(mockedRepo.saveRefreshToken).not.toHaveBeenCalled();
   });
 
@@ -74,16 +70,18 @@ describe("authService.login", () => {
       passwordHash,
     });
 
-    await expect(login({ username: "admin", password: "secret" })).rejects.toThrow(
-      AuthError
-    );
+    await expect(login({ username: "admin", password: "secret" })).rejects.toMatchObject({
+      code: AppErrorCode.AUTH_INVALID_CREDENTIALS,
+    } as AppError);
   });
 
   it("отказывает несуществующему пользователю", async () => {
     mockedRepo.findByUsername.mockResolvedValue(null);
     await expect(
       login({ username: "nobody", password: "x" })
-    ).rejects.toThrow(AuthError);
+    ).rejects.toMatchObject({
+      code: AppErrorCode.AUTH_INVALID_CREDENTIALS,
+    } as AppError);
   });
 });
 
@@ -102,7 +100,9 @@ describe("authService.refresh", () => {
   });
 
   it("отклоняет невалидный refresh-токен", async () => {
-    await expect(refresh("garbage")).rejects.toThrow(AuthError);
+    await expect(refresh("garbage")).rejects.toMatchObject({
+      code: AppErrorCode.AUTH_TOKEN_EXPIRED,
+    } as AppError);
   });
 });
 
