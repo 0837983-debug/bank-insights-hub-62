@@ -8,7 +8,12 @@
  * Токен берётся из файла, подготовленного `global-setup.ts` (один вход на
  * весь прогон). Если файл отсутствует (запуск файла вручную), выполняется
  * единичный логин. Это снижает нагрузку на rate-limit логина.
+ *
+ * eslint-disable-next-line react-hooks/rules-of-hooks — ниже используются
+ * фикстуры Playwright (функции `use`), а не React-хуки. Правило react-hooks
+ * ошибочно срабатывает на идентификатор `use`; здесь React отсутствует.
  */
+/* eslint-disable react-hooks/rules-of-hooks */
 import {
   test as base,
   type APIRequestContext,

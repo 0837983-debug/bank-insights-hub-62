@@ -13,6 +13,7 @@
  */
 import { execSync } from "node:child_process";
 import { runTests } from "./test-runner.mjs";
+import { runStaticChecks } from "./run-static-checks.mjs";
 
 /** Ветки, защищённые тестовым контуром при слиянии. */
 const PROTECTED_BRANCHES = ["dev", "main"];
@@ -39,16 +40,19 @@ if (!PROTECTED_BRANCHES.includes(branch)) {
 }
 
 console.log(
-  `[pre-merge] Слияние в защищённую ветку "${branch}". Запускаю тесты на тестовом контуре...`
+  `[pre-merge] Слияние в защищённую ветку "${branch}". Запускаю статические проверки и тесты...`
 );
 
 try {
+  // Сначала быстрые статические проверки (tsc + eslint) — при ошибке
+  // сразу блокируем, не тратя время на тяжёлые E2E-тесты.
+  runStaticChecks("pre-merge");
   runTests("pre-merge");
-  console.log("\n=== [pre-merge] Все тесты прошли. Слияние разрешено. ===");
+  console.log("\n=== [pre-merge] Все проверки прошли. Слияние разрешено. ===");
   process.exit(0);
 } catch (error) {
   console.error(
-    `\n=== [pre-merge] ТЕСТЫ НЕ ПРОШЛИ. Слияние в "${branch}" ОТКЛОНЕНО. ===\n`
+    `\n=== [pre-merge] ПРОВЕРКИ НЕ ПРОШЛИ. Слияние в "${branch}" ОТКЛОНЕНО. ===\n`
   );
   console.error(String(error?.stderr ?? error));
   process.exit(1);

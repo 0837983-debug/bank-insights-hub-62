@@ -101,7 +101,7 @@ export async function restorePreviousData(
       [uploadId]
     );
 
-    let restoredCount = 0;
+    const restoredCount = 0;
 
     // Восстанавливаем последние данные за эти периоды (если они были удалены при загрузке)
     // Это сложная логика - можно реализовать позже, если понадобится

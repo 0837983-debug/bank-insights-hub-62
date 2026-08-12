@@ -11,6 +11,7 @@
  * remote-ref вида "refs/heads/dev" / "refs/heads/main" включает защиту.
  */
 import { runTests } from "./test-runner.mjs";
+import { runStaticChecks } from "./run-static-checks.mjs";
 
 /** Ветки, защищённые тестовым контуром перед пушем. */
 const PROTECTED_BRANCHES = ["dev", "main"];
@@ -46,16 +47,19 @@ if (protectedRefs.length === 0) {
 }
 
 console.log(
-  `[pre-push] Пуш в защищённую ветку: ${protectedRefs.join(", ")}. Запускаю тесты на тестовом контуре...`
+  `[pre-push] Пуш в защищённую ветку: ${protectedRefs.join(", ")}. Запускаю статические проверки и тесты...`
 );
 
 try {
+  // Сначала быстрые статические проверки (tsc + eslint) — при ошибке
+  // сразу блокируем, не тратя время на тяжёлые E2E-тесты.
+  runStaticChecks("pre-push");
   runTests("pre-push");
-  console.log("\n=== [pre-push] Все тесты прошли. Пуш разрешён. ===");
+  console.log("\n=== [pre-push] Все проверки прошли. Пуш разрешён. ===");
   process.exit(0);
 } catch (error) {
   console.error(
-    `\n=== [pre-push] ТЕСТЫ НЕ ПРОШЛИ. Пуш в ${protectedRefs.join(", ")} ОТКЛОНЁН. ===\n`
+    `\n=== [pre-push] ПРОВЕРКИ НЕ ПРОШЛИ. Пуш в ${protectedRefs.join(", ")} ОТКЛОНЁН. ===\n`
   );
   console.error(String(error?.stderr ?? error));
   process.exit(1);
