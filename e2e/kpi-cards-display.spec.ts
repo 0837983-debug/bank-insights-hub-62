@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures.js";
 import { loginAsAdmin } from "./helpers/auth.js";
 
-const FRONTEND_URL = "http://localhost:8080";
+import { FRONTEND_URL } from "./config.js";
 
 test.describe("KPI Cards Display", () => {
   test.beforeEach(async ({ page }) => {

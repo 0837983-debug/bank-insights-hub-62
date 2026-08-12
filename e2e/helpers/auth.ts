@@ -7,10 +7,10 @@
  */
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { API_BASE_URL } from "../config.js";
 
-/** Базовый URL backend-API (по умолчанию — локальный dev-сервер). */
-export const API_BASE_URL =
-  process.env.E2E_API_URL ?? "http://localhost:3001/api";
+/** Базовый URL backend-API (единый источник — e2e/config.ts). */
+export { API_BASE_URL };
 
 /** Учётные данные супер-администратора из окружения (fallback — dev-значения). */
 export const ADMIN_USERNAME =

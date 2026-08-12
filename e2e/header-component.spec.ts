@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures.js";
 import { loginAsAdmin } from "./helpers/auth.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "./config.js";
 
 test.describe("Header Component - Backend", () => {
   test.describe("Component configuration", () => {
@@ -118,7 +118,7 @@ test.describe("Header Component - Frontend Integration", () => {
 
     test("should render header component from layout", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Ждем загрузки layout
       await page.waitForLoadState("networkidle");
@@ -162,7 +162,7 @@ test.describe("Header Component - Frontend Integration", () => {
 
     test("should load dates from getData endpoint", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Перехватываем запросы к /api/data
       const headerRequests: any[] = [];
@@ -199,7 +199,7 @@ test.describe("Header Component - Frontend Integration", () => {
 
     test("should use dates in table API calls", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Перехватываем запросы к /api/data для таблиц
       const tableRequests: any[] = [];

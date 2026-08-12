@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Защитный контур перед пушем в dev/main (через Husky).
+# Передаёт данные pre-push (stdin) в скрипт прогона тестов.
+node "$(dirname -- "$0")/../scripts/test-pre-push.mjs" "$@"

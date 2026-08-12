@@ -1,16 +1,17 @@
-import { test, expect } from "./fixtures.js";
+import { test, expect } from "../fixtures.js";
 import { join } from "path";
-import { loginAsAdmin } from "./helpers/auth.js";
+import { loginAsAdmin } from "../helpers/auth.js";
+import { maxUploadIdForTable, rollbackNewUploadsAfter, rollbackUpload } from "../helpers/rollback.js";
 import * as fs from "fs";
 
 const TEST_DATA_DIR = join(process.cwd(), "test-data", "uploads");
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "../config.js";
 
 test.describe("File Upload E2E Tests", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
     // Navigate to upload page
-    await page.goto("http://localhost:8080/upload");
+    await page.goto("/upload");
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(2000);
   });
@@ -45,7 +46,10 @@ test.describe("File Upload E2E Tests", () => {
     await expect(uploadButton).toBeVisible();
   });
 
-  test("should upload a valid Balance CSV file successfully", async ({ page }) => {
+  test("should upload a valid Balance CSV file successfully", async ({ page, authedRequest }) => {
+    // Запоминаем максимальный id загрузки баланса ДО теста, чтобы откатить
+    // только новую загрузку (идемпотентность), не трогая существующие отчёты.
+    const maxBeforeId = await maxUploadIdForTable(authedRequest, API_BASE_URL, "balance");
     // Click Balance upload button to set target table
     const balanceButton = page.locator('[data-testid="btn-upload-balance"]');
     await balanceButton.click();
@@ -98,9 +102,14 @@ test.describe("File Upload E2E Tests", () => {
     if (!successFound && hasErrors > 0) {
       console.log("⚠️  Upload may have failed or is still processing");
     }
+
+    // Идемпотентность: откатываем только загрузку, созданную этим тестом.
+    await rollbackNewUploadsAfter(authedRequest, API_BASE_URL, "balance", maxBeforeId);
   });
 
-  test("should upload a valid Financial Results CSV file successfully", async ({ page }) => {
+  test("should upload a valid Financial Results CSV file successfully", async ({ page, authedRequest }) => {
+    // Идемпотентность: запоминаем максимум id финрезультатов до теста.
+    const maxBeforeId = await maxUploadIdForTable(authedRequest, API_BASE_URL, "fin_results");
     // Click Fin Results upload button to set target table
     const finResultsButton = page.locator('[data-testid="btn-upload-fin-results"]');
     await finResultsButton.click();
@@ -146,9 +155,14 @@ test.describe("File Upload E2E Tests", () => {
       // Success!
       expect(successCount + rowsCount).toBeGreaterThan(0);
     }
+
+    // Идемпотентность: откатываем только загрузку, созданную этим тестом.
+    await rollbackNewUploadsAfter(authedRequest, API_BASE_URL, "fin_results", maxBeforeId);
   });
 
-  test("should display validation errors for file with missing fields", async ({ page }) => {
+  test("should display validation errors for file with missing fields", async ({ page, authedRequest }) => {
+    // Идемпотентность: запоминаем максимум id баланса до теста.
+    const maxBeforeId = await maxUploadIdForTable(authedRequest, API_BASE_URL, "balance");
     // Click Balance upload button
     const balanceButton = page.locator('[data-testid="btn-upload-balance"]');
     await balanceButton.click();
@@ -189,9 +203,14 @@ test.describe("File Upload E2E Tests", () => {
     } else {
       expect(errorCount).toBeGreaterThan(0);
     }
+
+    // Идемпотентность: откатываем загрузку, созданную этим тестом.
+    await rollbackNewUploadsAfter(authedRequest, API_BASE_URL, "balance", maxBeforeId);
   });
 
-  test("should show upload progress during file upload", async ({ page }) => {
+  test("should show upload progress during file upload", async ({ page, authedRequest }) => {
+    // Идемпотентность: запоминаем максимум id баланса до теста.
+    const maxBeforeId = await maxUploadIdForTable(authedRequest, API_BASE_URL, "balance");
     // Click Balance upload button
     const balanceButton = page.locator('[data-testid="btn-upload-balance"]');
     await balanceButton.click();
@@ -235,9 +254,13 @@ test.describe("File Upload E2E Tests", () => {
     
     // Progress indicator should appear (at least temporarily)
     // Note: This might be brief, so we just verify no crash
+    // Идемпотентность: откатываем только загрузку, созданную этим тестом.
+    await rollbackNewUploadsAfter(authedRequest, API_BASE_URL, "balance", maxBeforeId);
   });
 
-  test("should allow rollback after successful upload", async ({ page }) => {
+  test("should allow rollback after successful upload", async ({ page, authedRequest }) => {
+    // Идемпотентность: запоминаем максимум id баланса до теста.
+    const maxBeforeId = await maxUploadIdForTable(authedRequest, API_BASE_URL, "balance");
     // Click Balance upload button
     const balanceButton = page.locator('[data-testid="btn-upload-balance"]');
     await balanceButton.click();
@@ -275,6 +298,10 @@ test.describe("File Upload E2E Tests", () => {
     } else {
       console.log("⚠️  Rollback button not found or not visible");
     }
+
+    // Страховочная идемпотентность: если UI-rollback не сработал,
+    // откатываем загрузку через API (только свою).
+    await rollbackNewUploadsAfter(authedRequest, API_BASE_URL, "balance", maxBeforeId);
   });
 
   test("should display upload history", async ({ page }) => {
@@ -348,6 +375,11 @@ test.describe("Financial Results Pipeline API Tests", () => {
     expect(result.rowsProcessed).toBeGreaterThan(0);
     expect(result.rowsFailed).toBe(0);
     expect(result.message).toContain("STG → ODS → MART");
+
+    // Идемпотентность: откатываем загрузку, созданную этим тестом.
+    if (result.uploadId) {
+      await rollbackUpload(authedRequest, API_BASE_URL, result.uploadId);
+    }
   });
 
   test("should return upload history including fin_results uploads", async ({ authedRequest }) => {

@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     cors: true,
     // Разрешённые хосты для dev-сервера (чтобы Vite не блокировал запросы)
-    allowedHosts: ["localhost", "127.0.0.1", "frontend", "frontend:8080", "cifra.pastbin.pro"],
+    allowedHosts: ["localhost", "127.0.0.1", "frontend", "frontend:8080", "frontend:8081", "cifra.pastbin.pro"],
     hmr: {
       host: "localhost",
     },

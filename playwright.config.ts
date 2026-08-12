@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { FRONTEND_URL } from "./e2e/config.js";
 
 /**
  * Read environment variables from file.
@@ -27,6 +28,10 @@ const backendDevCommand =
  */
 export default defineConfig({
   testDir: "./e2e",
+  /* Деструктивные тесты (пишут/перезаписывают данные в БД) изолированы
+     в e2e/destructive/ и исключены из обычного прогона.
+     Запуск только явно: npx playwright test e2e/destructive/... */
+  testIgnore: "e2e/destructive/**",
   /* Один вход администратора на весь прогон — токен сохраняется в .auth */
   globalSetup: "./e2e/global-setup.ts",
   /* Run tests in files in parallel */
@@ -42,7 +47,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://localhost:8080",
+    baseURL: FRONTEND_URL,
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
   },
