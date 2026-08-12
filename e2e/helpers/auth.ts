@@ -7,16 +7,13 @@
  */
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { API_BASE_URL } from "../config.js";
+import { API_BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD } from "../config.js";
 
 /** Базовый URL backend-API (единый источник — e2e/config.ts). */
 export { API_BASE_URL };
 
-/** Учётные данные супер-администратора из окружения (fallback — dev-значения). */
-export const ADMIN_USERNAME =
-  process.env.SUPER_ADMIN_USERNAME ?? "admin";
-export const ADMIN_PASSWORD =
-  process.env.SUPER_ADMIN_PASSWORD ?? "GTdusE+3mN306uhmBM1IBfXZvWS6WYEy";
+/** Учётные данные супер-администратора (единый источник — e2e/config.ts). */
+export { ADMIN_USERNAME, ADMIN_PASSWORD };
 
 /** Путь страницы входа во фронтенде. */
 export const LOGIN_PAGE_URL = "/login";

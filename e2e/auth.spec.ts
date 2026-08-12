@@ -3,11 +3,9 @@
  * Проверяют вход, отказ, защиту страниц и работу ролей через интерфейс.
  */
 import { test, expect } from "@playwright/test";
+import { ADMIN_USERNAME, ADMIN_PASSWORD } from "./helpers/auth.js";
 
-// Пароль супер-админа берётся из окружения; по умолчанию — dev-значение из .env
-const ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME ?? "admin";
-const ADMIN_PASSWORD =
-  process.env.SUPER_ADMIN_PASSWORD ?? "GTdusE+3mN306uhmBM1IBfXZvWS6WYEy";
+// Учётные данные супер-админа — единый источник в e2e/config.ts (из .env).
 
 test("неавторизованного пользователя отправляет на страницу входа", async ({
   page,
