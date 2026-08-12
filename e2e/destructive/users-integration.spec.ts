@@ -15,11 +15,7 @@
  */
 import { test, expect, Page, APIRequestContext } from "@playwright/test";
 import { execSync } from "node:child_process";
-import { API_BASE_URL } from "../config.js";
-
-const ADMIN_USERNAME = process.env.TEST_SUPER_ADMIN_USERNAME ?? "admin";
-const ADMIN_PASSWORD =
-  process.env.TEST_SUPER_ADMIN_PASSWORD ?? "GTdusE+3mN306uhmBM1IBfXZvWS6WYEy";
+import { API_BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD } from "../config.js";
 
 const COMPOSE_FILE =
   process.env.E2E_TEST_COMPOSE_FILE ?? "docker-compose.test.yml";

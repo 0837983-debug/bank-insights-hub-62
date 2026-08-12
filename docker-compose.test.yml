@@ -67,7 +67,7 @@ services:
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
       SUPER_ADMIN_USERNAME: ${TEST_SUPER_ADMIN_USERNAME:-admin}
-      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-GTdusE+3mN306uhmBM1IBfXZvWS6WYEy}
+      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-change-me-strong-password}
       # Большой лимит входов — тесты логинятся много раз.
       AUTH_LOGIN_MAX: ${TEST_AUTH_LOGIN_MAX:-2000}
     volumes:
@@ -117,7 +117,7 @@ services:
       ALLOW_DATA_RESET: "true"
       BOOTSTRAP_USE_TEMP_BACKEND: "true"
       SUPER_ADMIN_USERNAME: ${TEST_SUPER_ADMIN_USERNAME:-admin}
-      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-GTdusE+3mN306uhmBM1IBfXZvWS6WYEy}
+      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-change-me-strong-password}
       DATASET_DIR: /test-data/uploads
       BALANCE_DATASET_FILES: ${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}
       FIN_RESULTS_DATASET_FILES: ${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}
@@ -147,7 +147,7 @@ services:
       DB_PASSWORD: ${TEST_DB_PASSWORD:-bank_test_password}
       BOOTSTRAP_USE_TEMP_BACKEND: "true"
       SUPER_ADMIN_USERNAME: ${TEST_SUPER_ADMIN_USERNAME:-admin}
-      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-GTdusE+3mN306uhmBM1IBfXZvWS6WYEy}
+      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-change-me-strong-password}
       DATASET_DIR: /test-data/uploads
       BALANCE_DATASET_FILES: ${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}
       FIN_RESULTS_DATASET_FILES: ${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}
