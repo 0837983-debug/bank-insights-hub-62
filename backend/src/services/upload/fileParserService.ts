@@ -113,7 +113,7 @@ export async function parseXLSX(
     }
 
     // Выбираем лист для парсинга
-    let worksheet = sheetName
+    const worksheet = sheetName
       ? workbook.getWorksheet(sheetName)
       : workbook.worksheets[0];
 
