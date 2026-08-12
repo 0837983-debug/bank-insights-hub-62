@@ -25,10 +25,6 @@ export const FRONTEND_URL =
   process.env.E2E_FRONTEND_URL ?? "http://localhost:8081";
 export const DOCKER_MODE = process.env.E2E_DOCKER_MODE === "true";
 
-// ВРЕМЕННАЯ ОШИБКА ДЛЯ ПРОВЕРКИ ЗАЩИТЫ (eqeqeq) — будет удалена.
-const testMode = process.env.E2E_DOCKER_MODE == "true";
-void testMode;
-
 /**
  * Учётные данные супер-администратора тестового контура.
  *
