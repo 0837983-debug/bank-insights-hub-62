@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Защитный контур перед локальным слиянием в dev/main (через Husky).
+# Вызывается при git merge, когда создаётся коммит слияния.
+node "$(dirname -- "$0")/../scripts/test-pre-merge.mjs"
