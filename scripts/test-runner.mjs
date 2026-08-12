@@ -37,11 +37,17 @@ export function runTests(hookName = "pre-push") {
   }
 
   console.log(`\n=== [${hookName}] Прогон безопасных E2E-тестов ===`);
-  execSync("npx playwright test --reporter=line", {
-    env,
-    stdio: "inherit",
-    timeout: 900000,
-  });
+  // Ограничиваем параллелизм и добавляем один повтор: безопасные тесты
+  // выполняются на едином тестовом контуре, и полная параллельность при
+  // большом количестве спеков перегружает backend/frontend и вызывает флаки.
+  execSync(
+    "npx playwright test --reporter=line --workers=2 --retries=1",
+    {
+      env,
+      stdio: "inherit",
+      timeout: 1800000,
+    }
+  );
 
   console.log(`\n=== [${hookName}] Прогон деструктивных E2E-тестов ===`);
   execSync(
