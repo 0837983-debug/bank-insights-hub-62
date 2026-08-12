@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures.js";
+import { loginAsAdmin } from "./helpers/auth.js";
 
 const NAV_LINKS = [
   { testId: "nav-link-dashboard", path: "/" },
@@ -33,6 +34,11 @@ async function expectActiveNavLink(page: Page, activeTestId: NavTestId) {
 }
 
 test.describe("App Shell Navigation", () => {
+  // Навигационные тесты требуют авторизации — входим админом
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+  });
+
   test("navigates / → /upload → /dev-tools → / with active state", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("domcontentloaded");

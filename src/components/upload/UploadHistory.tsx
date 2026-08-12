@@ -6,6 +6,7 @@ import { useUploadHistory, useUploadStatus } from "@/hooks/useFileUpload";
 import { format } from "date-fns";
 import { FileText, CheckCircle2, XCircle, Clock, RotateCcw } from "lucide-react";
 import { ValidationErrors } from "./ValidationErrors";
+import { toErrorMessage } from "@/lib/error-catalog";
 
 interface UploadHistoryProps {
   targetTable?: string;
@@ -154,8 +155,8 @@ export const UploadHistory = ({
   if (error) {
     return (
       <Alert variant="destructive" className={className}>
-        <AlertDescription>
-          Ошибка загрузки истории: {error instanceof Error ? error.message : "Unknown error"}
+        <AlertDescription data-testid="upload-history-error">
+          Ошибка загрузки истории: {toErrorMessage(error)}
         </AlertDescription>
       </Alert>
     );

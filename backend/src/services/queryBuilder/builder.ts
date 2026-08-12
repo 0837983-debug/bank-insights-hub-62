@@ -109,18 +109,19 @@ function formatValueForSQL(
     case "string":
       return escapeStringValue(String(value));
     
-    case "number":
+    case "number": {
       // Проверяем, что это валидное число
       const numValue = typeof value === "number" ? value : parseFloat(String(value));
       if (isNaN(numValue)) {
         throw new Error("invalid params");
       }
       return String(numValue);
+    }
     
     case "boolean":
       return value === true ? "TRUE" : "FALSE";
     
-    case "date":
+    case "date": {
       // Форматируем дату в YYYY-MM-DD
       const date = value instanceof Date ? value : new Date(String(value));
       if (isNaN(date.getTime())) {
@@ -130,6 +131,7 @@ function formatValueForSQL(
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
       return escapeStringValue(`${year}-${month}-${day}`);
+    }
     
     default:
       return escapeStringValue(String(value));

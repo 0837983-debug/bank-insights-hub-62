@@ -4,15 +4,44 @@
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
+import { getAccessToken, setAccessToken } from "./auth-storage";
+
 // API Error class
 export class APIError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public data?: unknown
+    public data?: unknown,
+    public code?: string
   ) {
     super(message);
     this.name = "APIError";
+  }
+}
+
+/** Интерфейс тела ответа об ошибке с сервера (карта ошибок). */
+interface ErrorResponseBody {
+  code?: string;
+  message?: string;
+  error?: string; // обратная совместимость
+}
+
+/** Пытается обновить сессию через /auth/refresh (refresh в httpOnly-cookie). */
+async function tryRefreshSession(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as { accessToken?: string };
+    if (data.accessToken) {
+      setAccessToken(data.accessToken);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
   }
 }
 
@@ -20,22 +49,35 @@ export class APIError extends Error {
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  // Формируем заголовки с учётом авторизации
+  const headers = new Headers(options?.headers);
+  headers.set("Content-Type", "application/json");
+  const token = getAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const doFetch = (): Promise<Response> =>
+    fetch(url, { ...options, headers, cache: "no-store" });
+
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-      cache: "no-store",
-    });
+    let response = await doFetch();
+
+    // Если сессия истекла (401) и это не сам auth-запрос — пробуем обновить и повторить
+    if (response.status === 401 && !endpoint.startsWith("/auth/")) {
+      const refreshed = await tryRefreshSession();
+      if (refreshed) {
+        headers.set("Authorization", `Bearer ${getAccessToken() ?? ""}`);
+        response = await doFetch();
+      }
+    }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = (await response.json().catch(() => ({}))) as ErrorResponseBody;
+      // Сообщение берём из карты ошибок на клиенте (по коду), не из сырого ответа
       throw new APIError(
-        errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+        errorData.code || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
-        errorData
+        errorData,
+        errorData.code
       );
     }
 
@@ -49,7 +91,8 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
       throw new APIError(
         `Не удалось подключиться к серверу. Убедитесь, что бэкенд запущен на ${API_BASE_URL}`,
         0,
-        { originalError: error.message }
+        { originalError: error.message },
+        "NETWORK"
       );
     }
     throw new APIError(error instanceof Error ? error.message : "Unknown error occurred");
@@ -532,10 +575,12 @@ export async function uploadFile(
       }
       
       // Для других ошибок бросаем исключение
+      const errBody = (errorData as ErrorResponseBody);
       throw new APIError(
-        errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+        errBody.code || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
-        errorData
+        errBody,
+        errBody.code
       );
     }
 
@@ -591,11 +636,12 @@ export async function rollbackUpload(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = (await response.json().catch(() => ({}))) as ErrorResponseBody;
       throw new APIError(
-        errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+        errorData.code || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
-        errorData
+        errorData,
+        errorData.code
       );
     }
 

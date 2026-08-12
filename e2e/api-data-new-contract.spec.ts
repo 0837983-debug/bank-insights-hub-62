@@ -1,6 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "./config.js";
 
 test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)", () => {
   async function getCurrentPeriods(request: any) {
@@ -23,8 +23,8 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
   }
 
   test.describe("Successful requests", () => {
-    test("should return data for header_dates query with required parameters", async ({ request }) => {
-      const response = await request.get(
+    test("should return data for header_dates query with required parameters", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -53,11 +53,11 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       }
     });
 
-    test("should return data for assets_table query with all parameters", async ({ request }) => {
-      const periods = await getCurrentPeriods(request);
+    test("should return data for assets_table query with all parameters", async ({ authedRequest }) => {
+      const periods = await getCurrentPeriods(authedRequest);
       const parametrs = JSON.stringify(periods);
 
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encodeURIComponent(parametrs)}`
       );
 
@@ -86,10 +86,10 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       }
     });
 
-    test("should return data without parametrs (empty JSON)", async ({ request }) => {
+    test("should return data without parametrs (empty JSON)", async ({ authedRequest }) => {
       const parametrs = JSON.stringify({});
 
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${encodeURIComponent(parametrs)}`
       );
 
@@ -102,8 +102,8 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       expect(responseData).toHaveProperty("rows");
     });
 
-    test("should return data without parametrs parameter (omitted)", async ({ request }) => {
-      const response = await request.get(
+    test("should return data without parametrs parameter (omitted)", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -118,91 +118,91 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
   });
 
   test.describe("Error handling - missing required parameters", () => {
-    test("should return 400 when query_id is missing", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 when query_id is missing", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?component_Id=assets_table`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toContain("query_id is required");
+      expect(error).toHaveProperty("code");
+      expect(error.code).toBe("QUERY_INVALID_PARAMS");
     });
 
-    test("should return 400 when component_Id is missing", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 when component_Id is missing", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toContain("component_Id is required");
+      expect(error).toHaveProperty("code");
+      expect(error.code).toBe("QUERY_INVALID_PARAMS");
     });
 
-    test("should return 400 when both query_id and component_Id are missing", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/data`);
+    test("should return 400 when both query_id and component_Id are missing", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/data`);
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
+      expect(error).toHaveProperty("code");
     });
 
-    test("should return 400 when query_id is empty string", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 when query_id is empty string", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=&component_Id=assets_table`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
+      expect(error).toHaveProperty("code");
     });
 
-    test("should return 400 when component_Id is empty string", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 when component_Id is empty string", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
+      expect(error).toHaveProperty("code");
     });
   });
 
   test.describe("Error handling - invalid parametrs JSON", () => {
-    test("should return 400 for invalid JSON in parametrs", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 for invalid JSON in parametrs", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=invalid_json`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toContain("invalid JSON");
+      expect(error).toHaveProperty("code");
+      expect(error.code).toBe("QUERY_INVALID_PARAMS");
     });
 
-    test("should return 400 for malformed JSON in parametrs", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 for malformed JSON in parametrs", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs={invalid:json}`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toContain("invalid JSON");
+      expect(error).toHaveProperty("code");
+      expect(error.code).toBe("QUERY_INVALID_PARAMS");
     });
 
-    test("should return 400 when parametrs is not a string", async ({ request }) => {
+    test("should return 400 when parametrs is not a string", async ({ authedRequest }) => {
       // Playwright автоматически сериализует объекты, но мы можем проверить через прямой запрос
       // В реальности parametrs должен быть строкой в query string
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs[]=value`
       );
 
@@ -212,22 +212,22 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
   });
 
   test.describe("Error handling - invalid query_id", () => {
-    test("should return 400 for non-existent query_id", async ({ request }) => {
-      const response = await request.get(
+    test("should return 400 for non-existent query_id", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=non_existent_query&component_Id=test`
       );
 
       expect(response.status()).toBe(400);
       
       const error = await response.json();
-      expect(error).toHaveProperty("error");
-      expect(error.error).toMatch(/invalid config/i);
+      expect(error).toHaveProperty("code");
+      expect(error.code).toMatch(/QUERY_INVALID_CONFIG/i);
     });
   });
 
   test.describe("POST endpoint removal", () => {
-    test("should return 404 for POST /api/data", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
+    test("should return 404 for POST /api/data", async ({ authedRequest }) => {
+      const response = await authedRequest.post(`${API_BASE_URL}/data`, {
         data: {
           query_id: "assets_table",
           component_Id: "assets_table",
@@ -238,8 +238,8 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       expect(response.status()).toBe(404);
     });
 
-    test("should return 404 for POST /api/data/", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data/`, {
+    test("should return 404 for POST /api/data/", async ({ authedRequest }) => {
+      const response = await authedRequest.post(`${API_BASE_URL}/data/`, {
         data: {
           query_id: "header_dates",
           component_Id: "header",
@@ -251,14 +251,14 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
   });
 
   test.describe("Old endpoint removal", () => {
-    test("should return 404 for GET /api/data/:query_id (old format)", async ({ request }) => {
-      const response = await request.get(`${API_BASE_URL}/data/assets_table`);
+    test("should return 404 for GET /api/data/:query_id (old format)", async ({ authedRequest }) => {
+      const response = await authedRequest.get(`${API_BASE_URL}/data/assets_table`);
 
       expect(response.status()).toBe(404);
     });
 
-    test("should return 404 for GET /api/data/:query_id with params (old format)", async ({ request }) => {
-      const response = await request.get(
+    test("should return 404 for GET /api/data/:query_id with params (old format)", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data/assets_table?component_id=assets_table&p1=2025-12-31`
       );
 
@@ -267,8 +267,8 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
   });
 
   test.describe("Response format validation", () => {
-    test("should have correct Content-Type header", async ({ request }) => {
-      const response = await request.get(
+    test("should have correct Content-Type header", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -278,8 +278,8 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       expect(contentType).toContain("application/json");
     });
 
-    test("should return valid JSON structure with componentId, type, rows", async ({ request }) => {
-      const response = await request.get(
+    test("should return valid JSON structure with componentId, type, rows", async ({ authedRequest }) => {
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header`
       );
 
@@ -295,9 +295,9 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
   });
 
   test.describe("Edge cases", () => {
-    test("should handle special characters in query_id", async ({ request }) => {
+    test("should handle special characters in query_id", async ({ authedRequest }) => {
       // query_id должен быть валидным идентификатором
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table`
       );
 
@@ -305,11 +305,11 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       expect([200, 400]).toContain(response.status());
     });
 
-    test("should handle URL-encoded parametrs", async ({ request }) => {
+    test("should handle URL-encoded parametrs", async ({ authedRequest }) => {
       const parametrs = JSON.stringify({ p1: "2025-12-31", class: "assets" });
       const encoded = encodeURIComponent(parametrs);
 
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${encoded}`
       );
 
@@ -317,10 +317,10 @@ test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)"
       expect([200, 400]).toContain(response.status());
     });
 
-    test("should handle empty parametrs JSON object", async ({ request }) => {
+    test("should handle empty parametrs JSON object", async ({ authedRequest }) => {
       const parametrs = JSON.stringify({});
 
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${encodeURIComponent(parametrs)}`
       );
 

@@ -92,32 +92,9 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   // Находим соответствующий KPI по componentId из API (fallback на id для обратной совместимости)
   const kpi = kpis?.find((k) => (k.componentId ?? k.id) === componentKey);
 
-  // Если компонент или KPI не найдены, не рендерим карточку
-  if (!component || !kpi) {
-    if (import.meta.env.DEV) {
-      console.warn(`KPI card not found for componentId: ${componentId}`, {
-        componentFound: !!component,
-        kpiFound: !!kpi,
-        componentId: component?.componentId,
-        componentKey,
-      });
-    }
-    return null;
-  }
-
-  // Получаем формат для основного значения (value) из columns
-  const valueColumn = component.columns?.[0] as LayoutColumn | undefined;
-  // format может быть строкой в columns или объектом в старом формате component.format
-  const valueFormatId = typeof valueColumn?.format === "string" 
-    ? valueColumn.format 
-    : (component.format?.value);
-
-  // Форматируем значение используя формат из layout.formats
-  const formattedValue = valueFormatId
-    ? formatValue(valueFormatId, kpi.value)
-    : kpi.value.toString();
-
-  // Собираем все calculated поля из sub_columns в порядке layout
+  // Собираем все calculated поля из sub_columns в порядке layout.
+  // Хуки НЕ должны вызываться после раннего return, поэтому все useMemo
+  // размещены выше проверки наличия компонента/KPI.
   const calculatedFields = useMemo(() => {
     if (!component?.columns) return [];
     return component.columns.flatMap((col) => 
@@ -126,8 +103,10 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   }, [component?.columns]);
 
   // Вычисляем значения для каждого calculated поля через executeCalculation
-  // Включаем displayGroup и isDefault из layout для группировки
+  // Включаем displayGroup и isDefault из layout для группировки.
+  // Если kpi отсутствует — возвращаем пустой список (без вызова расчётов).
   const calculatedResults: CalculatedFieldResult[] = useMemo(() => {
+    if (!kpi) return [];
     return calculatedFields.map((field) => {
       const value = field.calculationConfig 
         ? executeCalculation(field.calculationConfig, kpi as Record<string, unknown>)
@@ -190,6 +169,32 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
       : defaultGroup;
     return groupedFields.get(targetGroup) || [];
   }, [hasToggle, showAbsolute, groupedFields, availableGroups, defaultGroup]);
+
+  // Все хуки (useState, useMemo) вызваны выше — теперь можно досрочно выйти,
+  // если компонент или KPI не найдены.
+  if (!component || !kpi) {
+    if (import.meta.env.DEV) {
+      console.warn(`KPI card not found for componentId: ${componentId}`, {
+        componentFound: !!component,
+        kpiFound: !!kpi,
+        componentId: component?.componentId,
+        componentKey,
+      });
+    }
+    return null;
+  }
+
+  // Получаем формат для основного значения (value) из columns
+  const valueColumn = component.columns?.[0] as LayoutColumn | undefined;
+  // format может быть строкой в columns или объектом в старом формате component.format
+  const valueFormatId = typeof valueColumn?.format === "string" 
+    ? valueColumn.format 
+    : (component.format?.value);
+
+  // Форматируем значение используя формат из layout.formats
+  const formattedValue = valueFormatId
+    ? formatValue(valueFormatId, kpi.value)
+    : kpi.value.toString();
 
   return (
     <Card 

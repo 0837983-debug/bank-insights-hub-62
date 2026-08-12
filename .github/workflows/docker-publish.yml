@@ -20,12 +20,14 @@
 
 name: Docker Publish
 
-on:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
+# Временно отключено: срабатывание на пуш в main/v* вызывает падение workflow
+# из-за ненастроенных секретов Docker Hub. Вернуть, когда секреты будут заданы.
+# on:
+#   push:
+#     branches:
+#       - main
+#     tags:
+#       - "v*"
 
 permissions:
   contents: read

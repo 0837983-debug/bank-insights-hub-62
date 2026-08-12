@@ -12,6 +12,7 @@ import {
   DB_USER,
   withClient,
 } from "./runCuratedMigrations.js";
+import { AUTH } from "../config/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -129,8 +130,37 @@ export async function ensureBackendForUpload(): Promise<string> {
   return `http://127.0.0.1:${BOOTSTRAP_PORT}`;
 }
 
+/**
+ * Выполняет вход супер-администратора и возвращает access-токен.
+ * После внедрения авторизации загрузка данных через API требует аутентификации.
+ * @param apiUrl - базовый URL API
+ * @returns access-токен супер-администратора
+ */
+async function loginAndGetAccessToken(apiUrl: string): Promise<string> {
+  const { username, password } = AUTH.superAdmin;
+  const response = await fetch(`${apiUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    fail(
+      `Login for seed failed with status ${response.status}. Response: ${body}`
+    );
+  }
+
+  const payload = (await response.json()) as { accessToken?: string };
+  if (!payload.accessToken) {
+    fail("Login for seed did not return an access token.");
+  }
+  return payload.accessToken;
+}
+
 async function uploadDataset(
   apiUrl: string,
+  accessToken: string,
   filePath: string,
   targetTable: string
 ): Promise<void> {
@@ -147,6 +177,7 @@ async function uploadDataset(
 
   const response = await fetch(`${apiUrl}/api/upload`, {
     method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
     body: formData,
   });
 
@@ -174,14 +205,16 @@ async function uploadBalanceDatasets(apiUrl: string): Promise<void> {
     );
   }
 
+  const accessToken = await loginAndGetAccessToken(apiUrl);
   for (const datasetFile of BALANCE_DATASET_FILES) {
-    await uploadDataset(apiUrl, join(DATASET_DIR, datasetFile), "balance");
+    await uploadDataset(apiUrl, accessToken, join(DATASET_DIR, datasetFile), "balance");
   }
 }
 
 async function uploadFinResultsDatasets(apiUrl: string): Promise<void> {
+  const accessToken = await loginAndGetAccessToken(apiUrl);
   for (const datasetFile of FIN_RESULTS_DATASET_FILES) {
-    await uploadDataset(apiUrl, join(DATASET_DIR, datasetFile), "fin_results");
+    await uploadDataset(apiUrl, accessToken, join(DATASET_DIR, datasetFile), "fin_results");
   }
 }
 

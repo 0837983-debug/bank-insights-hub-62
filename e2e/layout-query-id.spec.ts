@@ -1,6 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
+import { loginAsAdmin } from "./helpers/auth.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "./config.js";
 
 // Вспомогательная функция для получения layout через новый endpoint
 async function fetchLayout(request: any) {
@@ -44,8 +45,8 @@ async function fetchLayout(request: any) {
 
 test.describe("Layout queryId and dataSourceKey", () => {
   test.describe("Backend - Layout JSON", () => {
-    test("should return queryId in layout JSON for data loading", async ({ request }) => {
-      const layout = await fetchLayout(request);
+    test("should return queryId in layout JSON for data loading", async ({ authedRequest }) => {
+      const layout = await fetchLayout(authedRequest);
 
       // Проверяем, что layout содержит компоненты
       expect(layout).toHaveProperty("components");
@@ -61,8 +62,8 @@ test.describe("Layout queryId and dataSourceKey", () => {
       expect(headerComponent.queryId).toBe("header_dates");
     });
 
-    test("should return dataSourceKey in layout JSON for KPI mapping", async ({ request }) => {
-      const layout = await fetchLayout(request);
+    test("should return dataSourceKey in layout JSON for KPI mapping", async ({ authedRequest }) => {
+      const layout = await fetchLayout(authedRequest);
 
       // Ищем компоненты с dataSourceKey
       const componentsWithDataSource = layout.components.filter(
@@ -83,8 +84,8 @@ test.describe("Layout queryId and dataSourceKey", () => {
       }
     });
 
-    test("should return queryId for table components", async ({ request }) => {
-      const layout = await fetchLayout(request);
+    test("should return queryId for table components", async ({ authedRequest }) => {
+      const layout = await fetchLayout(authedRequest);
 
       // Ищем таблицы с queryId
       const tableComponents = layout.components?.filter(
@@ -100,8 +101,8 @@ test.describe("Layout queryId and dataSourceKey", () => {
       }
     });
 
-    test("should return dataSourceKey for card (KPI) components", async ({ request }) => {
-      const layout = await fetchLayout(request);
+    test("should return dataSourceKey for card (KPI) components", async ({ authedRequest }) => {
+      const layout = await fetchLayout(authedRequest);
 
       // Ищем карточки KPI с dataSourceKey
       const cardComponents = layout.components?.filter(
@@ -119,9 +120,14 @@ test.describe("Layout queryId and dataSourceKey", () => {
   });
 
   test.describe("Frontend - Using queryId for data loading", () => {
+    // UI-тесты требуют авторизации — входим админом
+    test.beforeEach(async ({ page }) => {
+      await loginAsAdmin(page);
+    });
+
     test("should render header component from layout", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Ждем загрузки layout
       await page.waitForLoadState("networkidle");
@@ -134,7 +140,7 @@ test.describe("Layout queryId and dataSourceKey", () => {
 
     test("should use queryId to load header data via getData", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Перехватываем запросы к /api/data
       const dataRequests: any[] = [];
@@ -172,7 +178,7 @@ test.describe("Layout queryId and dataSourceKey", () => {
 
     test("should use queryId for table data loading", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Перехватываем запросы к /api/data для таблиц
       const tableRequests: any[] = [];

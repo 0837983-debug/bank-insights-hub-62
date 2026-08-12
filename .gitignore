@@ -49,3 +49,14 @@ playwright/.cache/
 
 # Archive directory
 archive/
+
+# Generated artifacts / garbage (не влияют на код)
+*.zip
+temp.md
+unused-files.txt
+unused-files-list.txt
+docs/.vitepress/cache/
+.auth/
+
+# Локальная конфигурация агента (не проект)
+.kilo/

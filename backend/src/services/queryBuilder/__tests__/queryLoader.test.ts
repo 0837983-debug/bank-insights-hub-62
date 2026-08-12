@@ -1,66 +1,87 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+/**
+ * Тесты загрузчика конфигов запросов (queryLoader).
+ *
+ * ВАЖНО: доступ к реальной БД здесь замокан. Проект отказывается от подключений
+ * к внешним БД в тестах — тесты должны работать без сети и БД.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { loadQueryConfig } from "../queryLoader.js";
-import { pool } from "../../../config/database.js";
+import * as database from "../../../config/database.js";
 
-describe("queryLoader", () => {
-  beforeAll(async () => {
-    // Проверяем подключение к БД
-    const client = await pool.connect();
-    client.release();
+/** Мокаем пул БД, чтобы тесты не обращались к реальной БД. */
+vi.mock("../../../config/database.js", () => ({
+  pool: {
+    connect: vi.fn(),
+  },
+}));
+
+/** Упрощённый тип строки, возвращаемой моком пула. */
+type QueryRow = { config_json: unknown; wrap_json: boolean };
+
+/** Подготавливает мок-пул, который вернёт переданные строки. */
+function mockRows(rows: QueryRow[]) {
+  const connect = vi.fn().mockResolvedValue({
+    query: vi.fn().mockResolvedValue({ rows }),
+    release: vi.fn(),
+  });
+  (database.pool.connect as ReturnType<typeof vi.fn>).mockImplementation(connect);
+}
+
+describe("queryLoader.loadQueryConfig", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
   });
 
-  describe("loadQueryConfig", () => {
-    it("должен загрузить конфиг для существующего query_id", async () => {
-      const result = await loadQueryConfig("header_dates");
+  it("возвращает конфиг и wrapJson для найденного query_id", async () => {
+    const row: QueryRow = {
+      config_json: { from: { schema: "mart", table: "balance" } },
+      wrap_json: true,
+    };
+    mockRows([row]);
 
-      expect(result).not.toBeNull();
-      expect(result).toHaveProperty("config");
-      expect(result).toHaveProperty("wrapJson");
-      expect(result?.config).toHaveProperty("from");
-      expect(typeof result?.wrapJson).toBe("boolean");
+    const result = await loadQueryConfig("table_balance");
+
+    expect(result).not.toBeNull();
+    expect(result?.config).toHaveProperty("from");
+    expect(result?.config.from).toHaveProperty("schema");
+    expect(result?.wrapJson).toBe(true);
+  });
+
+  it("возвращает null для несуществующего query_id", async () => {
+    mockRows([]);
+
+    const result = await loadQueryConfig("non_existent_query_id_12345");
+
+    expect(result).toBeNull();
+  });
+
+  it("корректно трактует wrap_json=false", async () => {
+    const row: QueryRow = {
+      config_json: { from: { schema: "mart", table: "fin_results" } },
+      wrap_json: false,
+    };
+    mockRows([row]);
+
+    const result = await loadQueryConfig("fin_results");
+
+    expect(result).not.toBeNull();
+    expect(result?.wrapJson).toBe(false);
+  });
+
+  it("выполняет SQL с переданным query_id", async () => {
+    const connect = vi.fn().mockResolvedValue({
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+      release: vi.fn(),
     });
+    (database.pool.connect as ReturnType<typeof vi.fn>).mockImplementation(connect);
 
-    it("должен вернуть null для несуществующего query_id", async () => {
-      const result = await loadQueryConfig("non_existent_query_id_12345");
+    await loadQueryConfig("some_id");
 
-      expect(result).toBeNull();
-    });
-
-    it("должен загрузить конфиг для table_balance", async () => {
-      const result = await loadQueryConfig("table_balance");
-
-      expect(result).not.toBeNull();
-      expect(result?.config).toHaveProperty("from");
-      expect(result?.config.from).toHaveProperty("schema");
-      expect(result?.config.from).toHaveProperty("table");
-    });
-
-    it("должен вернуть правильное значение wrapJson", async () => {
-      const result = await loadQueryConfig("table_balance");
-
-      expect(result).not.toBeNull();
-      // table_balance должен иметь wrapJson = true
-      expect(result?.wrapJson).toBe(true);
-    });
-
-    it("должен вернуть null для неактивного query_id", async () => {
-      // Сначала создаем неактивный query
-      const client = await pool.connect();
-      try {
-        await client.query(`
-          INSERT INTO config.component_queries (query_id, title, config_json, wrap_json, is_active)
-          VALUES ('test_inactive', 'Test', '{"from": {"schema": "mart", "table": "balance"}}', true, false)
-          ON CONFLICT (query_id) DO UPDATE SET is_active = false
-        `);
-
-        const result = await loadQueryConfig("test_inactive");
-        expect(result).toBeNull();
-
-        // Очистка
-        await client.query(`DELETE FROM config.component_queries WHERE query_id = 'test_inactive'`);
-      } finally {
-        client.release();
-      }
-    });
+    const client = await (database.pool.connect as ReturnType<typeof vi.fn>).mock.results[0]
+      .value;
+    const sql = (client.query as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const param = (client.query as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(String(sql)).toContain("query_id = $1");
+    expect(param).toEqual(["some_id"]);
   });
 });

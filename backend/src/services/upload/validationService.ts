@@ -494,7 +494,7 @@ export function aggregateValidationErrors(errors: ValidationError[]): {
       rowsByType[key] = [];
       // Корректное преобразование значения в строку
       let valueStr: string | undefined;
-      if (error.fieldValue != null) {
+      if (error.fieldValue !== null && error.fieldValue !== undefined) {
         if (typeof error.fieldValue === 'object') {
           valueStr = JSON.stringify(error.fieldValue);
         } else {
@@ -509,7 +509,7 @@ export function aggregateValidationErrors(errors: ValidationError[]): {
     }
     
     // Собираем первые 5 строк
-    if (rowsByType[key].length < 5 && error.rowNumber != null) {
+    if (rowsByType[key].length < 5 && error.rowNumber !== null && error.rowNumber !== undefined) {
       rowsByType[key].push(error.rowNumber);
     }
   }

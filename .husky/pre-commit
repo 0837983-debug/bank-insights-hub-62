@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Защитный контур перед фиксацией (через Husky).
+# 1. Блокирует прямые фиксации в защищённых ветках dev/main.
+# 2. Запускает unit-тесты (vitest) для проверки изменений.
+node "$(dirname -- "$0")/../scripts/block-protected-commit.mjs" && npm test

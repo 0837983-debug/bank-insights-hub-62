@@ -1,8 +1,14 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import routes from "./routes/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { whitelistAuth } from "./middleware/whitelistAuth.js";
+import { ensureSuperAdmin } from "./services/auth/authService.js";
+import { AppError, AppErrorCode, ERROR_CATALOG } from "./types/errors.js";
 
 dotenv.config();
 
@@ -10,12 +16,29 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+app.use(helmet());
 app.use(cors({
-  origin: ["http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:8080"],
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+    : ["http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:8080"],
   credentials: true,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Ограничение частоты запросов на вход (защита от перебора паролей)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  // Максимум попыток входа. Значение переопределяется через env (для E2E/отладки
+  // можно увеличить, чтобы тесты не упирались в лимит). По умолчанию — 20.
+  max: Number(process.env.AUTH_LOGIN_MAX ?? "20"),
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Сообщение из карты ошибок (код RATE_LIMITED)
+  message: { code: AppErrorCode.AUTH_RATE_LIMITED, ...ERROR_CATALOG[AppErrorCode.AUTH_RATE_LIMITED] },
+});
+app.use("/api/auth/login", authLimiter);
 
 // Health check endpoint
 app.get("/api/health", async (_req, res) => {
@@ -212,17 +235,25 @@ app.get("/api-docs", (_req, res) => {
   res.send(html);
 });
 
-// API routes
+// API routes — всё закрыто по белому списку, кроме явно разрешённых путей
+app.use("/api", whitelistAuth);
 app.use("/api", routes);
 
 // 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ error: "Route not found" });
+app.use((_req, _res, next) => {
+  next(new AppError(AppErrorCode.NOT_FOUND_ROUTE));
 });
 
 // Error handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+  // Гарантируем наличие супер-админа при первом запуске
+  try {
+    await ensureSuperAdmin();
+    console.log("Super admin ensured");
+  } catch (error) {
+    console.error("Failed to ensure super admin:", error);
+  }
 });

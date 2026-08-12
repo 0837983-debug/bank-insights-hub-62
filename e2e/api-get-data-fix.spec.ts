@@ -1,6 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "./config.js";
 
 test.describe("GET /api/data - Fixed Format", () => {
   async function getCurrentPeriods(request: any) {
@@ -23,10 +23,10 @@ test.describe("GET /api/data - Fixed Format", () => {
   }
 
   test.describe("New format response", () => {
-    test("should return { componentId, type, rows } format", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should return { componentId, type, rows } format", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
@@ -45,10 +45,10 @@ test.describe("GET /api/data - Fixed Format", () => {
       expect(Array.isArray(data.rows)).toBe(true);
     });
 
-    test("should return rows array with correct structure", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should return rows array with correct structure", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
@@ -71,7 +71,7 @@ test.describe("GET /api/data - Fixed Format", () => {
   });
 
   test.describe("Error handling - wrapJson=false", () => {
-    test.skip("should return 400 when wrapJson=false", async ({ request }) => {
+    test.skip("should return 400 when wrapJson=false", async ({ authedRequest }) => {
       // header_dates теперь обрабатывается специально и не требует wrapJson=true
       // Этот тест устарел, так как header_dates использует getPeriodDates() напрямую
       test.skip();
@@ -79,8 +79,8 @@ test.describe("GET /api/data - Fixed Format", () => {
   });
 
   test.describe("POST endpoint removal", () => {
-    test("should return 404 for POST /api/data", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data`, {
+    test("should return 404 for POST /api/data", async ({ authedRequest }) => {
+      const response = await authedRequest.post(`${API_BASE_URL}/data`, {
         data: {
           query_id: "assets_table",
           params: {},
@@ -90,8 +90,8 @@ test.describe("GET /api/data - Fixed Format", () => {
       expect(response.status()).toBe(404);
     });
 
-    test("should return 404 for POST /api/data/ with body", async ({ request }) => {
-      const response = await request.post(`${API_BASE_URL}/data/`, {
+    test("should return 404 for POST /api/data/ with body", async ({ authedRequest }) => {
+      const response = await authedRequest.post(`${API_BASE_URL}/data/`, {
         data: {
           query_id: "assets_table",
           params: {
@@ -108,10 +108,10 @@ test.describe("GET /api/data - Fixed Format", () => {
   });
 
   test.describe("Query parameters", () => {
-    test("should accept component_Id as query parameter", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should accept component_Id as query parameter", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
@@ -121,10 +121,10 @@ test.describe("GET /api/data - Fixed Format", () => {
       expect(data.componentId).toBe("assets_table");
     });
 
-    test("should parse date parameters correctly", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should parse date parameters correctly", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
@@ -137,10 +137,10 @@ test.describe("GET /api/data - Fixed Format", () => {
   });
 
   test.describe("Response format validation", () => {
-    test("should have correct Content-Type", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should have correct Content-Type", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
@@ -150,10 +150,10 @@ test.describe("GET /api/data - Fixed Format", () => {
       expect(contentType).toContain("application/json");
     });
 
-    test("should return valid JSON structure", async ({ request }) => {
-      const params = await getCurrentPeriods(request);
+    test("should return valid JSON structure", async ({ authedRequest }) => {
+      const params = await getCurrentPeriods(authedRequest);
       const paramsStr = encodeURIComponent(JSON.stringify(params));
-      const response = await request.get(
+      const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 

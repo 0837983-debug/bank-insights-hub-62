@@ -8,6 +8,7 @@ import { AlertCircle } from "lucide-react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { initializeFormats } from "@/lib/formatters";
 import { executeCalculation } from "@/lib/calculations";
+import { toErrorMessage } from "@/lib/error-catalog";
 import {
   FinancialTable,
   type TableRowData,
@@ -312,9 +313,7 @@ function DynamicTable({ component }: DynamicTableProps) {
   const hasError = error && !transformedData;
   
   if (hasError) {
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : String(error) || "Unknown error";
+    const errorMessage = toErrorMessage(error);
     
     // Если нет дат, показываем специальное сообщение
     const missingDatesError = !dates;
@@ -334,7 +333,11 @@ function DynamicTable({ component }: DynamicTableProps) {
           ) : (
             <>
               Не удалось загрузить данные для таблицы "{component.title}" (componentId: {component.componentId})
-              {errorMessage && <div className="mt-2 text-xs font-mono">{errorMessage}</div>}
+              {errorMessage && (
+                <div data-testid="dashboard-error" className="mt-2 text-xs font-mono">
+                  {errorMessage}
+                </div>
+              )}
             </>
           )}
         </AlertDescription>
