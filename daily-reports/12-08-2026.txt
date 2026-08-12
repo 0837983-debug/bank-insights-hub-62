@@ -179,3 +179,15 @@
      test:e2e:packages.
    - Проверено: все пакеты зелёные без флаков (safe-api 55+8skip, safe-ui
      64+1skip, destructive 35). Коммит a693c91.
+
+13. ЖЕЛЕЗНАЯ ЗАЩИТА ВЕТОК dev/main ОТ ПРЯМЫХ ФИКСАЦИЙ
+   - Создана ветка feature/branch-protection.
+   - Добавлен pre-commit-хук: блокирует git commit в ветках dev и main.
+     Работать с ними можно только через git merge из feature-ветки.
+     Для осознанного обхода — переменная окружения ALLOW_PROTECTED_COMMIT=1.
+   - Скрипт: scripts/block-protected-commit.mjs, хук: .husky/pre-commit
+     (сначала защита, затем npm test).
+   - Слияние в dev выполнено (merge 741c5e3), все пакеты тестов зелёные.
+   - Проверено: прямой коммит в dev заблокирован (exit 1), HEAD не изменился;
+     обход через ALLOW_PROTECTED_COMMIT=1 работает. Ветка feature/branch-protection
+     можно удалить после подтверждения.
