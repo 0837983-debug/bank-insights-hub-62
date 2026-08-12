@@ -17,16 +17,13 @@
  *   Use this on machines without Docker or when the compose stack is not running.
  */
 import { execSync } from "node:child_process";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures.js";
+import { API_BASE_URL, FRONTEND_URL } from "../config.js";
 
 const DOCKER_MODE = process.env.E2E_DOCKER_MODE === "true";
 
-const API_BASE_URL =
-  process.env.E2E_DOCKER_API_URL ?? "http://localhost:3001/api";
-const FRONTEND_URL =
-  process.env.E2E_DOCKER_FRONTEND_URL ?? "http://localhost:8080";
 const COMPOSE_FILE =
-  process.env.E2E_DOCKER_COMPOSE_FILE ?? "docker-compose.dev.yml";
+  process.env.E2E_TEST_COMPOSE_FILE ?? "docker-compose.test.yml";
 const DB_RESET_TIMEOUT_MS = 10 * 60 * 1000;
 
 function mapPeriodsFromHeaderRows(rows: Array<Record<string, unknown>>) {
@@ -37,8 +34,8 @@ function mapPeriodsFromHeaderRows(rows: Array<Record<string, unknown>>) {
   return { p1, p2, p3 };
 }
 
-async function getHeaderPeriods(request: import("@playwright/test").APIRequestContext) {
-  const response = await request.get(
+async function getHeaderPeriods(api: import("@playwright/test").APIRequestContext) {
+  const response = await api.get(
     `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${encodeURIComponent("{}")}`
   );
   expect(response.ok()).toBeTruthy();
@@ -73,16 +70,16 @@ function runDockerDbReset() {
 }
 
 async function assertDashboardApisOk(
-  request: import("@playwright/test").APIRequestContext
+  api: import("@playwright/test").APIRequestContext
 ) {
-  const healthResponse = await request.get(`${API_BASE_URL}/health`);
+  const healthResponse = await api.get(`${API_BASE_URL}/health`);
   expect(healthResponse.status()).toBeLessThan(600);
   const healthData = await healthResponse.json();
   expect(healthData.services?.backend?.status).toBe("ok");
   expect(healthData.status).toMatch(/^(ok|degraded)$/);
 
   const layoutParams = JSON.stringify({ layout_id: "main_dashboard" });
-  const layoutResponse = await request.get(
+  const layoutResponse = await api.get(
     `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(layoutParams)}`
   );
   expect(layoutResponse.ok()).toBeTruthy();
@@ -90,7 +87,7 @@ async function assertDashboardApisOk(
   expect(Array.isArray(layoutData.sections)).toBe(true);
   expect(layoutData.sections.length).toBeGreaterThan(0);
 
-  const periods = await getHeaderPeriods(request);
+  const periods = await getHeaderPeriods(api);
 
   const kpiParams = JSON.stringify({
     p1: periods.p1,
@@ -98,7 +95,7 @@ async function assertDashboardApisOk(
     p3: periods.p3,
     layout_id: "main_dashboard",
   });
-  const kpiResponse = await request.get(
+  const kpiResponse = await api.get(
     `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(kpiParams)}`
   );
   expect(kpiResponse.ok()).toBeTruthy();
@@ -112,7 +109,7 @@ async function assertDashboardApisOk(
     p2: periods.p2,
     p3: periods.p3,
   });
-  const balanceResponse = await request.get(
+  const balanceResponse = await api.get(
     `${API_BASE_URL}/data?query_id=table_balance&component_Id=table_balance&parametrs=${encodeURIComponent(tableParams)}`
   );
   expect(balanceResponse.ok()).toBeTruthy();
@@ -123,7 +120,7 @@ async function assertDashboardApisOk(
     Array.isArray(balanceData?.rows) ? balanceData.rows.length : 0
   ).toBeGreaterThan(0);
 
-  const finResultsResponse = await request.get(
+  const finResultsResponse = await api.get(
     `${API_BASE_URL}/data?query_id=fin_results_table&component_Id=fin_results_table&parametrs=${encodeURIComponent(tableParams)}`
   );
   expect(finResultsResponse.ok()).toBeTruthy();
@@ -141,8 +138,8 @@ test.describe("Docker dev stack smoke", () => {
     "Skipped: set E2E_DOCKER_MODE=true when docker compose dev stack is up and bootstrapped"
   );
 
-  test("GET /api/health returns ok", async ({ request }) => {
-    const response = await request.get(`${API_BASE_URL}/health`);
+  test("GET /api/health returns ok", async ({ authedRequest }) => {
+    const response = await authedRequest.get(`${API_BASE_URL}/health`);
 
     expect(response.status()).toBeLessThan(600);
 
@@ -152,10 +149,10 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=layout returns layout sections", async ({
-    request,
+    authedRequest,
   }) => {
     const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-    const response = await request.get(
+    const response = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
     );
 
@@ -169,10 +166,10 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=layout includes header section", async ({
-    request,
+    authedRequest,
   }) => {
     const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-    const response = await request.get(
+    const response = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
     );
 
@@ -197,9 +194,9 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=header_dates returns p1, p2, p3 periods", async ({
-    request,
+    authedRequest,
   }) => {
-    const response = await request.get(
+    const response = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=header_dates&component_Id=header&parametrs=${encodeURIComponent("{}")}`
     );
 
@@ -218,9 +215,9 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=kpis returns valid KPI data", async ({
-    request,
+    authedRequest,
   }) => {
-    const periods = await getHeaderPeriods(request);
+    const periods = await getHeaderPeriods(authedRequest);
 
     const paramsJson = JSON.stringify({
       p1: periods.p1,
@@ -228,7 +225,7 @@ test.describe("Docker dev stack smoke", () => {
       p3: periods.p3,
       layout_id: "main_dashboard",
     });
-    const response = await request.get(
+    const response = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(paramsJson)}`
     );
 
@@ -244,16 +241,16 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=table_balance returns rows without wrap_json error", async ({
-    request,
+    authedRequest,
   }) => {
-    const periods = await getHeaderPeriods(request);
+    const periods = await getHeaderPeriods(authedRequest);
     const paramsJson = JSON.stringify({
       p1: periods.p1,
       p2: periods.p2,
       p3: periods.p3,
     });
 
-    const response = await request.get(
+    const response = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=table_balance&component_Id=table_balance&parametrs=${encodeURIComponent(paramsJson)}`
     );
 
@@ -269,10 +266,10 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=layout includes fin_results_table with columns", async ({
-    request,
+    authedRequest,
   }) => {
     const paramsJson = JSON.stringify({ layout_id: "main_dashboard" });
-    const response = await request.get(
+    const response = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(paramsJson)}`
     );
 
@@ -298,16 +295,16 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=fin_results_table returns rows", async ({
-    request,
+    authedRequest,
   }) => {
-    const periods = await getHeaderPeriods(request);
+    const periods = await getHeaderPeriods(authedRequest);
     const paramsJson = JSON.stringify({
       p1: periods.p1,
       p2: periods.p2,
       p3: periods.p3,
     });
 
-    const response = await request.get(
+    const response = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=fin_results_table&component_Id=fin_results_table&parametrs=${encodeURIComponent(paramsJson)}`
     );
 
@@ -323,12 +320,12 @@ test.describe("Docker dev stack smoke", () => {
   });
 
   test("GET /api/data?query_id=kpis returns fin_results card with non-null p1 value", async ({
-    request,
+    authedRequest,
   }) => {
-    const periods = await getHeaderPeriods(request);
+    const periods = await getHeaderPeriods(authedRequest);
 
     const layoutParams = JSON.stringify({ layout_id: "main_dashboard" });
-    const layoutResponse = await request.get(
+    const layoutResponse = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=layout&component_Id=layout&parametrs=${encodeURIComponent(layoutParams)}`
     );
     expect(layoutResponse.ok()).toBeTruthy();
@@ -357,7 +354,7 @@ test.describe("Docker dev stack smoke", () => {
       p3: periods.p3,
       layout_id: "main_dashboard",
     });
-    const kpiResponse = await request.get(
+    const kpiResponse = await authedRequest.get(
       `${API_BASE_URL}/data?query_id=kpis&component_Id=kpis&parametrs=${encodeURIComponent(kpiParams)}`
     );
     expect(kpiResponse.ok()).toBeTruthy();
@@ -383,10 +380,12 @@ test.describe("Docker dev stack smoke", () => {
     await expect(page.locator("body")).toBeVisible();
   });
 
+  // Тест использует ИЗОЛИРОВАННУЮ тестовую БД (docker-compose.test.yml),
+  // поэтому db:reset безопасен — dev-данные не затрагиваются.
   test("after db:reset in Docker — dashboard APIs return valid data", async ({
-    request,
+    authedRequest,
   }) => {
     runDockerDbReset();
-    await assertDashboardApisOk(request);
+    await assertDashboardApisOk(authedRequest);
   });
 });

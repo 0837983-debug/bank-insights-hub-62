@@ -15,17 +15,16 @@
  */
 import { test, expect, Page, APIRequestContext } from "@playwright/test";
 import { execSync } from "node:child_process";
+import { API_BASE_URL } from "../config.js";
 
-const ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME ?? "admin";
+const ADMIN_USERNAME = process.env.TEST_SUPER_ADMIN_USERNAME ?? "admin";
 const ADMIN_PASSWORD =
-  process.env.SUPER_ADMIN_PASSWORD ?? "GTdusE+3mN306uhmBM1IBfXZvWS6WYEy";
+  process.env.TEST_SUPER_ADMIN_PASSWORD ?? "GTdusE+3mN306uhmBM1IBfXZvWS6WYEy";
 
-const API_BASE_URL =
-  process.env.E2E_DOCKER_API_URL ?? "http://localhost:3001/api";
 const COMPOSE_FILE =
-  process.env.E2E_DOCKER_COMPOSE_FILE ?? "docker-compose.dev.yml";
-const DB_NAME = process.env.DB_NAME ?? "bankdb_local";
-const DB_USER = process.env.DB_USER ?? "bank_local_user";
+  process.env.E2E_TEST_COMPOSE_FILE ?? "docker-compose.test.yml";
+const DB_NAME = process.env.TEST_DB_NAME ?? "bankdb_test";
+const DB_USER = process.env.TEST_DB_USER ?? "bank_test_user";
 
 /**
  * Уникальное имя тестового пользователя.

@@ -1,8 +1,9 @@
-import { test, expect } from "./fixtures.js";
+import { test, expect } from "../fixtures.js";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { rollbackUpload } from "../helpers/rollback.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "../config.js";
 const TEST_DATA_DIR = join(process.cwd(), "test-data", "uploads");
 
 test.describe("Upload API Integration Tests", () => {
@@ -38,6 +39,9 @@ test.describe("Upload API Integration Tests", () => {
         expect(data.uploadId).toBeGreaterThan(0);
         expect(data).toHaveProperty("status");
         expect(["pending", "processing", "completed"]).toContain(data.status);
+
+        // Идемпотентность: удаляем только данные, созданные этим тестом.
+        await rollbackUpload(authedRequest, API_BASE_URL, data.uploadId);
       } else if (response.status() === 400) {
         // Ошибки валидации
         expect(data).toHaveProperty("uploadId");
@@ -172,6 +176,9 @@ test.describe("Upload API Integration Tests", () => {
         // Status endpoint may not exist - document this
         console.log(`⚠️  Status endpoint returned ${statusResponse.status()}`);
       }
+
+      // Идемпотентность: удаляем только данные, созданные этим тестом.
+      await rollbackUpload(authedRequest, API_BASE_URL, uploadId);
     });
 
     test("should return 404 for non-existent upload", async ({ authedRequest }) => {
