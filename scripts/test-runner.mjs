@@ -1,14 +1,53 @@
 /**
  * Общий прогон тестов на изолированном тестовом контуре.
  *
- * Переиспользуется защитными хуками pre-push и pre-merge-commit.
- * При падении хотя бы одного теста выбрасывает исключение (caller решает,
- * блокировать операцию или нет).
+ * ПАКЕТНОЕ ТЕСТИРОВАНИЕ.
+ *
+ * Тесты разбиты на пакеты по признаку зависимости от состояния базы данных
+ * и типу операций. Внутри пакета тесты независимы и выполняются параллельно,
+ * между пакетами — последовательно, чтобы пакеты не конфликтовали между собой:
+ *
+ *   1. Пакет "safe-api" — read-only API-тесты (только чтение, параллельно).
+ *   2. Пакет "safe-ui"  — read-only UI-тесты (только чтение, параллельно).
+ *   3. Пакет "destructive" — пишут/перезаписывают БД (db:reset, db-seed,
+ *      загрузка CSV, пользователи) — строго последовательно (workers=1),
+ *      т.к. конкурируют за одну тестовую БД.
+ *
+ * Порядок важен: безопасные пакеты требуют засеянной БД, поэтому сначала
+ * выполняется seed (наполнение тестовой БД), затем безопасные пакеты,
+ * и только потом деструктивные.
+ *
+ * При падении хотя бы одного пакета — выбрасывается исключение (exit 1),
+ * вызывающая сторона (pre-push/pre-merge-commit хук) блокирует операцию.
  */
 import { execSync } from "node:child_process";
 
 /** Команда поднятия тестового контура. */
 const TEST_COMPOSE_UP = "docker compose -f docker-compose.test.yml up -d";
+
+/** Команда наполнения тестовой БД (seed) на изолированном контуре. */
+const TEST_DB_SEED =
+  "docker compose -f docker-compose.test.yml --profile seed run --rm db-seed";
+
+/** Определение пакетов и их конфигов. Каждый пакет независим внутри. */
+const PACKAGES = [
+  {
+    name: "safe-api",
+    command: "npx playwright test -c playwright.safe-api.config.ts --reporter=line",
+    timeout: 1800000,
+  },
+  {
+    name: "safe-ui",
+    command: "npx playwright test -c playwright.safe-ui.config.ts --reporter=line",
+    timeout: 1800000,
+  },
+  {
+    name: "destructive",
+    command:
+      "npx playwright test -c playwright.destructive.config.ts --reporter=line",
+    timeout: 1800000,
+  },
+];
 
 /** Проверяет, доступен ли тестовый backend (3002). */
 export function isTestBackendReady() {
@@ -24,9 +63,9 @@ export function isTestBackendReady() {
 }
 
 /**
- * Прогоняет безопасные + деструктивные E2E-тесты на тестовом контуре.
+ * Прогоняет все пакеты тестов на тестовом контуре.
  * @param {string} hookName - имя хука для логов (например "pre-push", "pre-merge").
- * @throws если любой из прогонов завершился с ошибкой.
+ * @throws если любой из пакетов завершился с ошибкой.
  */
 export function runTests(hookName = "pre-push") {
   const env = { ...process.env, E2E_DOCKER_MODE: "true" };
@@ -36,26 +75,16 @@ export function runTests(hookName = "pre-push") {
     execSync(TEST_COMPOSE_UP, { stdio: "inherit", timeout: 300000 });
   }
 
-  console.log(`\n=== [${hookName}] Прогон безопасных E2E-тестов ===`);
-  // Ограничиваем параллелизм и добавляем один повтор: безопасные тесты
-  // выполняются на едином тестовом контуре, и полная параллельность при
-  // большом количестве спеков перегружает backend/frontend и вызывает флаки.
-  execSync(
-    "npx playwright test --reporter=line --workers=2 --retries=1",
-    {
-      env,
-      stdio: "inherit",
-      timeout: 1800000,
-    }
-  );
+  console.log(`\n=== [${hookName}] Наполняю тестовую БД (seed) для безопасных пакетов ===`);
+  execSync(TEST_DB_SEED, { env, stdio: "inherit", timeout: 1200000 });
 
-  console.log(`\n=== [${hookName}] Прогон деструктивных E2E-тестов ===`);
-  execSync(
-    "npx playwright test -c playwright.destructive.config.ts --reporter=line",
-    {
-      env,
-      stdio: "inherit",
-      timeout: 1200000,
-    }
-  );
+  for (const pkg of PACKAGES) {
+    console.log(
+      `\n=== [${hookName}] Пакет "${pkg.name}" — запускаю тесты ===`
+    );
+    execSync(pkg.command, { env, stdio: "inherit", timeout: pkg.timeout });
+    console.log(`\n=== [${hookName}] Пакет "${pkg.name}" — ВСЕ ТЕСТЫ ПРОШЛИ ===`);
+  }
+
+  console.log("\n=== [pre-push/pre-merge] Все пакеты прошли успешно. ===");
 }
