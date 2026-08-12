@@ -41,7 +41,7 @@ test("вход администратора открывает дашборд и
 
   // После входа попадаем на дашборд
   await page.waitForURL("**/");
-  await expect(page).toHaveURL(/^http:\/\/.*:8080\/$/);
+  await expect(page).toHaveURL(/\/$/);
 
   // У супер-админа в меню есть пункт "Аккаунты"
   await expect(page.getByTestId("nav-link-users")).toBeVisible();

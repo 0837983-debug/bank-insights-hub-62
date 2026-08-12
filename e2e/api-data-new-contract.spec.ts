@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "./config.js";
 
 test.describe("GET /api/data - New Contract (query_id, component_Id, parametrs)", () => {
   async function getCurrentPeriods(request: any) {

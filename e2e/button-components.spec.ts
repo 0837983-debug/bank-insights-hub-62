@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures.js";
 import { loginAsAdmin } from "./helpers/auth.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "./config.js";
 
 // Вспомогательная функция для получения layout через новый endpoint
 async function fetchLayout(request: any) {
@@ -171,7 +171,7 @@ test.describe("Button Components", () => {
 
     test("should render buttons for tables", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Ждем загрузки layout
       await page.waitForLoadState("networkidle");
@@ -202,7 +202,7 @@ test.describe("Button Components", () => {
 
     test("should change query_id on button click", async ({ page }) => {
       // Переходим на главную страницу
-      await page.goto("http://localhost:8080/");
+      await page.goto("/");
 
       // Перехватываем запросы к /api/data
       const dataRequests: any[] = [];

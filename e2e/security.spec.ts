@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures.js";
 
-const API_BASE_URL = "http://localhost:3001/api";
+import { API_BASE_URL } from "./config.js";
 
 test.describe("Security Tests", () => {
   test.describe("SQL Injection Protection", () => {
@@ -159,7 +159,7 @@ test.describe("Security Tests", () => {
     });
 
     test("should prevent XSS in frontend rendering", async ({ page }) => {
-      await page.goto("http://localhost:8080");
+      await page.goto("/");
 
       // Try to inject script via URL parameters
       const xssPayloads = [
@@ -174,7 +174,7 @@ test.describe("Security Tests", () => {
           dialog.dismiss();
         });
 
-        await page.goto(`http://localhost:8080/?search=${encodeURIComponent(payload)}`);
+        await page.goto(`/?search=${encodeURIComponent(payload)}`);
         await page.waitForTimeout(1000);
 
         // Check that no alerts were triggered (no script execution)

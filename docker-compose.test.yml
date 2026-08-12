@@ -1,0 +1,166 @@
+# Изолированный ТЕСТОВЫЙ контур (не пересекается с dev-стеком).
+#
+# dev-контур (для заказчика):  postgres :5433, backend :3001, frontend :8080
+# test-контур (для E2E-тестов): postgres :5436, backend :3002, frontend :8081
+#
+# Полная изоляция: собственная БД (bankdb_test), собственные тома и контейнеры.
+# Деструктивные тесты (db:reset, db-seed) можно безопасно выполнять здесь —
+# они затрагивают ТОЛЬКО тестовую БД, dev-данные не трогаются.
+#
+# Поднятие:
+#   docker compose -f docker-compose.test.yml up -d --build
+# Миграции + seed (один раз):
+#   docker compose -f docker-compose.test.yml --profile bootstrap run --rm db-bootstrap
+#   docker compose -f docker-compose.test.yml --profile seed run --rm db-seed
+# Тесты:
+#   E2E_DOCKER_MODE=true npx playwright test -c playwright.config.ts
+#   E2E_DOCKER_MODE=true npx playwright test -c playwright.destructive.config.ts
+
+# Отдельное имя проекта, чтобы тестовый стек НИКОГДА не пересекался с dev-стеком
+# (dev использует project name "bank"). Без этого docker compose пересоздаёт
+# контейнеры общего проекта.
+name: bank-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bank-insights-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${TEST_DB_USER:-bank_test_user}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-bank_test_password}
+      POSTGRES_DB: ${TEST_DB_NAME:-bankdb_test}
+    ports:
+      - "${TEST_DB_PORT:-5436}:5432"
+    volumes:
+      - pgdata-test:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${TEST_DB_USER:-bank_test_user} -d ${TEST_DB_NAME:-bankdb_test}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: bank-insights-backend-test
+    restart: unless-stopped
+    ports:
+      - "${TEST_BACKEND_PORT:-3002}:3001"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${TEST_DB_NAME:-bankdb_test}
+      DB_USER: ${TEST_DB_USER:-bank_test_user}
+      DB_PASSWORD: ${TEST_DB_PASSWORD:-bank_test_password}
+      PORT: 3001
+      FRONTEND_URL: http://frontend:8080
+      CORS_ORIGIN: ${TEST_CORS_ORIGIN:-http://localhost:8081,http://localhost:5173,http://127.0.0.1:8081}
+      JWT_ACCESS_SECRET: ${TEST_JWT_ACCESS_SECRET:-test-access-secret}
+      JWT_REFRESH_SECRET: ${TEST_JWT_REFRESH_SECRET:-test-refresh-secret}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      SUPER_ADMIN_USERNAME: ${TEST_SUPER_ADMIN_USERNAME:-admin}
+      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-GTdusE+3mN306uhmBM1IBfXZvWS6WYEy}
+      # Большой лимит входов — тесты логинятся много раз.
+      AUTH_LOGIN_MAX: ${TEST_AUTH_LOGIN_MAX:-2000}
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json:ro
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.dev
+    container_name: bank-insights-frontend-test
+    restart: unless-stopped
+    ports:
+      # Vite внутри контейнера слушает 8080 (strictPort), наружу пробрасываем 8081
+      - "${TEST_FRONTEND_PORT:-8081}:8080"
+    environment:
+      VITE_API_URL: ${TEST_VITE_API_URL:-/api}
+      # Прокси /api на тестовый backend (порт внутри сети — 3001, наружу 3002)
+      VITE_PROXY_TARGET: http://backend:3001
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+    depends_on:
+      - backend
+
+  db-bootstrap:
+    profiles:
+      - bootstrap
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: bank-insights-db-bootstrap-test
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${TEST_DB_NAME:-bankdb_test}
+      DB_USER: ${TEST_DB_USER:-bank_test_user}
+      DB_PASSWORD: ${TEST_DB_PASSWORD:-bank_test_password}
+      DB_ADMIN_USER: ${TEST_DB_USER:-bank_test_user}
+      DB_ADMIN_PASSWORD: ${TEST_DB_PASSWORD:-bank_test_password}
+      ALLOW_DATA_RESET: "true"
+      BOOTSTRAP_USE_TEMP_BACKEND: "true"
+      SUPER_ADMIN_USERNAME: ${TEST_SUPER_ADMIN_USERNAME:-admin}
+      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-GTdusE+3mN306uhmBM1IBfXZvWS6WYEy}
+      DATASET_DIR: /test-data/uploads
+      BALANCE_DATASET_FILES: ${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}
+      FIN_RESULTS_DATASET_FILES: ${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}
+    volumes:
+      - ./test-data:/test-data:ro
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json:ro
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "db:reset"]
+    restart: "no"
+
+  db-seed:
+    profiles:
+      - seed
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: bank-insights-db-seed-test
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${TEST_DB_NAME:-bankdb_test}
+      DB_USER: ${TEST_DB_USER:-bank_test_user}
+      DB_PASSWORD: ${TEST_DB_PASSWORD:-bank_test_password}
+      BOOTSTRAP_USE_TEMP_BACKEND: "true"
+      SUPER_ADMIN_USERNAME: ${TEST_SUPER_ADMIN_USERNAME:-admin}
+      SUPER_ADMIN_PASSWORD: ${TEST_SUPER_ADMIN_PASSWORD:-GTdusE+3mN306uhmBM1IBfXZvWS6WYEy}
+      DATASET_DIR: /test-data/uploads
+      BALANCE_DATASET_FILES: ${BALANCE_DATASET_FILES:-capital_seed_2024-12.csv,capital_2025-01.csv,capital_seed_2025-02.csv}
+      FIN_RESULTS_DATASET_FILES: ${FIN_RESULTS_DATASET_FILES:-fin_results_2024-12.csv,fin_results_2025-01.csv,fin_results_2025-02.csv}
+    volumes:
+      - ./test-data:/test-data:ro
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json:ro
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "db:seed"]
+    restart: "no"
+
+volumes:
+  pgdata-test:
