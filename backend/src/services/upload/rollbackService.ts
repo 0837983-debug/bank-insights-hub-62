@@ -30,39 +30,31 @@ export async function rollbackUpload(
       throw new Error("Загрузка уже была откачена");
     }
 
-    // Удаляем данные из STG
-    await client.query(
-      `DELETE FROM stg.balance_upload WHERE upload_id = $1`,
-      [uploadId]
-    );
-
-    // Soft delete данных из ODS, которые были созданы этой загрузкой
-    await client.query(
-      `UPDATE ods.balance 
-       SET deleted_at = CURRENT_TIMESTAMP, deleted_by = $2
-       WHERE upload_id = $1 AND deleted_at IS NULL`,
-      [uploadId, rolledBackBy]
-    );
-
-    // Удаляем данные из MART за те же периоды, что были в ODS.
-    // mart.balance и связанные витрины — материализованные представления,
-    // поэтому их нельзя менять напрямую: данные из ODS уже помечены
-    // удалёнными (soft delete), а витрины обновляем через REFRESH.
-    const periodsResult = await client.query(
-      `SELECT DISTINCT period_date, class, section, item
-       FROM ods.balance
-       WHERE upload_id = $1 AND deleted_at IS NOT NULL`,
-      [uploadId]
-    );
-
-    // Уточняем источник данных для витрины: если загрузка касалась баланса,
-    // обновляем соответствующие материализованные представления
+    // Определяем целевую ODS-таблицу и набор витрин по target_table загрузки.
     const targetResult = await client.query(
       `SELECT target_table FROM ing.uploads WHERE id = $1`,
       [uploadId]
     );
     const targetTable = targetResult.rows[0]?.target_table ?? "balance";
 
+    // Мягкое удаление данных, созданных этой загрузкой, из соответствующей ODS-таблицы.
+    // Таблица выбирается по target_table: balance -> ods.balance, fin_results -> ods.fin_results.
+    const odsTable = targetTable === "fin_results" ? "ods.fin_results" : "ods.balance";
+    await client.query(
+      `UPDATE ${odsTable}
+       SET deleted_at = CURRENT_TIMESTAMP, deleted_by = $2
+       WHERE upload_id = $1 AND deleted_at IS NULL`,
+      [uploadId, rolledBackBy]
+    );
+
+    // Удаляем данные из STG (таблица загрузки баланса).
+    await client.query(
+      `DELETE FROM stg.balance_upload WHERE upload_id = $1`,
+      [uploadId]
+    );
+
+    // Обновляем витрины (материализованные представления) через REFRESH,
+    // т.к. их нельзя менять напрямую: ODS-данные уже помечены как удалённые.
     if (targetTable === "fin_results") {
       await client.query('REFRESH MATERIALIZED VIEW mart.fin_results');
       await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_fin_results');
@@ -74,7 +66,6 @@ export async function rollbackUpload(
       await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_balance');
       await client.query('REFRESH MATERIALIZED VIEW mart.mv_kpi_derived');
     }
-    void periodsResult;
 
     // Обновляем статус загрузки
     await client.query(
