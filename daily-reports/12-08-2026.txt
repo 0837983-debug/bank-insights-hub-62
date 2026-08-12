@@ -163,3 +163,19 @@
      b2a68e2, все тесты зелёные (безопасные + деструктивные), рабочий
      контур не затронут. dev впереди origin/dev на 32 коммита.
    - Пуш в origin не выполнялся (по правилам — только с разрешения).
+
+12. ПАКЕТНОЕ ТЕСТИРОВАНИЕ E2E (устранение конфликтов)
+   - Анализ: 3 ядра CPU, 10Gi RAM, один тестовый контур. При полной
+     параллельности (128 безопасных тестов) контур перегружался — флаки.
+     Деструктивные тесты конкурируют за одну тестовую БД.
+   - Тесты разбиты на пакеты (по зависимости от БД и типу операций):
+     * safe-api (63 read-only API, workers=2)
+     * safe-ui (65 read-only UI, workers=2)
+     * destructive (35 пишут БД, workers=1 последовательно)
+   - Оркестратор scripts/test-runner.mjs: seed -> safe-api -> safe-ui -> destructive.
+     Внутри пакетов параллельно, между пакетами последовательно.
+   - Конфиги: playwright.safe-api.config.ts, playwright.safe-ui.config.ts.
+     npm-скрипты: test:e2e:safe-api, test:e2e:safe-ui, test:e2e:destructive,
+     test:e2e:packages.
+   - Проверено: все пакеты зелёные без флаков (safe-api 55+8skip, safe-ui
+     64+1skip, destructive 35). Коммит a693c91.
