@@ -88,3 +88,20 @@ export function runTests(hookName = "pre-push") {
 
   console.log("\n=== [pre-push/pre-merge] Все пакеты прошли успешно. ===");
 }
+
+/**
+ * Прямой запуск из CLI (например `npm run test:e2e:packages`).
+ * При импорте модуля хуками (pre-push/pre-merge) этот блок не выполняется.
+ */
+const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1]);
+
+if (isMain) {
+  try {
+    runTests("test:e2e:packages");
+    process.exit(0);
+  } catch (error) {
+    console.error("\n=== [test:e2e:packages] ОШИБКА: тесты не прошли. ===");
+    console.error(String(error?.stderr ?? error));
+    process.exit(1);
+  }
+}
