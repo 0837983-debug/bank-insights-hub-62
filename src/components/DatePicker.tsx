@@ -1,10 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PeriodDate } from "@/lib/api";
@@ -38,7 +34,7 @@ export function DatePicker({
   isLoading = false,
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   // Локальное состояние для выбора дат (до нажатия Apply)
   const [localSelected, setLocalSelected] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -146,9 +142,7 @@ export function DatePicker({
         </div>
         <div className="max-h-64 overflow-y-auto p-2">
           {availableDates.length === 0 ? (
-            <div className="text-sm text-muted-foreground p-2">
-              Нет доступных дат
-            </div>
+            <div className="text-sm text-muted-foreground p-2">Нет доступных дат</div>
           ) : (
             <div className="space-y-1">
               {availableDates.map((date) => {
@@ -162,9 +156,7 @@ export function DatePicker({
                     disabled={isDisabled}
                     className={cn(
                       "w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors",
-                      isSelected
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted",
+                      isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted",
                       isDisabled && "opacity-50 cursor-not-allowed"
                     )}
                     data-testid={`date-option-${date.periodDate}`}
@@ -196,11 +188,7 @@ export function DatePicker({
           )}
         </div>
         <div className="p-3 border-t flex justify-end gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsOpen(false)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
             Отмена
           </Button>
           <Button

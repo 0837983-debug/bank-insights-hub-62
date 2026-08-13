@@ -55,8 +55,7 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
   const token = getAccessToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const doFetch = (): Promise<Response> =>
-    fetch(url, { ...options, headers, cache: "no-store" });
+  const doFetch = (): Promise<Response> => fetch(url, { ...options, headers, cache: "no-store" });
 
   try {
     let response = await doFetch();
@@ -87,7 +86,10 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
       throw error;
     }
     // Обработка сетевых ошибок (ERR_CONNECTION_REFUSED и т.д.)
-    if (error instanceof TypeError && (error.message.includes("fetch") || error.message.includes("Failed to fetch"))) {
+    if (
+      error instanceof TypeError &&
+      (error.message.includes("fetch") || error.message.includes("Failed to fetch"))
+    ) {
       throw new APIError(
         `Не удалось подключиться к серверу. Убедитесь, что бэкенд запущен на ${API_BASE_URL}`,
         0,
@@ -118,9 +120,9 @@ export interface PeriodDate {
 // ============================================================================
 
 // Field types для определения роли колонки
-export type FieldType = 'dimension' | 'measure' | 'calculated' | 'attribute';
-export type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
-export type CalculationType = 'percent_change' | 'diff' | 'ratio';
+export type FieldType = "dimension" | "measure" | "calculated" | "attribute";
+export type AggregationType = "sum" | "avg" | "count" | "min" | "max";
+export type CalculationType = "percent_change" | "diff" | "ratio";
 
 export interface CalculationConfig {
   type: CalculationType;
@@ -140,7 +142,7 @@ export interface LayoutColumn {
   fieldType: FieldType;
   aggregation?: AggregationType;
   calculationConfig?: CalculationConfig;
-  displayGroup?: 'percent' | 'absolute'; // Группа отображения (для calculated полей)
+  displayGroup?: "percent" | "absolute"; // Группа отображения (для calculated полей)
   isDefault?: boolean; // Группа по умолчанию
   sub_columns?: LayoutColumn[];
 }
@@ -198,7 +200,7 @@ export interface LayoutComponent {
       description?: string;
       fieldType?: FieldType;
       calculationConfig?: CalculationConfig;
-      displayGroup?: 'percent' | 'absolute'; // Группа отображения (для calculated полей)
+      displayGroup?: "percent" | "absolute"; // Группа отображения (для calculated полей)
       isDefault?: boolean; // Группа по умолчанию
     }>;
   }>;
@@ -237,7 +239,7 @@ interface LayoutDataResponse {
 /**
  * Загружает layout через новый endpoint /api/data
  * Преобразует новый формат { sections: [...] } в старый формат { formats, header, sections }
- * 
+ *
  * @param layoutId - ID layout или объект контекста от React Query (будет проигнорирован)
  */
 export async function fetchLayout(layoutId?: string | unknown): Promise<Layout> {
@@ -246,36 +248,34 @@ export async function fetchLayout(layoutId?: string | unknown): Promise<Layout> 
   if (typeof layoutId === "string" && layoutId.trim() !== "") {
     targetLayoutId = layoutId;
   }
-  
+
   // Формируем параметры для запроса - всегда передаем layout_id как строку
   const paramsObject = { layout_id: targetLayoutId };
   const paramsJson = JSON.stringify(paramsObject);
-  
+
   // Формируем endpoint с query параметрами вручную, используя encodeURIComponent
   // Важно: каждый параметр кодируется отдельно для безопасности
   const queryParts: string[] = [];
   queryParts.push(`query_id=${encodeURIComponent("layout")}`);
   queryParts.push(`component_Id=${encodeURIComponent("layout")}`);
   queryParts.push(`parametrs=${encodeURIComponent(paramsJson)}`);
-  
+
   const endpoint = `/data?${queryParts.join("&")}`;
-  
+
   // Вызываем apiFetch напрямую, так как формат ответа для layout отличается от стандартного getData
   const response = await apiFetch<LayoutDataResponse>(endpoint);
-  
+
   // Извлекаем formats из секции id="formats"
   const formatsSection = response.sections.find((s) => s.id === "formats");
   const formats = formatsSection?.formats || {};
-  
+
   // Извлекаем header из секции id="header" и берем components[0]
   const headerSection = response.sections.find((s) => s.id === "header");
   const header = headerSection?.components?.[0];
-  
+
   // Фильтруем sections, исключая formats и header
-  const contentSections = response.sections.filter(
-    (s) => s.id !== "formats" && s.id !== "header"
-  );
-  
+  const contentSections = response.sections.filter((s) => s.id !== "formats" && s.id !== "header");
+
   // Формируем итоговый объект Layout в старом формате
   return {
     formats,
@@ -324,12 +324,12 @@ export interface FetchKPIsParams {
  */
 export async function fetchAllKPIs(params?: FetchKPIsParams): Promise<KPIMetric[]> {
   const layoutId = params?.layoutId || DEFAULT_LAYOUT_ID;
-  
+
   // Формируем параметры для запроса
   const paramsObject: Record<string, string> = {
     layout_id: layoutId,
   };
-  
+
   // Добавляем даты, если они переданы (не undefined и не пустая строка)
   if (params?.p1 && params.p1.trim() !== "") {
     paramsObject.p1 = params.p1;
@@ -340,37 +340,37 @@ export async function fetchAllKPIs(params?: FetchKPIsParams): Promise<KPIMetric[
   if (params?.p3 && params.p3.trim() !== "") {
     paramsObject.p3 = params.p3;
   }
-  
+
   const paramsJson = JSON.stringify(paramsObject);
-  
+
   // Логирование для отладки
   console.log("[fetchAllKPIs] Request params:", {
     params,
     paramsObject,
     paramsJson,
   });
-  
+
   // Формируем endpoint с query параметрами
   const queryParts: string[] = [];
   queryParts.push(`query_id=${encodeURIComponent("kpis")}`);
   queryParts.push(`component_Id=${encodeURIComponent("kpis")}`);
   queryParts.push(`parametrs=${encodeURIComponent(paramsJson)}`);
-  
+
   const endpoint = `/data?${queryParts.join("&")}`;
-  
+
   console.log("[fetchAllKPIs] Endpoint:", endpoint);
-  
+
   // Backend для kpis возвращает массив KPIMetric[] напрямую (не GetDataResponse)
   // Это специальная обработка в dataRoutes.ts для query_id === "kpis"
   const response = await apiFetch<KPIMetric[] | GetDataResponse>(endpoint);
-  
+
   // Проверяем формат ответа
   if (Array.isArray(response)) {
     // Если это массив - значит это уже KPIMetric[] (формат для kpis)
     console.log("[fetchAllKPIs] Received KPIMetric[] directly:", response);
     return response;
   }
-  
+
   // Если это GetDataResponse - извлекаем rows
   if (response && typeof response === "object" && "rows" in response) {
     const dataResponse = response as GetDataResponse;
@@ -379,7 +379,7 @@ export async function fetchAllKPIs(params?: FetchKPIsParams): Promise<KPIMetric[
       return dataResponse.rows as KPIMetric[];
     }
   }
-  
+
   console.warn("[fetchAllKPIs] Unexpected response format:", response);
   return [];
 }
@@ -468,11 +468,11 @@ export interface AggregatedValidationError {
   fieldName?: string;
   errorType: string;
   errorMessage: string;
-  exampleMessages?: string[];  // для обратной совместимости
-  rowNumbers?: number[];       // Новое: первые 5 строк с ошибкой
-  sampleValue?: string;        // Новое: пример значения
-  totalAffected?: number;      // Новое: всего ошибок этого типа
-  totalCount: number;          // Оставляем для совместимости
+  exampleMessages?: string[]; // для обратной совместимости
+  rowNumbers?: number[]; // Новое: первые 5 строк с ошибкой
+  sampleValue?: string; // Новое: пример значения
+  totalAffected?: number; // Новое: всего ошибок этого типа
+  totalCount: number; // Оставляем для совместимости
 }
 
 export interface UploadStatus {
@@ -546,7 +546,7 @@ export async function uploadFile(
   }
 
   const url = `${API_BASE_URL}/upload`;
-  
+
   try {
     // ВАЖНО: НЕ устанавливаем Content-Type вручную для FormData
     // Браузер должен установить автоматически с boundary
@@ -559,10 +559,14 @@ export async function uploadFile(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Если в ответе есть validationErrors и uploadId, возвращаем их как часть ответа
       // Это позволяет обработать ошибки валидации как обычный ответ, а не как исключение
-      if (errorData.validationErrors && Array.isArray(errorData.validationErrors) && errorData.uploadId) {
+      if (
+        errorData.validationErrors &&
+        Array.isArray(errorData.validationErrors) &&
+        errorData.uploadId
+      ) {
         // Возвращаем ответ с ошибками валидации, чтобы компонент мог их обработать
         return {
           uploadId: errorData.uploadId,
@@ -573,9 +577,9 @@ export async function uploadFile(
           rowsFailed: errorData.rowsFailed || 0,
         } as UploadResponse;
       }
-      
+
       // Для других ошибок бросаем исключение
-      const errBody = (errorData as ErrorResponseBody);
+      const errBody = errorData as ErrorResponseBody;
       throw new APIError(
         errBody.code || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
@@ -622,9 +626,9 @@ export async function rollbackUpload(
   rolledBackBy?: string
 ): Promise<{ uploadId: number; status: string; message: string }> {
   const body = rolledBackBy ? { rolledBackBy } : {};
-  
+
   const url = `${API_BASE_URL}/upload/${uploadId}/rollback`;
-  
+
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -666,7 +670,7 @@ export async function getUploadHistory(params?: {
   offset?: number;
 }): Promise<UploadHistoryResponse> {
   const queryParams = new URLSearchParams();
-  
+
   if (params?.targetTable) queryParams.append("targetTable", params.targetTable);
   if (params?.status) queryParams.append("status", params.status);
   if (params?.limit) queryParams.append("limit", String(params.limit));
@@ -711,12 +715,12 @@ export async function getData(
 
   // Формируем endpoint без API_BASE_URL, так как apiFetch добавит его сам
   const endpoint = `/data`;
-  
+
   // Преобразуем Date в строку для JSON
   const serializedParams: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(params)) {
     if (value instanceof Date) {
-      serializedParams[key] = value.toISOString().split('T')[0]; // YYYY-MM-DD
+      serializedParams[key] = value.toISOString().split("T")[0]; // YYYY-MM-DD
     } else {
       serializedParams[key] = value;
     }
@@ -726,11 +730,11 @@ export async function getData(
   const parametrsJson = JSON.stringify(serializedParams);
 
   const queryParams = new URLSearchParams();
-  
+
   // Добавляем обязательные параметры согласно контракту Backend
   queryParams.append("query_id", queryId);
   queryParams.append("component_Id", componentId);
-  
+
   // Добавляем parametrs как JSON-строку (только если есть параметры)
   if (Object.keys(serializedParams).length > 0) {
     queryParams.append("parametrs", parametrsJson);

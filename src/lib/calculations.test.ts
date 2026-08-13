@@ -4,7 +4,7 @@ import { calculatePercentChange, calculateRowPercentage, executeCalculation } fr
 describe("calculatePercentChange", () => {
   it("должен возвращать корректные значения для нормальных данных", () => {
     const result = calculatePercentChange(1100, 1000, 900);
-    
+
     expect(result.ppDiff).toBe(100); // 1100 - 1000
     expect(result.ppPercent).toBe(0.1); // (1100 - 1000) / 1000 = 0.1 (10%)
     expect(result.ytdDiff).toBe(200); // 1100 - 900
@@ -27,7 +27,7 @@ describe("calculatePercentChange", () => {
 
   it("должен обрабатывать деление на ноль для previous", () => {
     const result = calculatePercentChange(100, 0, 50);
-    
+
     expect(result.ppDiff).toBe(100);
     expect(result.ppPercent).toBe(0); // Избегаем деления на ноль
     expect(result.ytdDiff).toBe(50);
@@ -36,7 +36,7 @@ describe("calculatePercentChange", () => {
 
   it("должен обрабатывать деление на ноль для previousYear", () => {
     const result = calculatePercentChange(100, 50, 0);
-    
+
     expect(result.ppDiff).toBe(50);
     expect(result.ppPercent).toBe(1); // 50 / 50 = 1
     expect(result.ytdDiff).toBe(0);
@@ -45,17 +45,17 @@ describe("calculatePercentChange", () => {
 
   it("должен округлять проценты до 4 знаков после запятой", () => {
     const result = calculatePercentChange(1000, 300, 200);
-    
+
     // ppPercent = (1000 - 300) / 300 = 2.3333...
     expect(result.ppPercent).toBe(2.3333);
-    
+
     // ytdPercent = (1000 - 200) / 200 = 4.0
     expect(result.ytdPercent).toBe(4);
   });
 
   it("должен обрабатывать отрицательные значения", () => {
     const result = calculatePercentChange(-100, -200, -300);
-    
+
     expect(result.ppDiff).toBe(100); // -100 - (-200) = 100
     expect(result.ppPercent).toBe(-0.5); // 100 / (-200) = -0.5
     expect(result.ytdDiff).toBe(200); // -100 - (-300) = 200
@@ -64,7 +64,7 @@ describe("calculatePercentChange", () => {
 
   it("должен обрабатывать случай, когда все значения равны нулю", () => {
     const result = calculatePercentChange(0, 0, 0);
-    
+
     expect(result.ppDiff).toBe(0);
     expect(result.ppPercent).toBe(0);
     expect(result.ytdDiff).toBe(0);
@@ -73,7 +73,7 @@ describe("calculatePercentChange", () => {
 
   it("должен обрабатывать случай без previousYear", () => {
     const result = calculatePercentChange(100, 50);
-    
+
     expect(result.ppDiff).toBe(50);
     expect(result.ppPercent).toBe(1);
     expect(result.ytdDiff).toBe(0);
@@ -207,10 +207,7 @@ describe("executeCalculation", () => {
 
   describe("edge cases", () => {
     it("должен возвращать undefined для неизвестного типа", () => {
-      const result = executeCalculation(
-        { type: "unknown" as any },
-        { value: 100 }
-      );
+      const result = executeCalculation({ type: "unknown" as any }, { value: 100 });
       expect(result).toBeUndefined();
     });
 

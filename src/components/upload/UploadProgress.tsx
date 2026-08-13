@@ -15,7 +15,11 @@ export const UploadProgress = ({ progress, status, className }: UploadProgressPr
     <div className={cn("w-full space-y-2", className)}>
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          {isProcessing ? "Загрузка..." : status === "completed" ? "Загрузка завершена" : "Ожидание"}
+          {isProcessing
+            ? "Загрузка..."
+            : status === "completed"
+              ? "Загрузка завершена"
+              : "Ожидание"}
         </span>
         <div className="flex items-center gap-2">
           {isProcessing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}

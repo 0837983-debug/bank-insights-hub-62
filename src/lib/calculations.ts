@@ -2,24 +2,24 @@
  * Утилиты для расчёта процентных изменений и других вычислений
  */
 
-import type { CalculationConfig } from './api';
+import type { CalculationConfig } from "./api";
 
 /**
  * Выполняет расчёт на основе конфигурации из layout
  * Универсальная функция для вычисления calculated полей
- * 
+ *
  * @param config - Конфигурация расчёта из layout (calculationConfig)
  * @param rowData - Данные строки для расчёта
  * @returns Результат расчёта или undefined при ошибке
- * 
+ *
  * @example
  * // percent_change: ((current - base) / base)
  * executeCalculation({ type: 'percent_change', current: 'value', base: 'ppValue' }, row)
- * 
+ *
  * @example
  * // diff: minuend - subtrahend
  * executeCalculation({ type: 'diff', minuend: 'value', subtrahend: 'ppValue' }, row)
- * 
+ *
  * @example
  * // ratio: numerator / denominator
  * executeCalculation({ type: 'ratio', numerator: 'value', denominator: 'total' }, row)
@@ -31,20 +31,20 @@ export function executeCalculation(
   const getValue = (field?: string): number => {
     if (!field) return 0;
     const val = rowData[field];
-    return typeof val === 'number' ? val : Number(val) || 0;
+    return typeof val === "number" ? val : Number(val) || 0;
   };
 
   switch (config.type) {
-    case 'percent_change': {
+    case "percent_change": {
       const current = getValue(config.current);
       const base = getValue(config.base);
       if (base === 0) return 0;
       return Math.round(((current - base) / base) * 10000) / 10000;
     }
-    case 'diff': {
+    case "diff": {
       return getValue(config.minuend) - getValue(config.subtrahend);
     }
-    case 'ratio': {
+    case "ratio": {
       const denom = getValue(config.denominator);
       if (denom === 0) return 0;
       return getValue(config.numerator) / denom;
@@ -70,12 +70,12 @@ export interface PercentChangeResult {
 
 /**
  * Расчёт процентных изменений (PPTD и YTD)
- * 
+ *
  * @param current - Текущее значение (value)
  * @param previous - Значение за предыдущий период (previousValue)
  * @param previousYear - Значение за аналогичный период прошлого года (previousYearValue)
  * @returns Объект с абсолютными и процентными изменениями (проценты в долях: 0.1 = 10%)
- * 
+ *
  * @example
  * const result = calculatePercentChange(1100, 1000, 900);
  * // result = {
@@ -101,14 +101,10 @@ export function calculatePercentChange(
 
   // Процентные изменения в долях (0.1 = 10%)
   // Если previous = 0, то ppPercent = 0 (избегаем деления на 0)
-  const ppPercent = previousValue !== 0 
-    ? ppDiff / previousValue
-    : 0;
+  const ppPercent = previousValue !== 0 ? ppDiff / previousValue : 0;
 
   // Если previousYear = 0, то ytdPercent = 0 (избегаем деления на 0)
-  const ytdPercent = previousYearValue !== 0
-    ? ytdDiff / previousYearValue
-    : 0;
+  const ytdPercent = previousYearValue !== 0 ? ytdDiff / previousYearValue : 0;
 
   return {
     ppDiff,
@@ -120,11 +116,11 @@ export function calculatePercentChange(
 
 /**
  * Расчёт процента от родительской строки (доля от суммы родителя)
- * 
+ *
  * @param value - Значение текущей строки
  * @param parentTotal - Сумма родительской строки
  * @returns Процент от родителя (0-100)
- * 
+ *
  * @example
  * const percentage = calculateRowPercentage(50, 200);
  * // percentage = 25 (50 составляет 25% от 200)

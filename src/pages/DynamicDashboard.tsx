@@ -14,7 +14,13 @@ import {
   type TableRowData,
   type ButtonComponent,
 } from "@/components/FinancialTable";
-import type { LayoutComponent, TableData, FieldType, CalculationConfig, PeriodDate } from "@/lib/api";
+import type {
+  LayoutComponent,
+  TableData,
+  FieldType,
+  CalculationConfig,
+  PeriodDate,
+} from "@/lib/api";
 
 // Тип для колонки из layout с поддержкой fieldType
 interface LayoutColumn {
@@ -32,45 +38,43 @@ const DEFAULT_HIERARCHY = ["class", "section", "item", "sub_item"];
 
 /**
  * Универсальная функция трансформации данных API в формат FinancialTable с иерархией.
- * 
+ *
  * @param apiData - данные от API
  * @param columns - колонки из layout с fieldType
  * @returns массив строк для FinancialTable
- * 
+ *
  * Иерархия определяется по fieldType='dimension' колонкам в порядке из layout.
  * Агрегация выполняется по всем fieldType='measure' колонкам.
  * Calculated поля вычисляются через executeCalculation.
  */
-export function transformTableData(
-  apiData: TableData, 
-  columns?: LayoutColumn[]
-): TableRowData[] {
+export function transformTableData(apiData: TableData, columns?: LayoutColumn[]): TableRowData[] {
   const rows = apiData.rows;
   if (rows.length === 0) return [];
 
   // Определяем dimension и measure поля из layout columns по fieldType
   // Порядок dimension полей определяет иерархию
-  const dimensionFields = columns
-    ?.filter(col => col.fieldType === 'dimension')
-    .map(col => col.id) || DEFAULT_HIERARCHY;
-  
+  const dimensionFields =
+    columns?.filter((col) => col.fieldType === "dimension").map((col) => col.id) ||
+    DEFAULT_HIERARCHY;
+
   const measureFields = columns
-    ?.filter(col => col.fieldType === 'measure')
-    .map(col => col.id) || ["value"];
-  
+    ?.filter((col) => col.fieldType === "measure")
+    .map((col) => col.id) || ["value"];
+
   // Собираем все calculated поля из columns и sub_columns
   const calculatedFields = [
-    ...(columns?.filter(c => c.fieldType === 'calculated') || []),
-    ...(columns?.flatMap(c => c.sub_columns || []).filter(c => c.fieldType === 'calculated') || [])
+    ...(columns?.filter((c) => c.fieldType === "calculated") || []),
+    ...(columns?.flatMap((c) => c.sub_columns || []).filter((c) => c.fieldType === "calculated") ||
+      []),
   ];
-  
+
   // Собираем dependency поля из calculationConfig всех calculated полей
   // Эти поля нужны для корректного расчёта calculated полей на агрегатах
   const dependencyFields = new Set<string>();
-  calculatedFields.forEach(field => {
+  calculatedFields.forEach((field) => {
     const config = field.calculationConfig;
     if (!config) return;
-    
+
     // Добавляем все поля, используемые в calculationConfig
     if (config.current) dependencyFields.add(config.current);
     if (config.base) dependencyFields.add(config.base);
@@ -79,14 +83,17 @@ export function transformTableData(
     if (config.numerator) dependencyFields.add(config.numerator);
     if (config.denominator) dependencyFields.add(config.denominator);
   });
-  
+
   // aggregationFields = measureFields ∪ dependencyFields
   // Это все поля, которые нужно агрегировать для корректных calculated полей
   const aggregationFields = [...new Set([...measureFields, ...dependencyFields])];
-  
+
   // Основной measure для процентов
   const primaryMeasure = measureFields[0] || "value";
-  const rootTotal = rows.reduce((sum, row) => sum + (Number((row as Record<string, unknown>)[primaryMeasure]) || 0), 0);
+  const rootTotal = rows.reduce(
+    (sum, row) => sum + (Number((row as Record<string, unknown>)[primaryMeasure]) || 0),
+    0
+  );
 
   type GroupNode = {
     id: string;
@@ -116,14 +123,14 @@ export function transformTableData(
     const id = pathParts.join("::");
     const existing = groupMap.get(id);
     if (existing) return existing;
-    
+
     // Инициализируем все aggregationFields нулями
     // (measureFields + dependencyFields из calculationConfig)
     const measures: Record<string, number> = {};
-    aggregationFields.forEach(field => {
+    aggregationFields.forEach((field) => {
       measures[field] = 0;
     });
-    
+
     const group: GroupNode = {
       id,
       level,
@@ -150,7 +157,7 @@ export function transformTableData(
       parentId = group.id;
 
       // Агрегируем все aggregationFields (measureFields + dependencyFields)
-      aggregationFields.forEach(aggField => {
+      aggregationFields.forEach((aggField) => {
         const value = Number(rowData[aggField]) || 0;
         group.measures[aggField] += value;
       });
@@ -164,9 +171,9 @@ export function transformTableData(
       isGroup: false,
       sortOrder: orderCounter++,
     };
-    
+
     // Вычисляем calculated значения для leaf row
-    calculatedFields.forEach(calcField => {
+    calculatedFields.forEach((calcField) => {
       if (calcField.calculationConfig) {
         (leafRow as Record<string, unknown>)[calcField.id] = executeCalculation(
           calcField.calculationConfig,
@@ -190,14 +197,14 @@ export function transformTableData(
 
     // Получаем значения measure полей
     const value = group.measures[primaryMeasure] || 0;
-    
+
     // Строим объект с агрегированными measure полями (для отображения в row)
     const measureValues: Record<string, number | undefined> = {};
-    measureFields.forEach(field => {
+    measureFields.forEach((field) => {
       const val = group.measures[field];
       measureValues[field] = val !== 0 ? val : undefined;
     });
-    
+
     // Все агрегированные значения (включая dependencyFields) для расчётов
     const aggregatedValues: Record<string, number> = { ...group.measures };
 
@@ -211,10 +218,10 @@ export function transformTableData(
       isGroup: true,
       sortOrder: group.order,
     };
-    
+
     // Вычисляем calculated значения для group row
     // Используем aggregatedValues (measureFields + dependencyFields)
-    calculatedFields.forEach(calcField => {
+    calculatedFields.forEach((calcField) => {
       if (calcField.calculationConfig) {
         (groupRow as Record<string, unknown>)[calcField.id] = executeCalculation(
           calcField.calculationConfig,
@@ -264,9 +271,7 @@ function DynamicTable({ component }: DynamicTableProps) {
   const buttons = component.buttons || [];
 
   // Определяем активную кнопку
-  const activeButton = activeButtonId
-    ? buttons.find((btn) => btn.id === activeButtonId)
-    : null;
+  const activeButton = activeButtonId ? buttons.find((btn) => btn.id === activeButtonId) : null;
 
   // Определяем queryId для загрузки данных:
   // 1. Если есть активная кнопка - используем её queryId
@@ -277,18 +282,20 @@ function DynamicTable({ component }: DynamicTableProps) {
   const dates = (component as any).dates; // TODO: типизировать через props
 
   // Загружаем данные через getData с queryId из layout
-  const { 
-    data: tableData, 
+  const {
+    data: tableData,
     isLoading,
     error,
   } = useGetData(
     queryId || null,
-    dates ? {
-      p1: dates.periodDate,
-      p2: dates.ppDate,
-      p3: dates.pyDate,
-    } : {},
-    { 
+    dates
+      ? {
+          p1: dates.periodDate,
+          p2: dates.ppDate,
+          p3: dates.pyDate,
+        }
+      : {},
+    {
       enabled: !!queryId && !!dates && !!component.componentId,
       componentId: component.componentId,
     }
@@ -312,13 +319,13 @@ function DynamicTable({ component }: DynamicTableProps) {
 
   // Обработка ошибок
   const hasError = error && !transformedData;
-  
+
   if (hasError) {
     const errorMessage = toErrorMessage(error);
-    
+
     // Если нет дат, показываем специальное сообщение
     const missingDatesError = !dates;
-    
+
     return (
       <Alert variant="destructive" className="mt-4">
         <AlertCircle className="h-4 w-4" />
@@ -326,14 +333,16 @@ function DynamicTable({ component }: DynamicTableProps) {
         <AlertDescription>
           {missingDatesError ? (
             <>
-              Не удалось загрузить даты из header. Таблица "{component.title}" не может загрузить данные без параметров дат.
+              Не удалось загрузить даты из header. Таблица "{component.title}" не может загрузить
+              данные без параметров дат.
               <div className="mt-2 text-xs font-mono">
                 queryId: {queryId}, Dates: {dates ? "loaded" : "not loaded"}
               </div>
             </>
           ) : (
             <>
-              Не удалось загрузить данные для таблицы "{component.title}" (componentId: {component.componentId})
+              Не удалось загрузить данные для таблицы "{component.title}" (componentId:{" "}
+              {component.componentId})
               {errorMessage && (
                 <div data-testid="dashboard-error" className="mt-2 text-xs font-mono">
                   {errorMessage}
@@ -363,10 +372,7 @@ function DynamicTable({ component }: DynamicTableProps) {
     );
   }
 
-  const tableRows = transformTableData(
-    transformedData as TableData,
-    component.columns
-  );
+  const tableRows = transformTableData(transformedData as TableData, component.columns);
 
   return (
     <div className="mt-6">
@@ -388,10 +394,10 @@ function DynamicTable({ component }: DynamicTableProps) {
 
 export default function DynamicDashboard() {
   const { data: layout, isLoading: layoutLoading, error: layoutError } = useLayout();
-  
+
   // Константа для layout_id (можно вынести в конфиг)
   const DEFAULT_LAYOUT_ID = "main_dashboard";
-  
+
   // Используем header из layout.header (top-level элемент)
   const headerComponent = useMemo(() => {
     if (!layout) return null;
@@ -405,13 +411,10 @@ export default function DynamicDashboard() {
   }, [headerComponent]);
 
   // Загружаем даты через getData с queryId из layout
-  const { 
-    data: headerData, 
-    error: headerDataError 
-  } = useGetData(
+  const { data: headerData, error: headerDataError } = useGetData(
     headerQueryId,
     {},
-    { 
+    {
       enabled: !!headerQueryId && !!headerComponent?.componentId,
       componentId: headerComponent?.componentId,
     }
@@ -431,18 +434,20 @@ export default function DynamicDashboard() {
       console.warn("[DynamicDashboard] Header data is empty or invalid:", headerData);
       return [];
     }
-    
+
     // Преобразуем rows в PeriodDate[]
-    const dates = headerData.rows.map((row) => {
-      const r = row as Record<string, unknown>;
-      return {
-        periodDate: String(r.periodDate || r.period_date || ""),
-        isP1: Boolean(r.isP1 || r.is_p1),
-        isP2: Boolean(r.isP2 || r.is_p2),
-        isP3: Boolean(r.isP3 || r.is_p3),
-      } as PeriodDate;
-    }).filter((d) => d.periodDate); // Фильтруем пустые
-    
+    const dates = headerData.rows
+      .map((row) => {
+        const r = row as Record<string, unknown>;
+        return {
+          periodDate: String(r.periodDate || r.period_date || ""),
+          isP1: Boolean(r.isP1 || r.is_p1),
+          isP2: Boolean(r.isP2 || r.is_p2),
+          isP3: Boolean(r.isP3 || r.is_p3),
+        } as PeriodDate;
+      })
+      .filter((d) => d.periodDate); // Фильтруем пустые
+
     console.log("[DynamicDashboard] Available dates from header_dates:", dates);
     return dates;
   }, [headerData]);
@@ -460,22 +465,25 @@ export default function DynamicDashboard() {
       const defaultP1 = availableDates.find((d) => d.isP1)?.periodDate || null;
       const defaultP2 = availableDates.find((d) => d.isP2)?.periodDate || null;
       const defaultP3 = availableDates.find((d) => d.isP3)?.periodDate || null;
-      
+
       console.log("[DynamicDashboard] Setting default selected dates:", {
         defaultP1,
         defaultP2,
         defaultP3,
       });
-      
+
       setSelectedDates({ p1: defaultP1, p2: defaultP2, p3: defaultP3 });
     }
   }, [availableDates, selectedDates.p1]);
 
   // Обработчик применения выбора дат
-  const handleDateApply = useCallback((newDates: { p1: string; p2: string | null; p3: string | null }) => {
-    console.log("[DynamicDashboard] Applying new dates:", newDates);
-    setSelectedDates(newDates);
-  }, []);
+  const handleDateApply = useCallback(
+    (newDates: { p1: string; p2: string | null; p3: string | null }) => {
+      console.log("[DynamicDashboard] Applying new dates:", newDates);
+      setSelectedDates(newDates);
+    },
+    []
+  );
 
   // Преобразуем выбранные даты в формат для API
   // dates используется для таблиц и KPI
@@ -506,13 +514,14 @@ export default function DynamicDashboard() {
       p3: dates.pyDate,
     };
   }, [dates, layout]);
-  
-  const { data: kpis, isLoading: kpisLoading, error: kpisError } = useAllKPIs(
-    kpiParams,
-    {
-      enabled: !!kpiParams, // Включаем только если есть все параметры
-    }
-  );
+
+  const {
+    data: kpis,
+    isLoading: kpisLoading,
+    error: kpisError,
+  } = useAllKPIs(kpiParams, {
+    enabled: !!kpiParams, // Включаем только если есть все параметры
+  });
 
   // Initialize formats cache when layout is loaded
   useEffect(() => {
@@ -642,18 +651,12 @@ export default function DynamicDashboard() {
             </div>
             {dates && (
               <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                <span data-testid="header-date-periodDate">
-                  P1 (текущий): {dates.periodDate}
-                </span>
+                <span data-testid="header-date-periodDate">P1 (текущий): {dates.periodDate}</span>
                 {selectedDates.p2 && (
-                  <span data-testid="header-date-ppDate">
-                    P2 (пред. период): {dates.ppDate}
-                  </span>
+                  <span data-testid="header-date-ppDate">P2 (пред. период): {dates.ppDate}</span>
                 )}
                 {selectedDates.p3 && (
-                  <span data-testid="header-date-pyDate">
-                    P3 (пред. год): {dates.pyDate}
-                  </span>
+                  <span data-testid="header-date-pyDate">P3 (пред. год): {dates.pyDate}</span>
                 )}
               </div>
             )}
@@ -686,7 +689,9 @@ export default function DynamicDashboard() {
                 .map((tableComponent) => (
                   <DynamicTable
                     key={tableComponent.id}
-                    component={{ ...tableComponent, dates } as LayoutComponent & { dates: typeof dates }}
+                    component={
+                      { ...tableComponent, dates } as LayoutComponent & { dates: typeof dates }
+                    }
                   />
                 ))}
             </CollapsibleSection>

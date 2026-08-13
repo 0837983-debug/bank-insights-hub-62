@@ -147,7 +147,10 @@ export default function UserManagementPage() {
       )}
 
       {/* Форма создания */}
-      <form onSubmit={handleCreate} className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border p-4">
+      <form
+        onSubmit={handleCreate}
+        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      >
         <div className="space-y-1">
           <Label htmlFor="newUsername">Имя пользователя</Label>
           <Input
@@ -196,7 +199,9 @@ export default function UserManagementPage() {
                 <TableCell>
                   {u.username}
                   {me && me.id === u.id && (
-                    <Badge className="ml-2" variant="secondary">это вы</Badge>
+                    <Badge className="ml-2" variant="secondary">
+                      это вы
+                    </Badge>
                   )}
                 </TableCell>
                 <TableCell>
@@ -224,7 +229,7 @@ export default function UserManagementPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={u.role === "super_admin" || (me?.id === u.id)}
+                      disabled={u.role === "super_admin" || me?.id === u.id}
                       onClick={() => handleToggleActive(u)}
                       data-testid={`btn-toggle-${u.username}`}
                     >

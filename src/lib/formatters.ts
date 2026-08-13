@@ -1,7 +1,7 @@
 /**
  * Универсальные утилиты форматирования для чисел, валют и процентов
  * Основано на определениях форматов из layout API
- * 
+ *
  * Форматы загружаются из layout API при загрузке страницы и кэшируются
  * для использования во всем приложении.
  */
@@ -14,7 +14,7 @@ let formatsCache: Record<string, LayoutFormat> = {};
 /**
  * Инициализирует кэш форматов из данных layout API
  * Должна вызываться при загрузке layout при инициализации страницы
- * 
+ *
  * @param formats - Объект форматов из layout API (layout.formats)
  */
 export function initializeFormats(formats: Record<string, LayoutFormat>): void {
@@ -30,20 +30,17 @@ export function getFormatsCache(): Record<string, LayoutFormat> {
 
 /**
  * Форматирует числовое значение согласно конфигурации формата из layout API
- * 
+ *
  * @param formatId - ID формата (ключ из layout.formats)
  * @param value - Числовое значение для форматирования
  * @returns Отформатированная строка или "-" если значение null/undefined/NaN
- * 
+ *
  * @example
  * // Предполагая, что формат "currency_rub" загружен из layout API
  * formatValue("currency_rub", 1000000) // "₽1.0M"
  * formatValue("percent", 5.2) // "5.2%"
  */
-export function formatValue(
-  formatId: string,
-  value: number | null | undefined
-): string {
+export function formatValue(formatId: string, value: number | null | undefined): string {
   if (value === null || value === undefined || isNaN(value)) {
     return "-";
   }
@@ -53,7 +50,10 @@ export function formatValue(
 
   // Если конфигурация не найдена, вернуть исходное число как запасной вариант
   if (!config) {
-    console.warn(`Format config not found for formatId: ${formatId}. Available formats:`, Object.keys(formatsCache));
+    console.warn(
+      `Format config not found for formatId: ${formatId}. Available formats:`,
+      Object.keys(formatsCache)
+    );
     return value.toString();
   }
 
@@ -83,15 +83,15 @@ export function formatValue(
   // Форматировать число
   const minDigits = config.minimumFractionDigits ?? 0;
   const maxDigits = config.maximumFractionDigits ?? 2;
-  
+
   // Используем Intl.NumberFormat для правильного форматирования с min/max digits
   // Используем 'en-US' чтобы получить точку в качестве десятичного разделителя
-  const formatter = new Intl.NumberFormat('en-US', {
+  const formatter = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: minDigits,
     maximumFractionDigits: maxDigits,
     useGrouping: false, // Разделители тысяч обрабатываем отдельно
   });
-  
+
   let formattedNumber = formatter.format(processedValue);
 
   // Добавить разделители тысяч
@@ -133,7 +133,7 @@ export function formatCurrency(
   if (formatsCache[formatId]) {
     return formatValue(formatId, value);
   }
-  
+
   // Запасной вариант - форматирование по умолчанию
   const config: LayoutFormat = {
     kind: "currency",
@@ -156,7 +156,7 @@ export function formatNumber(value: number, shorten: boolean = true, decimals?: 
   if (formatsCache[formatId]) {
     return formatValue(formatId, value);
   }
-  
+
   // Запасной вариант - форматирование по умолчанию
   const config: LayoutFormat = {
     kind: "number",
@@ -178,7 +178,7 @@ export function formatPercent(value: number, decimals: number = 1): string {
   if (formatsCache[formatId]) {
     return formatValue(formatId, value);
   }
-  
+
   // Запасной вариант - форматирование по умолчанию
   const config: LayoutFormat = {
     kind: "percent",

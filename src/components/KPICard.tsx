@@ -29,7 +29,7 @@ interface CalculatedFieldResult {
   label: string;
   format?: string;
   value: number | undefined;
-  displayGroup?: 'percent' | 'absolute';
+  displayGroup?: "percent" | "absolute";
   isDefault?: boolean;
 }
 
@@ -70,7 +70,7 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
 
   // Получаем layout из кэша React Query
   const { data: layout } = useLayout();
-  
+
   // Используем kpis из props, если переданы, иначе пытаемся получить из кэша
   const { data: kpisFromCache } = useAllKPIs(undefined, { enabled: false });
   const kpis = kpisFromProps || kpisFromCache;
@@ -97,8 +97,8 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   // размещены выше проверки наличия компонента/KPI.
   const calculatedFields = useMemo(() => {
     if (!component?.columns) return [];
-    return component.columns.flatMap((col) => 
-      (col.sub_columns || []).filter((sub) => sub.fieldType === 'calculated')
+    return component.columns.flatMap((col) =>
+      (col.sub_columns || []).filter((sub) => sub.fieldType === "calculated")
     );
   }, [component?.columns]);
 
@@ -108,7 +108,7 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   const calculatedResults: CalculatedFieldResult[] = useMemo(() => {
     if (!kpi) return [];
     return calculatedFields.map((field) => {
-      const value = field.calculationConfig 
+      const value = field.calculationConfig
         ? executeCalculation(field.calculationConfig, kpi as unknown as Record<string, unknown>)
         : undefined;
       return {
@@ -125,25 +125,25 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   // Группируем calculated поля по displayGroup из layout
   const groupedFields = useMemo(() => {
     const groups = new Map<string, CalculatedFieldResult[]>();
-    
+
     calculatedResults.forEach((result) => {
       if (result.value === undefined) return;
-      
+
       // Используем displayGroup из layout, fallback на 'default'
-      const group = result.displayGroup || 'default';
+      const group = result.displayGroup || "default";
       if (!groups.has(group)) {
         groups.set(group, []);
       }
       groups.get(group)!.push(result);
     });
-    
+
     return groups;
   }, [calculatedResults]);
 
   // Определяем группу по умолчанию через isDefault из layout
   const defaultGroup = useMemo(() => {
-    const fieldWithDefault = calculatedResults.find(f => f.isDefault);
-    return fieldWithDefault?.displayGroup || 'percent';
+    const fieldWithDefault = calculatedResults.find((f) => f.isDefault);
+    return fieldWithDefault?.displayGroup || "percent";
   }, [calculatedResults]);
 
   // Получаем список доступных групп
@@ -159,13 +159,13 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
     if (!hasToggle) {
       // Если только одна группа - показываем её
       const firstGroup = availableGroups[0];
-      return firstGroup ? (groupedFields.get(firstGroup) || []) : [];
+      return firstGroup ? groupedFields.get(firstGroup) || [] : [];
     }
     // Если есть несколько групп - выбираем по toggle
     // showAbsolute = false → группа по умолчанию (defaultGroup)
     // showAbsolute = true → другая группа
-    const targetGroup = showAbsolute 
-      ? availableGroups.find(g => g !== defaultGroup) || defaultGroup
+    const targetGroup = showAbsolute
+      ? availableGroups.find((g) => g !== defaultGroup) || defaultGroup
       : defaultGroup;
     return groupedFields.get(targetGroup) || [];
   }, [hasToggle, showAbsolute, groupedFields, availableGroups, defaultGroup]);
@@ -187,9 +187,8 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
   // Получаем формат для основного значения (value) из columns
   const valueColumn = component.columns?.[0] as LayoutColumn | undefined;
   // format может быть строкой в columns или объектом в старом формате component.format
-  const valueFormatId = typeof valueColumn?.format === "string" 
-    ? valueColumn.format 
-    : (component.format?.value);
+  const valueFormatId =
+    typeof valueColumn?.format === "string" ? valueColumn.format : component.format?.value;
 
   // Форматируем значение используя формат из layout.formats
   const formattedValue = valueFormatId
@@ -197,20 +196,15 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
     : kpi.value.toString();
 
   return (
-    <Card 
-      className={cn(
-        "p-3 hover:shadow-lg transition-shadow min-w-0",
-        hasToggle && "cursor-pointer"
-      )}
+    <Card
+      className={cn("p-3 hover:shadow-lg transition-shadow min-w-0", hasToggle && "cursor-pointer")}
       onClick={hasToggle ? () => setShowAbsolute(!showAbsolute) : undefined}
       data-testid={`kpi-card-${componentId}`}
     >
       <div className="flex items-start justify-between gap-1.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 mb-0.5">
-            <p className="text-xs font-medium text-muted-foreground truncate">
-              {component.title}
-            </p>
+            <p className="text-xs font-medium text-muted-foreground truncate">{component.title}</p>
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -228,10 +222,11 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
               {activeFields.map((field, index) => {
                 const isPositive = field.value !== undefined && field.value > 0;
                 const changeColor = isPositive ? "text-success" : "text-destructive";
-                const formattedChange = field.format && field.value !== undefined
-                  ? formatValue(field.format, Math.abs(field.value))
-                  : field.value?.toString() ?? "-";
-                
+                const formattedChange =
+                  field.format && field.value !== undefined
+                    ? formatValue(field.format, Math.abs(field.value))
+                    : (field.value?.toString() ?? "-");
+
                 // Первое поле показываем с иконкой, остальные в скобках
                 if (index === 0) {
                   return (
@@ -256,13 +251,14 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
                     </TooltipProvider>
                   );
                 }
-                
+
                 return (
                   <TooltipProvider key={field.id} delayDuration={300}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className={cn("text-[10px] cursor-help", changeColor)}>
-                          ({isPositive ? "↑" : "↓"}{formattedChange})
+                          ({isPositive ? "↑" : "↓"}
+                          {formattedChange})
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>

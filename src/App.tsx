@@ -51,20 +51,32 @@ const App = () => {
               <Route path="/login" element={<LoginPage />} />
 
               {/* Защищённые маршруты внутри оболочки */}
-              <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AppShell />
+                  </ProtectedRoute>
+                }
+              >
                 <Route path="/" element={<DynamicDashboard />} />
                 <Route path="/upload" element={<FileUpload />} />
-                <Route path="/users" element={
-                  <ProtectedRoute requiredRole="super_admin">
-                    <UserManagementPage />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="/users"
+                  element={
+                    <ProtectedRoute requiredRole="super_admin">
+                      <UserManagementPage />
+                    </ProtectedRoute>
+                  }
+                />
                 {/* DevTools доступен только супер-админу */}
-                <Route path="/dev-tools" element={
-                  <ProtectedRoute requiredRole="super_admin">
-                    <DevTools />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="/dev-tools"
+                  element={
+                    <ProtectedRoute requiredRole="super_admin">
+                      <DevTools />
+                    </ProtectedRoute>
+                  }
+                />
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

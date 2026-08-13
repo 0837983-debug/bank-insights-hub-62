@@ -175,7 +175,7 @@ describe("initializeFormats и getFormatsCache", () => {
       },
     };
     initializeFormats(formats);
-    
+
     const cache = getFormatsCache();
     expect(cache).toEqual(formats);
   });
@@ -183,7 +183,7 @@ describe("initializeFormats и getFormatsCache", () => {
   it("должен перезаписывать существующий кэш", () => {
     initializeFormats({ format1: { kind: "number" } as LayoutFormat });
     initializeFormats({ format2: { kind: "currency" } as LayoutFormat });
-    
+
     const cache = getFormatsCache();
     expect(cache).toEqual({ format2: { kind: "currency" } });
   });

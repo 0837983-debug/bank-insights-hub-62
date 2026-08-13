@@ -88,9 +88,7 @@ export const Header = () => {
 
           <div className="flex items-center gap-2">
             {user && (
-              <span className="hidden sm:block text-sm text-muted-foreground">
-                {user.username}
-              </span>
+              <span className="hidden sm:block text-sm text-muted-foreground">{user.username}</span>
             )}
             <Button variant="ghost" size="icon" data-testid="btn-header-notifications">
               <BellIcon className="w-5 h-5" />
