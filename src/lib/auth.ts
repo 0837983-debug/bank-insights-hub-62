@@ -66,23 +66,28 @@ async function authFetch<T>(
 }
 
 /** Вход. */
-export async function apiLogin(
-  username: string,
-  password: string
-): Promise<AuthResponse> {
-  const data = await authFetch<AuthResponse>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password }),
-  }, false);
+export async function apiLogin(username: string, password: string): Promise<AuthResponse> {
+  const data = await authFetch<AuthResponse>(
+    "/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    },
+    false
+  );
   setAccessToken(data.accessToken);
   return data;
 }
 
 /** Обновление сессии (refresh-токен берётся из httpOnly-cookie). */
 export async function apiRefresh(): Promise<AuthResponse> {
-  const data = await authFetch<AuthResponse>("/auth/refresh", {
-    method: "POST",
-  }, false);
+  const data = await authFetch<AuthResponse>(
+    "/auth/refresh",
+    {
+      method: "POST",
+    },
+    false
+  );
   setAccessToken(data.accessToken);
   return data;
 }

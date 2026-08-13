@@ -21,8 +21,7 @@ export const queryKeys = {
   layout: ["layout"] as const,
   allKPIs: ["kpi", "all"] as const,
   health: ["health"] as const,
-  getData: (queryId: string, params?: GetDataParams) =>
-    ["getData", queryId, params] as const,
+  getData: (queryId: string, params?: GetDataParams) => ["getData", queryId, params] as const,
 };
 
 // ============================================================================

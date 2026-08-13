@@ -10,13 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  apiLogin,
-  apiLogout,
-  apiRefresh,
-  type AuthUser,
-  type Role,
-} from "@/lib/auth";
+import { apiLogin, apiLogout, apiRefresh, type AuthUser, type Role } from "@/lib/auth";
 import { clearAccessToken } from "@/lib/auth-storage";
 
 interface AuthContextValue {

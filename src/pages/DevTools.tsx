@@ -22,8 +22,6 @@ import {
   Database,
   Server,
   Globe,
-  Trash2,
-  Plus,
   Hash,
   Code,
   LayoutTemplate,
@@ -31,13 +29,8 @@ import {
   Table2,
   PanelTop,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { fetchLayout, API_BASE_URL, type Layout, type LayoutFormat } from "@/lib/api";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { fetchLayout, API_BASE_URL, type Layout } from "@/lib/api";
 import { formatValue, initializeFormats } from "@/lib/formatters";
 
 interface ServiceStatus {
@@ -54,7 +47,6 @@ export default function DevTools() {
     { name: "PostgreSQL", status: "checking" },
     { name: "Docs", status: "checking", url: "http://localhost:5173" },
   ]);
-
 
   // API base for DevTools (same as app; API_BASE_URL includes /api)
   const API_BASE = API_BASE_URL.replace(/\/api\/?$/, "");
@@ -77,7 +69,9 @@ export default function DevTools() {
   const [selectedQueryId, setSelectedQueryId] = useState<string>("");
   const [dataModalParams, setDataModalParams] = useState<Record<string, string>>({});
   const [dataModalResponse, setDataModalResponse] = useState<string>("");
-  const [dataModalStatus, setDataModalStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [dataModalStatus, setDataModalStatus] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
 
   // Format testing states
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -93,7 +87,9 @@ export default function DevTools() {
     params: unknown[];
     config?: unknown;
   } | null>(null);
-  const [sqlBuilderStatus, setSqlBuilderStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [sqlBuilderStatus, setSqlBuilderStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [sqlBuilderError, setSqlBuilderError] = useState<string>("");
 
   const resources = [
@@ -318,9 +314,18 @@ export default function DevTools() {
   // Data modal: when query_id selected, get params from config (loaded with query-ids)
   const selectedConfig = queryIds.find((q) => q.id === selectedQueryId)?.config;
   const paramSpecs = (() => {
-    const types = selectedConfig?.paramTypes && typeof selectedConfig.paramTypes === "object" ? selectedConfig.paramTypes : null;
-    const defs = selectedConfig?.params && typeof selectedConfig.params === "object" ? selectedConfig.params : null;
-    const keys = new Set([...(types ? Object.keys(types) : []), ...(defs ? Object.keys(defs) : [])]);
+    const types =
+      selectedConfig?.paramTypes && typeof selectedConfig.paramTypes === "object"
+        ? selectedConfig.paramTypes
+        : null;
+    const defs =
+      selectedConfig?.params && typeof selectedConfig.params === "object"
+        ? selectedConfig.params
+        : null;
+    const keys = new Set([
+      ...(types ? Object.keys(types) : []),
+      ...(defs ? Object.keys(defs) : []),
+    ]);
     if (keys.size === 0) return [];
     return Array.from(keys).map((name) => ({
       name,
@@ -337,7 +342,10 @@ export default function DevTools() {
     const cfg = queryIds.find((q) => q.id === selectedQueryId)?.config;
     const types = cfg?.paramTypes && typeof cfg.paramTypes === "object" ? cfg.paramTypes : null;
     const defs = cfg?.params && typeof cfg.params === "object" ? cfg.params : null;
-    const keys = new Set([...(types ? Object.keys(types) : []), ...(defs ? Object.keys(defs) : [])]);
+    const keys = new Set([
+      ...(types ? Object.keys(types) : []),
+      ...(defs ? Object.keys(defs) : []),
+    ]);
     if (keys.size === 0) {
       setDataModalParams({});
       return;
@@ -369,18 +377,6 @@ export default function DevTools() {
     }
   };
 
-  const getStatusIcon = (status: ServiceStatus["status"]) => {
-    switch (status) {
-      case "online":
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "offline":
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case "checking":
-        return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />;
-    }
-  };
-
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -403,7 +399,7 @@ export default function DevTools() {
                   const shortName = service.name
                     .replace("Frontend (Vite)", "Frontend")
                     .replace("Backend API", "Backend");
-                  
+
                   return (
                     <span
                       key={service.name}
@@ -427,15 +423,17 @@ export default function DevTools() {
               <ExternalLink className="h-4 w-4 text-muted-foreground" />
               <div className="flex items-center gap-3 flex-wrap">
                 {resources.map((resource) => {
-                  const isExternal = resource.url?.startsWith("http") && !resource.url?.startsWith(window.location.origin);
-                  
+                  const isExternal =
+                    resource.url?.startsWith("http") &&
+                    !resource.url?.startsWith(window.location.origin);
+
                   // Сокращаем названия
                   const shortName = resource.name
                     .replace("GitHub Repository", "GitHub")
                     .replace("Frontend (Dev Server)", "Frontend")
                     .replace("Backend API", "API")
                     .replace("API Documentation", "Docs");
-                  
+
                   return (
                     <a
                       key={resource.name}
@@ -447,18 +445,26 @@ export default function DevTools() {
                           e.preventDefault();
                           return;
                         }
-                        
+
                         // Для локальных ссылок - используем нативную навигацию
                         if (!isExternal) {
                           return;
                         }
-                        
+
                         // Для внешних ссылок - пытаемся открыть в новой вкладке
                         e.preventDefault();
-                        const newWindow = window.open(resource.url, "_blank", "noopener,noreferrer");
-                        
+                        const newWindow = window.open(
+                          resource.url,
+                          "_blank",
+                          "noopener,noreferrer"
+                        );
+
                         // Если window.open заблокирован (как в Cursor браузере), используем fallback
-                        if (!newWindow || newWindow.closed || typeof newWindow.closed === "undefined") {
+                        if (
+                          !newWindow ||
+                          newWindow.closed ||
+                          typeof newWindow.closed === "undefined"
+                        ) {
                           // Fallback: открываем в текущей вкладке
                           window.location.href = resource.url;
                         }
@@ -527,12 +533,7 @@ export default function DevTools() {
               )}
               health
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenDataModal}
-              className="gap-1.5"
-            >
+            <Button variant="outline" size="sm" onClick={handleOpenDataModal} className="gap-1.5">
               <Table2 className="h-4 w-4" />
               data
             </Button>
@@ -590,7 +591,11 @@ export default function DevTools() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">
-                  {queryIdsLoading ? "Загрузка..." : queryIds.length === 0 && !queryIdsError ? "Нет доступных запросов" : "Выберите query_id"}
+                  {queryIdsLoading
+                    ? "Загрузка..."
+                    : queryIds.length === 0 && !queryIdsError
+                      ? "Нет доступных запросов"
+                      : "Выберите query_id"}
                 </option>
                 {queryIds.map((q) => (
                   <option key={q.id} value={q.id}>
@@ -763,12 +768,7 @@ export default function DevTools() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Parameters (JSON)</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={loadExampleParams}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={loadExampleParams}>
                 Load Example
               </Button>
             </div>
@@ -779,7 +779,7 @@ export default function DevTools() {
               className="font-mono text-sm min-h-[150px]"
             />
           </div>
-          
+
           <Button
             onClick={handleSqlBuilderTest}
             disabled={sqlBuilderStatus === "loading" || !sqlBuilderQueryId.trim()}
@@ -856,7 +856,7 @@ export default function DevTools() {
               </div>
 
               {/* JSON Config */}
-              {sqlBuilderResult.config && (
+              {sqlBuilderResult.config !== undefined && (
                 <div className="space-y-2">
                   <Label>JSON Config</Label>
                   <div className="p-4 rounded-lg border bg-muted/30">

@@ -108,7 +108,8 @@ export const ERROR_MESSAGES: Record<AppErrorCode, string> = {
   [AppErrorCode.INTERNAL]: "Произошла ошибка на сервере. Попробуйте позже",
 
   // --- Специальные ---
-  [AppErrorCode.NETWORK]: "Не удаётся связаться с сервером. Проверьте интернет и попробуйте ещё раз",
+  [AppErrorCode.NETWORK]:
+    "Не удаётся связаться с сервером. Проверьте интернет и попробуйте ещё раз",
   [AppErrorCode.UNKNOWN]: "Произошла непредвиденная ошибка. Попробуйте позже",
 };
 

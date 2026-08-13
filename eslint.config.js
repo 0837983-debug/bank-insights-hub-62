@@ -45,10 +45,10 @@ export default tseslint.config(
       "no-var": "error",
       "prefer-const": "error",
       // Security rules
-      "security/detect-object-injection": "off",
+      "security/detect-object-injection": "warn",
       "security/detect-non-literal-regexp": "off",
       // Code quality rules
-      "sonarjs/cognitive-complexity": "off", // Too strict for now
+      "sonarjs/cognitive-complexity": "warn", // Ужесточено: был off, теперь warning
       "sonarjs/no-duplicate-string": "off",
     },
   },

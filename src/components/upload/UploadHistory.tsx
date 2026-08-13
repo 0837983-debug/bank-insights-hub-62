@@ -15,7 +15,14 @@ interface UploadHistoryProps {
   className?: string;
 }
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof FileText }> = {
+const statusConfig: Record<
+  string,
+  {
+    label: string;
+    variant: "default" | "secondary" | "destructive" | "outline";
+    icon: typeof FileText;
+  }
+> = {
   pending: { label: "Ожидание", variant: "outline", icon: Clock },
   processing: { label: "Обработка", variant: "secondary", icon: Clock },
   completed: { label: "Завершена", variant: "default", icon: CheckCircle2 },
@@ -42,19 +49,19 @@ interface UploadHistoryItemProps {
 // Конвертируем validationErrors из формата backend в формат frontend
 const convertValidationErrors = (errors: any): any[] | undefined => {
   if (!errors) return undefined;
-  
+
   // Если уже массив - возвращаем как есть
   if (Array.isArray(errors)) {
     return errors;
   }
-  
+
   // Если объект с examples/byType - конвертируем в массив
   if (errors.examples && Array.isArray(errors.examples)) {
     return errors.examples.map((ex: any) => {
-      const fieldInfo = ex.field ? `Поле "${ex.field}": ` : '';
-      const message = ex.message || 'Ошибка валидации';
+      const fieldInfo = ex.field ? `Поле "${ex.field}": ` : "";
+      const message = ex.message || "Ошибка валидации";
       return {
-        errorType: ex.type || 'unknown',
+        errorType: ex.type || "unknown",
         errorMessage: `${fieldInfo}${message}`,
         fieldName: ex.field,
         totalCount: errors.byType?.[ex.type] || 1,
@@ -62,20 +69,20 @@ const convertValidationErrors = (errors: any): any[] | undefined => {
       };
     });
   }
-  
+
   return undefined;
 };
 
 function UploadHistoryItem({ upload }: UploadHistoryItemProps) {
   const statusInfo = statusConfig[upload.status] || statusConfig.pending;
   const StatusIcon = statusInfo.icon;
-  
+
   // Всегда запрашиваем детали загрузки для failed статуса, чтобы получить validationErrors
   const { data: uploadDetails, isLoading: isLoadingDetails } = useUploadStatus(
     upload.status === "failed" ? upload.id : null,
     upload.status === "failed"
   );
-  
+
   // Используем validationErrors из деталей или из истории, конвертируем в нужный формат
   const rawErrors = uploadDetails?.validationErrors || upload.validationErrors;
   const validationErrors = convertValidationErrors(rawErrors);
@@ -92,7 +99,11 @@ function UploadHistoryItem({ upload }: UploadHistoryItemProps) {
             </span>
             {upload.targetTable && (
               <Badge variant="outline" className="text-xs">
-                {upload.targetTable === "balance" ? "Баланс" : upload.targetTable === "fin_results" ? "Финрез" : upload.targetTable}
+                {upload.targetTable === "balance"
+                  ? "Баланс"
+                  : upload.targetTable === "fin_results"
+                    ? "Финрез"
+                    : upload.targetTable}
               </Badge>
             )}
             <Badge variant={statusInfo.variant} className="text-xs">

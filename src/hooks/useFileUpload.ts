@@ -8,8 +8,6 @@ import {
   getUploadHistory,
   type UploadResponse,
   type UploadStatus,
-  type UploadSheets,
-  type UploadHistoryResponse,
 } from "@/lib/api";
 
 // Генерация уникального sessionId

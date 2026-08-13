@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 # Защитный контур перед фиксацией (через Husky).
 # 1. Блокирует прямые фиксации в защищённых ветках dev/main.
-# 2. Запускает unit-тесты (vitest) для проверки изменений.
-node "$(dirname -- "$0")/../scripts/block-protected-commit.mjs" && npm test
+# 2. Приводит staged-файлы к единому стилю и автоисправляет правила (Prettier + ESLint --fix).
+# 3. Запускает unit-тесты (vitest) для проверки изменений.
+node "$(dirname -- "$0")/../scripts/block-protected-commit.mjs" && \
+  node "$(dirname -- "$0")/../scripts/auto-fix-staged.mjs" && \
+  npm test

@@ -122,9 +122,7 @@ interface FinancialTableProps {
 export const FinancialTable = ({
   title,
   rows,
-  showPercentage = true,
   showChange = true,
-  periodLabel = "Значение",
   componentId,
   groupingOptions, // Deprecated
   activeGrouping: externalActiveGrouping, // Deprecated
@@ -136,19 +134,19 @@ export const FinancialTable = ({
 }: FinancialTableProps) => {
   // Получаем layout для доступа к форматам
   const { data: layout } = useLayout();
-  
+
   // Находим компонент в layout по componentId
   const component = componentId
     ? layout?.sections
         .flatMap((section) => section.components)
         .find((c) => c.componentId === componentId && c.type === "table")
     : null;
-  
+
   // Получаем форматы из layout
   const valueColumn = component?.columns?.find((col) => col.id === "value");
   const valueFormatId = valueColumn?.format || "currency_rub"; // fallback
   const percentageFormatId = "percent";
-  
+
   // Calculated форматы берутся динамически из sub_columns при рендеринге
   // Initial state: все группы свёрнуты по умолчанию
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
@@ -163,8 +161,8 @@ export const FinancialTable = ({
     });
     // Собираем ID всех групп (строки с детьми, кроме итогов)
     const groupIds = rows
-      .filter(r => (childMap.get(r.id)?.length ?? 0) > 0 && !r.isTotal)
-      .map(r => r.id);
+      .filter((r) => (childMap.get(r.id)?.length ?? 0) > 0 && !r.isTotal)
+      .map((r) => r.id);
     return new Set(groupIds);
   });
   // Deprecated: для обратной совместимости
@@ -173,47 +171,48 @@ export const FinancialTable = ({
     externalActiveGrouping !== undefined ? externalActiveGrouping : internalActiveGrouping;
   // Новое состояние для кнопок
   const [internalActiveButtonId, setInternalActiveButtonId] = useState<string | null>(null);
-  const activeButtonId = externalActiveButtonId !== undefined ? externalActiveButtonId : internalActiveButtonId;
+  const activeButtonId =
+    externalActiveButtonId !== undefined ? externalActiveButtonId : internalActiveButtonId;
   const [selectedRow, setSelectedRow] = useState<TableRowData | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  
+
   // Собираем все calculated sub_columns со всех числовых колонок
   const allCalculatedSubColumns = useMemo(() => {
     if (!component?.columns) return [];
-    return component.columns.flatMap(col => 
-      (col.sub_columns || []).filter(sub => sub.fieldType === 'calculated')
+    return component.columns.flatMap((col) =>
+      (col.sub_columns || []).filter((sub) => sub.fieldType === "calculated")
     );
   }, [component?.columns]);
-  
+
   // Список уникальных групп в порядке появления в layout
   const displayGroups = useMemo(() => {
     const groups = allCalculatedSubColumns
-      .map(f => f.displayGroup)
-      .filter((g): g is string => !!g);
-    return [...new Set(groups)];
+      .map((f) => f.displayGroup)
+      .filter((g): g is "percent" | "absolute" => g !== undefined);
+    return [...new Set(groups)] as ("percent" | "absolute")[];
   }, [allCalculatedSubColumns]);
-  
+
   // Определяем группу по умолчанию через isDefault
   const defaultDisplayGroup = useMemo(() => {
-    const fieldWithDefault = allCalculatedSubColumns.find(f => f.isDefault);
-    return fieldWithDefault?.displayGroup || displayGroups[0] || 'default';
+    const fieldWithDefault = allCalculatedSubColumns.find((f) => f.isDefault);
+    return fieldWithDefault?.displayGroup || displayGroups[0] || "default";
   }, [allCalculatedSubColumns, displayGroups]);
-  
+
   // Индекс группы по умолчанию
   const defaultGroupIndex = useMemo(() => {
-    const idx = displayGroups.indexOf(defaultDisplayGroup);
+    const idx = displayGroups.indexOf(defaultDisplayGroup as "percent" | "absolute");
     return idx >= 0 ? idx : 0;
   }, [displayGroups, defaultDisplayGroup]);
-  
+
   // Состояние: индекс активной группы
   const [activeGroupIndex, setActiveGroupIndex] = useState(defaultGroupIndex);
-  
+
   // Показываем toggle только если есть больше одной группы
   const hasDisplayGroupToggle = displayGroups.length > 1;
-  
+
   // Текущая активная группа
   const activeDisplayGroup = displayGroups[activeGroupIndex] || defaultDisplayGroup;
-  
+
   // Циклическое переключение групп
   const cycleDisplayGroup = useCallback(() => {
     setActiveGroupIndex((currentIndex) => {
@@ -231,26 +230,23 @@ export const FinancialTable = ({
   // Динамически создаёт calculated поля на основе layout sub_columns
   const getDetailRows = (row: TableRowData): TableRowData[] => {
     // Если нет children, генерируем mock детализацию
-    const displayName = [row.section, row.item, row.sub_item]
-      .filter(Boolean)
-      .join(' - ') || row.id;
-    
+    const displayName = [row.section, row.item, row.sub_item].filter(Boolean).join(" - ") || row.id;
+
     // Рассчитываем базовые значения для детализации
     const baseValue = row.value ?? 0;
     const basePreviousValue = row.previousValue ?? 0;
     const baseYtdValue = row.ytdValue ?? 0;
-    
+
     // Динамически собираем calculated sub_columns из layout
-    const calculatedSubColumns = valueColumn?.sub_columns?.filter(
-      (sub) => sub.fieldType === "calculated"
-    ) || [];
-    
+    const calculatedSubColumns =
+      valueColumn?.sub_columns?.filter((sub) => sub.fieldType === "calculated") || [];
+
     // Вычисляем calculated значение для mock данных
     const calcChange = (value: number, prevValue: number): number | undefined => {
       if (prevValue === 0) return 0;
       return Math.round(((value - prevValue) / prevValue) * 10000) / 10000;
     };
-    
+
     const createDetailRow = (id: string, suffix: string, multiplier: number): TableRowData => {
       const value = baseValue * multiplier;
       const previousValue = basePreviousValue * multiplier;
@@ -262,21 +258,21 @@ export const FinancialTable = ({
         ytdValue: baseYtdValue * multiplier,
         percentage: multiplier * 100,
       };
-      
+
       // Динамически добавляем calculated поля из layout
       if (calculatedSubColumns.length > 0) {
         const firstCalcId = calculatedSubColumns[0].id;
         baseRow[firstCalcId] = calcChange(value, previousValue);
       }
-      
+
       return baseRow;
     };
-    
+
     return [
-      createDetailRow(`${row.id}-d1`, 'Детализация 1', 0.35),
-      createDetailRow(`${row.id}-d2`, 'Детализация 2', 0.28),
-      createDetailRow(`${row.id}-d3`, 'Детализация 3', 0.22),
-      createDetailRow(`${row.id}-d4`, 'Детализация 4', 0.15),
+      createDetailRow(`${row.id}-d1`, "Детализация 1", 0.35),
+      createDetailRow(`${row.id}-d2`, "Детализация 2", 0.28),
+      createDetailRow(`${row.id}-d3`, "Детализация 3", 0.22),
+      createDetailRow(`${row.id}-d4`, "Детализация 4", 0.15),
     ];
   };
 
@@ -288,17 +284,17 @@ export const FinancialTable = ({
     }
     // Динамическое получение значения из row по имени колонки
     const value = (row as any)[column];
-    
+
     // Для числовых полей возвращаем число, для текстовых - строку
-    if (typeof value === 'number') {
+    if (typeof value === "number") {
       return value;
     }
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       return value;
     }
-    
+
     // Если значение не найдено, возвращаем пустую строку или 0
-    return '';
+    return "";
   }, []);
 
   const hasHierarchy = rows.some((r) => r.parentId || r.isGroup);
@@ -404,9 +400,9 @@ export const FinancialTable = ({
     for (let level = maxDepth; level >= 0; level--) {
       const groupsAtLevel = getCollapsibleRowsAtLevel(level);
       if (groupsAtLevel.length > 0) {
-      const hasExpandedAtLevel = groupsAtLevel.some((id) => !collapsedGroups.has(id));
-      if (hasExpandedAtLevel) {
-        return level;
+        const hasExpandedAtLevel = groupsAtLevel.some((id) => !collapsedGroups.has(id));
+        if (hasExpandedAtLevel) {
+          return level;
         }
       }
     }
@@ -419,9 +415,9 @@ export const FinancialTable = ({
     for (let level = 0; level <= maxDepth; level++) {
       const groupsAtLevel = getCollapsibleRowsAtLevel(level);
       if (groupsAtLevel.length > 0) {
-      const hasCollapsedAtLevel = groupsAtLevel.some((id) => collapsedGroups.has(id));
-      if (hasCollapsedAtLevel) {
-        return level;
+        const hasCollapsedAtLevel = groupsAtLevel.some((id) => collapsedGroups.has(id));
+        if (hasCollapsedAtLevel) {
+          return level;
         }
       }
     }
@@ -459,8 +455,8 @@ export const FinancialTable = ({
   // Вспомогательная функция: собрать все ID групп для сворачивания
   const getAllGroupIds = useCallback(() => {
     return rows
-      .filter(r => (childrenByParent.get(r.id)?.length ?? 0) > 0 && !r.isTotal)
-      .map(r => r.id);
+      .filter((r) => (childrenByParent.get(r.id)?.length ?? 0) > 0 && !r.isTotal)
+      .map((r) => r.id);
   }, [rows, childrenByParent]);
 
   // Deprecated: для обратной совместимости
@@ -498,56 +494,56 @@ export const FinancialTable = ({
         <div className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg font-semibold">{title}</CardTitle>
           <div className="flex items-center gap-1">
-          {/* Toggle для переключения display groups (одна кнопка, циклическое переключение) */}
-          {hasDisplayGroupToggle && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs px-3"
-                  onClick={cycleDisplayGroup}
-                  data-testid="btn-display-group-toggle"
-                >
-                  {activeDisplayGroup}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Переключить отображение</TooltipContent>
-            </Tooltip>
-          )}
-          {hasGroups && (
-            <>
+            {/* Toggle для переключения display groups (одна кнопка, циклическое переключение) */}
+            {hasDisplayGroupToggle && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={collapseOneLevel}
-                    data-testid="btn-collapse-level"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs px-3"
+                    onClick={cycleDisplayGroup}
+                    data-testid="btn-display-group-toggle"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    {activeDisplayGroup}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Свернуть уровень</TooltipContent>
+                <TooltipContent>Переключить отображение</TooltipContent>
               </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8" 
-                    onClick={expandOneLevel}
-                    data-testid="btn-expand-level"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Развернуть уровень</TooltipContent>
-              </Tooltip>
-            </>
-          )}
-        </div>
+            )}
+            {hasGroups && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={collapseOneLevel}
+                      data-testid="btn-collapse-level"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Свернуть уровень</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={expandOneLevel}
+                      data-testid="btn-expand-level"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Развернуть уровень</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Buttons from layout */}
@@ -569,8 +565,7 @@ export const FinancialTable = ({
             ))}
           </div>
         )}
-        
-        
+
         {/* Deprecated: Grouping buttons (для обратной совместимости) */}
         {groupingOptions && groupingOptions.length > 0 && !buttons && (
           <div className="flex flex-wrap gap-2">
@@ -606,40 +601,44 @@ export const FinancialTable = ({
                       </TableHead>
                     );
                   }
-                  
+
                   // Разделяем колонки на текстовые (иерархия) и числовые (метрики)
-                  const textColumns = component.columns.filter(col => col.type === 'string' || col.type === 'text');
-                  const numericColumns = component.columns.filter(col => col.type !== 'string' && col.type !== 'text');
-                  
+                  const textColumns = component.columns.filter(
+                    (col) => col.type === "string" || col.type === "text"
+                  );
+                  const numericColumns = component.columns.filter(
+                    (col) => col.type !== "string" && col.type !== "text"
+                  );
+
                   return (
                     <>
                       {/* Одна колонка "Показатель" для всей иерархии */}
                       {textColumns.length > 0 && (
                         <TableHead className="w-[50%]">
-                  <SortableHeader
-                    label="Показатель"
-                    column="name"
-                    currentColumn={sortState.column}
-                    direction={sortState.direction}
-                    onSort={handleSort}
-                    className="text-xs font-medium uppercase tracking-wider"
-                  />
-                  </TableHead>
-                )}
+                          <SortableHeader
+                            label="Показатель"
+                            column="name"
+                            currentColumn={sortState.column}
+                            direction={sortState.direction}
+                            onSort={handleSort}
+                            className="text-xs font-medium uppercase tracking-wider"
+                          />
+                        </TableHead>
+                      )}
                       {/* Числовые колонки */}
                       {numericColumns.map((col) => (
                         <TableHead key={col.id} className="text-right">
-                  <div className="flex justify-end">
-                    <SortableHeader
+                          <div className="flex justify-end">
+                            <SortableHeader
                               label={col.label || col.id}
                               column={col.id}
-                      currentColumn={sortState.column}
-                      direction={sortState.direction}
-                      onSort={handleSort}
-                      className="text-xs font-medium uppercase tracking-wider"
-                    />
-                  </div>
-                </TableHead>
+                              currentColumn={sortState.column}
+                              direction={sortState.direction}
+                              onSort={handleSort}
+                              className="text-xs font-medium uppercase tracking-wider"
+                            />
+                          </div>
+                        </TableHead>
                       ))}
                     </>
                   );
@@ -649,14 +648,19 @@ export const FinancialTable = ({
             <TableBody>
               {visibleRows.map((row) => {
                 // Разделяем колонки
-                const textColumns = component?.columns?.filter(col => col.type === 'string' || col.type === 'text') || [];
-                const numericColumns = component?.columns?.filter(col => col.type !== 'string' && col.type !== 'text') || [];
-                
+                const textColumns =
+                  component?.columns?.filter(
+                    (col) => col.type === "string" || col.type === "text"
+                  ) || [];
+                const numericColumns =
+                  component?.columns?.filter(
+                    (col) => col.type !== "string" && col.type !== "text"
+                  ) || [];
+
                 const hierarchyValues = textColumns
                   .map((col) => (row as any)[col.id])
                   .filter(Boolean);
-                const displayName =
-                  hierarchyValues[hierarchyValues.length - 1] || row.id;
+                const displayName = hierarchyValues[hierarchyValues.length - 1] || row.id;
                 const indentLevel = getIndentLevel(row);
                 const hasChildren = (childrenByParent.get(row.id)?.length ?? 0) > 0;
                 const isCollapsed = collapsedGroups.has(row.id);
@@ -670,67 +674,70 @@ export const FinancialTable = ({
                   >
                     {/* Колонка "Показатель" с иерархией */}
                     {textColumns.length > 0 && (
-                    <TableCell
-                      className="py-4"
+                      <TableCell
+                        className="py-4"
                         style={{ paddingLeft: `${indentLevel * 1.5 + 1}rem` }}
-                    >
-                      <div className="flex items-center gap-2">
-                        {hasChildren && (
-                          <button
+                      >
+                        <div className="flex items-center gap-2">
+                          {hasChildren && (
+                            <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleGroup(row.id);
                               }}
-                            className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
-                            data-testid={`btn-toggle-row-${row.id}`}
-                          >
-                            {isCollapsed ? (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            )}
-                          </button>
-                        )}
+                              className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                              data-testid={`btn-toggle-row-${row.id}`}
+                            >
+                              {isCollapsed ? (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </button>
+                          )}
                           {!hasChildren && indentLevel > 0 && (
                             <span className="w-5 flex-shrink-0" />
                           )}
-                        <span
-                          className={cn(
+                          <span
+                            className={cn(
                               row.isGroup && "font-semibold",
-                            row.isTotal && "font-bold"
-                          )}
-                        >
+                              row.isTotal && "font-bold"
+                            )}
+                          >
                             {displayName}
-                        </span>
-                        {row.description && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">{row.description}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
+                          </span>
+                          {row.description && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-sm">{row.description}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
                     )}
-                    
+
                     {/* Числовые колонки */}
                     {numericColumns.map((col) => {
                       const value = row[col.id];
-                      const formatId = col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
+                      const formatId =
+                        col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
                       const numValue = typeof value === "number" ? value : undefined;
-                      
+
                       // Динамически собираем calculated sub_columns из layout
                       // Фильтруем по activeDisplayGroup для показа только нужной группы
-                      const calculatedSubColumns = col.sub_columns?.filter(
-                        (sub) => sub.fieldType === "calculated" && 
-                        (sub.displayGroup || 'default') === activeDisplayGroup
-                      ) || [];
-                      
+                      const calculatedSubColumns =
+                        col.sub_columns?.filter(
+                          (sub) =>
+                            sub.fieldType === "calculated" &&
+                            (sub.displayGroup || "default") === activeDisplayGroup
+                        ) || [];
+
                       return (
                         <TableCell key={col.id} className="text-right py-4">
                           <div className="flex flex-col items-end gap-0.5">
@@ -743,11 +750,11 @@ export const FinancialTable = ({
                                 {calculatedSubColumns.map((subCol, idx) => {
                                   const subValue = row[subCol.id];
                                   if (typeof subValue !== "number") return null;
-                                  
+
                                   const subFormat = subCol.format || percentageFormatId;
                                   const isPositive = subValue > 0;
                                   const isNegative = subValue < 0;
-                                  
+
                                   return (
                                     <span
                                       key={subCol.id}
@@ -759,8 +766,12 @@ export const FinancialTable = ({
                                       )}
                                       title={subCol.label}
                                     >
-                                      {idx === 0 && isPositive && <TrendingUp className="w-3 h-3" />}
-                                      {idx === 0 && isNegative && <TrendingDown className="w-3 h-3" />}
+                                      {idx === 0 && isPositive && (
+                                        <TrendingUp className="w-3 h-3" />
+                                      )}
+                                      {idx === 0 && isNegative && (
+                                        <TrendingDown className="w-3 h-3" />
+                                      )}
                                       {idx > 0 && "("}
                                       {isPositive ? "+" : ""}
                                       {formatValue(subFormat, subValue)}
@@ -787,7 +798,12 @@ export const FinancialTable = ({
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
           <DialogHeader>
             <DialogTitle className="text-lg">
-              Детализация: {selectedRow ? [selectedRow.section, selectedRow.item, selectedRow.sub_item].filter(Boolean).join(' - ') || selectedRow.id : ''}
+              Детализация:{" "}
+              {selectedRow
+                ? [selectedRow.section, selectedRow.item, selectedRow.sub_item]
+                    .filter(Boolean)
+                    .join(" - ") || selectedRow.id
+                : ""}
             </DialogTitle>
           </DialogHeader>
 
@@ -795,13 +811,14 @@ export const FinancialTable = ({
             <div className="mt-4">
               {/* Динамически собираем calculated поля из layout для детализации */}
               {(() => {
-                const calculatedSubColumns = valueColumn?.sub_columns?.filter(
-                  (sub) => sub.fieldType === "calculated"
-                ) || [];
+                const calculatedSubColumns =
+                  valueColumn?.sub_columns?.filter((sub) => sub.fieldType === "calculated") || [];
                 const firstCalcSubCol = calculatedSubColumns[0];
-                const firstCalcValue = firstCalcSubCol ? selectedRow[firstCalcSubCol.id] : undefined;
+                const firstCalcValue = firstCalcSubCol
+                  ? selectedRow[firstCalcSubCol.id]
+                  : undefined;
                 const firstCalcFormat = firstCalcSubCol?.format || percentageFormatId;
-                
+
                 return (
                   <>
                     <div className="mb-4 p-4 bg-muted/30 rounded-lg">
@@ -809,7 +826,9 @@ export const FinancialTable = ({
                         <div>
                           <span className="text-muted-foreground">Значение:</span>
                           <span className="ml-2 font-semibold">
-                            {selectedRow.value !== undefined ? formatValue(valueFormatId, selectedRow.value) : "—"}
+                            {selectedRow.value !== undefined
+                              ? formatValue(valueFormatId, selectedRow.value)
+                              : "—"}
                           </span>
                         </div>
                         {selectedRow.percentage !== undefined && (
@@ -820,21 +839,25 @@ export const FinancialTable = ({
                             </span>
                           </div>
                         )}
-                        {firstCalcSubCol && typeof firstCalcValue === "number" && firstCalcValue !== 0 && (
-                          <div>
-                            <span className="text-muted-foreground">{firstCalcSubCol.label || "Изменение"}:</span>
-                            <span
-                              className={cn(
-                                "ml-2 font-semibold",
-                                firstCalcValue > 0 && "text-green-600",
-                                firstCalcValue < 0 && "text-red-600"
-                              )}
-                            >
-                              {firstCalcValue > 0 ? "+" : ""}
-                              {formatValue(firstCalcFormat, firstCalcValue)}
-                            </span>
-                          </div>
-                        )}
+                        {firstCalcSubCol &&
+                          typeof firstCalcValue === "number" &&
+                          firstCalcValue !== 0 && (
+                            <div>
+                              <span className="text-muted-foreground">
+                                {firstCalcSubCol.label || "Изменение"}:
+                              </span>
+                              <span
+                                className={cn(
+                                  "ml-2 font-semibold",
+                                  firstCalcValue > 0 && "text-green-600",
+                                  firstCalcValue < 0 && "text-red-600"
+                                )}
+                              >
+                                {firstCalcValue > 0 ? "+" : ""}
+                                {formatValue(firstCalcFormat, firstCalcValue)}
+                              </span>
+                            </div>
+                          )}
                       </div>
                     </div>
 
@@ -850,19 +873,22 @@ export const FinancialTable = ({
                       <TableBody>
                         {getDetailRows(selectedRow).map((detailRow) => {
                           // Динамически берём первое calculated поле из layout
-                          const detailCalcValue = firstCalcSubCol ? detailRow[firstCalcSubCol.id] : undefined;
-                          const isPositive = typeof detailCalcValue === "number" && detailCalcValue > 0;
-                          const isNegative = typeof detailCalcValue === "number" && detailCalcValue < 0;
-                          const detailDisplayName = [detailRow.section, detailRow.item, detailRow.sub_item]
-                            .filter(Boolean)
-                            .join(' - ') || detailRow.id;
+                          const detailCalcValue = firstCalcSubCol
+                            ? detailRow[firstCalcSubCol.id]
+                            : undefined;
+                          const isPositive =
+                            typeof detailCalcValue === "number" && detailCalcValue > 0;
+                          const isNegative =
+                            typeof detailCalcValue === "number" && detailCalcValue < 0;
+                          const detailDisplayName =
+                            [detailRow.section, detailRow.item, detailRow.sub_item]
+                              .filter(Boolean)
+                              .join(" - ") || detailRow.id;
 
                           return (
                             <TableRow key={detailRow.id} className="border-b border-border/50">
                               <TableCell className="py-3">
-                                <span className="font-medium">
-                                  {detailDisplayName}
-                                </span>
+                                <span className="font-medium">{detailDisplayName}</span>
                               </TableCell>
                               <TableCell className="text-right py-3">
                                 <span className="text-sm text-muted-foreground">
@@ -872,7 +898,9 @@ export const FinancialTable = ({
                                 </span>
                               </TableCell>
                               <TableCell className="text-right py-3 font-semibold">
-                                {detailRow.value !== undefined ? formatValue(valueFormatId, detailRow.value) : "—"}
+                                {detailRow.value !== undefined
+                                  ? formatValue(valueFormatId, detailRow.value)
+                                  : "—"}
                               </TableCell>
                               <TableCell className="text-right py-3">
                                 {typeof detailCalcValue === "number" && detailCalcValue !== 0 && (

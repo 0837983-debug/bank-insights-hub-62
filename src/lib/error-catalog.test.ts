@@ -4,12 +4,7 @@
  * - поведение toErrorMessage для разных типов ошибок.
  */
 import { describe, it, expect } from "vitest";
-import {
-  AppErrorCode,
-  ERROR_MESSAGES,
-  toErrorMessage,
-  type ErrorWithCode,
-} from "./error-catalog";
+import { AppErrorCode, ERROR_MESSAGES, toErrorMessage, type ErrorWithCode } from "./error-catalog";
 
 /** Класс, имитирующий APIError из lib/api.ts (для тестов без реальной сети). */
 class MockAPIError extends Error {

@@ -1,4 +1,4 @@
-export type ProgressStageStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+export type ProgressStageStatus = "pending" | "in_progress" | "completed" | "failed";
 
 export interface ProgressStage {
   code: string;
@@ -11,7 +11,7 @@ export interface ProgressStage {
 }
 
 export interface ProgressEvent {
-  type: 'connected' | 'init' | 'stage' | 'complete' | 'error';
+  type: "connected" | "init" | "stage" | "complete" | "error";
   sessionId: string;
   stage?: ProgressStage;
   stages?: ProgressStage[];
