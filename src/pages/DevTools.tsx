@@ -22,8 +22,6 @@ import {
   Database,
   Server,
   Globe,
-  Trash2,
-  Plus,
   Hash,
   Code,
   LayoutTemplate,
@@ -37,7 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { fetchLayout, API_BASE_URL, type Layout, type LayoutFormat } from "@/lib/api";
+import { fetchLayout, API_BASE_URL, type Layout } from "@/lib/api";
 import { formatValue, initializeFormats } from "@/lib/formatters";
 
 interface ServiceStatus {
@@ -368,18 +366,6 @@ export default function DevTools() {
       setDataModalResponse(error instanceof Error ? error.message : "Unknown error");
     }
   };
-
-  const getStatusIcon = (status: ServiceStatus["status"]) => {
-    switch (status) {
-      case "online":
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "offline":
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case "checking":
-        return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />;
-    }
-  };
-
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -856,7 +842,7 @@ export default function DevTools() {
               </div>
 
               {/* JSON Config */}
-              {sqlBuilderResult.config && (
+              {sqlBuilderResult.config !== undefined && (
                 <div className="space-y-2">
                   <Label>JSON Config</Label>
                   <div className="p-4 rounded-lg border bg-muted/30">

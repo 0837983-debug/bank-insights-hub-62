@@ -109,7 +109,7 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
     if (!kpi) return [];
     return calculatedFields.map((field) => {
       const value = field.calculationConfig 
-        ? executeCalculation(field.calculationConfig, kpi as Record<string, unknown>)
+        ? executeCalculation(field.calculationConfig, kpi as unknown as Record<string, unknown>)
         : undefined;
       return {
         id: field.id,

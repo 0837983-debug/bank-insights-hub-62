@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface UploadProgressProps {
   progress: number; // 0-100
-  status?: "pending" | "processing" | "completed" | "failed";
+  status?: "pending" | "processing" | "completed" | "failed" | "rolled_back";
   className?: string;
 }
 

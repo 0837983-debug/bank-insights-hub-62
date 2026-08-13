@@ -24,7 +24,7 @@ export default function FileUpload() {
   
   const fileUploaderRef = useRef<FileUploaderRef>(null);
 
-  const { upload, isLoading, progress, error, data: uploadResponse, isSuccess, reset } = useFileUpload({
+  const { upload, isLoading, progress, error, data: uploadResponse, reset } = useFileUpload({
     targetTable,
     onSuccess: (response) => {
       setUploadId(response.uploadId);
@@ -164,6 +164,17 @@ export default function FileUpload() {
     return undefined;
   })();
 
+  // Дополнительная детализация ошибки из поля error в data APIError.
+  // data имеет тип unknown, поэтому используется явное сужение типа.
+  const apiErrorDetail =
+    error instanceof APIError &&
+    error.data &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "error" in error.data ? (
+      <div className="mt-2 text-sm">{String((error.data as { error: unknown }).error)}</div>
+    ) : null;
+
   return (
     <main className="container mx-auto px-6 py-8 max-w-4xl">
         <h1 className="text-3xl font-bold mb-6">Загрузка файлов</h1>
@@ -256,11 +267,7 @@ export default function FileUpload() {
                   <AlertTitle>Ошибка загрузки</AlertTitle>
                   <AlertDescription data-testid="upload-error">
                     {toErrorMessage(error)}
-                    {error instanceof APIError && error.data && typeof error.data === 'object' && 'error' in error.data && (
-                      <div className="mt-2 text-sm">
-                        {String((error.data as any).error)}
-                      </div>
-                    )}
+                    {apiErrorDetail}
                   </AlertDescription>
                 </Alert>
               )}

@@ -14,12 +14,13 @@ describe("transformTableData", () => {
   describe("с columns из layout (универсальный режим)", () => {
     it("должен корректно обработать balance данные (class → section → item → sub_item)", () => {
       const apiData: TableData = {
+        componentId: "test",
+        type: "table",
         rows: [
           { id: "1", class: "Активы", section: "Денежные средства", item: "Касса", value: 1000, previousValue: 900, ytdValue: 800 },
           { id: "2", class: "Активы", section: "Денежные средства", item: "Расчётный счёт", value: 2000, previousValue: 1800, ytdValue: 1600 },
           { id: "3", class: "Активы", section: "Кредиты", item: "Корпоративные", value: 5000, previousValue: 4500, ytdValue: 4000 },
         ],
-        columns: [],
       };
 
       const columns: TestColumn[] = [
@@ -56,12 +57,13 @@ describe("transformTableData", () => {
 
     it("должен корректно обработать fin_results данные (class → category → item → subitem)", () => {
       const apiData: TableData = {
+        componentId: "test",
+        type: "table",
         rows: [
           { id: "1", class: "Доходы", category: "Процентные", item: "Кредиты ФЛ", value: 500, ppValue: 450, pyValue: 400 },
           { id: "2", class: "Доходы", category: "Процентные", item: "Кредиты ЮЛ", value: 800, ppValue: 750, pyValue: 700 },
           { id: "3", class: "Расходы", category: "Операционные", item: "Зарплата", value: 200, ppValue: 190, pyValue: 180 },
         ],
-        columns: [],
       };
 
       const columns: TestColumn[] = [
@@ -96,11 +98,12 @@ describe("transformTableData", () => {
   describe("без columns (обратная совместимость)", () => {
     it("должен использовать дефолтную иерархию class → section → item → sub_item", () => {
       const apiData: TableData = {
+        componentId: "test",
+        type: "table",
         rows: [
           { id: "1", class: "Активы", section: "Касса", value: 1000 },
           { id: "2", class: "Активы", section: "Счета", value: 2000 },
         ],
-        columns: [],
       };
 
       // Вызываем без columns
@@ -118,18 +121,19 @@ describe("transformTableData", () => {
 
   describe("edge cases", () => {
     it("должен возвращать пустой массив для пустых данных", () => {
-      const apiData: TableData = { rows: [], columns: [] };
+      const apiData: TableData = { componentId: "test", type: "table", rows: [] };
       const result = transformTableData(apiData);
       expect(result).toEqual([]);
     });
 
     it("должен корректно обрабатывать null/undefined значения в dimension полях", () => {
       const apiData: TableData = {
+        componentId: "test",
+        type: "table",
         rows: [
-          { id: "1", class: "Активы", section: null, item: undefined, value: 1000 },
+          { id: "1", class: "Активы", section: undefined, item: undefined, value: 1000 },
           { id: "2", class: "Активы", section: "Счета", value: 2000 },
         ],
-        columns: [],
       };
 
       const columns: TestColumn[] = [
@@ -147,10 +151,11 @@ describe("transformTableData", () => {
 
     it("должен рассчитывать ppChange и ytdChange для групп", () => {
       const apiData: TableData = {
+        componentId: "test",
+        type: "table",
         rows: [
           { id: "1", class: "Активы", value: 1000, previousValue: 800, ytdValue: 500 },
         ],
-        columns: [],
       };
 
       const columns: TestColumn[] = [

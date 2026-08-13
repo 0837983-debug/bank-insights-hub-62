@@ -12,8 +12,9 @@ import { toErrorMessage } from "@/lib/error-catalog";
 import {
   FinancialTable,
   type TableRowData,
+  type ButtonComponent,
 } from "@/components/FinancialTable";
-import type { LayoutComponent, TableData, FetchKPIsParams, FieldType, CalculationConfig, PeriodDate } from "@/lib/api";
+import type { LayoutComponent, TableData, FieldType, CalculationConfig, PeriodDate } from "@/lib/api";
 
 // Тип для колонки из layout с поддержкой fieldType
 interface LayoutColumn {
@@ -362,7 +363,10 @@ function DynamicTable({ component }: DynamicTableProps) {
     );
   }
 
-  const tableRows = transformTableData(transformedData, component.columns);
+  const tableRows = transformTableData(
+    transformedData as TableData,
+    component.columns
+  );
 
   return (
     <div className="mt-6">
@@ -373,7 +377,7 @@ function DynamicTable({ component }: DynamicTableProps) {
         showChange={true}
         tableId={component.componentId}
         componentId={component.componentId}
-        buttons={buttons.length > 0 ? buttons : undefined}
+        buttons={buttons.length > 0 ? (buttons as ButtonComponent[]) : undefined}
         activeButtonId={activeButtonId}
         onButtonClick={handleButtonClick}
         isLoading={isLoading}

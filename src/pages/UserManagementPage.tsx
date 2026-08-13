@@ -36,12 +36,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toErrorMessage } from "@/lib/error-catalog";
 
-const ROLE_LABELS: Record<Role, string> = {
-  super_admin: "Супер-админ",
-  manager: "Менеджер",
-  viewer: "Просмотр",
-};
-
 export default function UserManagementPage() {
   const { user: me } = useAuth();
   const [users, setUsers] = useState<AuthUser[]>([]);

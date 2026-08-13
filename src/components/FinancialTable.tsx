@@ -122,9 +122,7 @@ interface FinancialTableProps {
 export const FinancialTable = ({
   title,
   rows,
-  showPercentage = true,
   showChange = true,
-  periodLabel = "Значение",
   componentId,
   groupingOptions, // Deprecated
   activeGrouping: externalActiveGrouping, // Deprecated
@@ -189,8 +187,8 @@ export const FinancialTable = ({
   const displayGroups = useMemo(() => {
     const groups = allCalculatedSubColumns
       .map(f => f.displayGroup)
-      .filter((g): g is string => !!g);
-    return [...new Set(groups)];
+      .filter((g): g is "percent" | "absolute" => g !== undefined);
+    return [...new Set(groups)] as ("percent" | "absolute")[];
   }, [allCalculatedSubColumns]);
   
   // Определяем группу по умолчанию через isDefault
@@ -201,7 +199,7 @@ export const FinancialTable = ({
   
   // Индекс группы по умолчанию
   const defaultGroupIndex = useMemo(() => {
-    const idx = displayGroups.indexOf(defaultDisplayGroup);
+    const idx = displayGroups.indexOf(defaultDisplayGroup as "percent" | "absolute");
     return idx >= 0 ? idx : 0;
   }, [displayGroups, defaultDisplayGroup]);
   
