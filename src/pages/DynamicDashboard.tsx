@@ -14,6 +14,8 @@ import {
   type TableRowData,
   type ButtonComponent,
 } from "@/components/FinancialTable";
+import { DynamicChart } from "@/components/DynamicChart";
+import { DashboardCharts } from "@/components/DashboardCharts";
 import type {
   LayoutComponent,
   TableData,
@@ -278,28 +280,28 @@ function DynamicTable({ component }: DynamicTableProps) {
   // 2. Иначе используем queryId таблицы
   const queryId = activeButton?.queryId || component.queryId;
 
-  // Получаем dates из контекста родительского компонента
-  const dates = (component as any).dates; // TODO: типизировать через props
+  // Получаем dates из контекста родительского компонента (массив дат по убыванию)
+  const dates = (component as LayoutComponent & { dates?: string[] | null }).dates ?? null;
+
+  // Формируем параметры периодов { p1..p6 } из массива дат.
+  const periodParams = useMemo(() => {
+    if (!dates || dates.length === 0) return null;
+    const params: Record<string, string> = {};
+    dates.forEach((date, index) => {
+      params[`p${index + 1}`] = date;
+    });
+    return params;
+  }, [dates]);
 
   // Загружаем данные через getData с queryId из layout
   const {
     data: tableData,
     isLoading,
     error,
-  } = useGetData(
-    queryId || null,
-    dates
-      ? {
-          p1: dates.periodDate,
-          p2: dates.ppDate,
-          p3: dates.pyDate,
-        }
-      : {},
-    {
-      enabled: !!queryId && !!dates && !!component.componentId,
-      componentId: component.componentId,
-    }
-  );
+  } = useGetData(queryId || null, periodParams ?? {}, {
+    enabled: !!queryId && !!periodParams && !!component.componentId,
+    componentId: component.componentId,
+  });
 
   // Преобразуем данные из getData в формат TableData
   const transformedData = useMemo(() => {
@@ -360,14 +362,6 @@ function DynamicTable({ component }: DynamicTableProps) {
       <div className="mt-4">
         <Skeleton className="h-8 w-48 mb-4" />
         <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
-  if (!transformedData || !transformedData.rows || transformedData.rows.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground mt-4 p-4 border rounded-lg">
-        Нет данных для таблицы "{component.title}"
       </div>
     );
   }
@@ -435,7 +429,7 @@ export default function DynamicDashboard() {
       return [];
     }
 
-    // Преобразуем rows в PeriodDate[]
+    // Преобразуем rows в PeriodDate[] (поддерживает до 6 периодов)
     const dates = headerData.rows
       .map((row) => {
         const r = row as Record<string, unknown>;
@@ -444,6 +438,9 @@ export default function DynamicDashboard() {
           isP1: Boolean(r.isP1 || r.is_p1),
           isP2: Boolean(r.isP2 || r.is_p2),
           isP3: Boolean(r.isP3 || r.is_p3),
+          isP4: Boolean(r.isP4 || r.is_p4),
+          isP5: Boolean(r.isP5 || r.is_p5),
+          isP6: Boolean(r.isP6 || r.is_p6),
         } as PeriodDate;
       })
       .filter((d) => d.periodDate); // Фильтруем пустые
@@ -452,68 +449,58 @@ export default function DynamicDashboard() {
     return dates;
   }, [headerData]);
 
-  // Состояние для выбранных дат пользователем
-  const [selectedDates, setSelectedDates] = useState<{
-    p1: string | null;
-    p2: string | null;
-    p3: string | null;
-  }>({ p1: null, p2: null, p3: null });
+  // Состояние для выбранных дат пользователем (массив от 1 до 6, по убыванию)
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
-  // Инициализация выбранных дат по умолчанию из флагов isP1/isP2/isP3
+  // Инициализация выбранных дат по умолчанию из флагов isP1..isP6
   useEffect(() => {
-    if (availableDates.length > 0 && !selectedDates.p1) {
-      const defaultP1 = availableDates.find((d) => d.isP1)?.periodDate || null;
-      const defaultP2 = availableDates.find((d) => d.isP2)?.periodDate || null;
-      const defaultP3 = availableDates.find((d) => d.isP3)?.periodDate || null;
-
-      console.log("[DynamicDashboard] Setting default selected dates:", {
-        defaultP1,
-        defaultP2,
-        defaultP3,
-      });
-
-      setSelectedDates({ p1: defaultP1, p2: defaultP2, p3: defaultP3 });
+    if (availableDates.length > 0 && selectedDates.length === 0) {
+      const defaults: string[] = [];
+      const flags: Array<
+        keyof Pick<PeriodDate, "isP1" | "isP2" | "isP3" | "isP4" | "isP5" | "isP6">
+      > = ["isP1", "isP2", "isP3", "isP4", "isP5", "isP6"];
+      for (const flag of flags) {
+        const found = availableDates.find((d) => d[flag]);
+        if (found) defaults.push(found.periodDate);
+      }
+      console.log("[DynamicDashboard] Setting default selected dates:", defaults);
+      setSelectedDates(defaults);
     }
-  }, [availableDates, selectedDates.p1]);
+  }, [availableDates, selectedDates.length]);
 
-  // Обработчик применения выбора дат
-  const handleDateApply = useCallback(
-    (newDates: { p1: string; p2: string | null; p3: string | null }) => {
-      console.log("[DynamicDashboard] Applying new dates:", newDates);
-      setSelectedDates(newDates);
-    },
-    []
-  );
+  // Обработчик применения выбора дат (массив отсортированных по убыванию дат)
+  const handleDateApply = useCallback((newDates: string[]) => {
+    console.log("[DynamicDashboard] Applying new dates:", newDates);
+    setSelectedDates(newDates);
+  }, []);
 
-  // Преобразуем выбранные даты в формат для API
-  // dates используется для таблиц и KPI
+  // Преобразуем выбранные даты в формат для API.
+  // dates используется для таблиц и KPI. Каждый период — отдельный ключ p1..p6.
   const dates = useMemo(() => {
-    if (!selectedDates.p1) {
+    if (selectedDates.length === 0) {
       return null;
     }
-    return {
-      periodDate: selectedDates.p1,
-      ppDate: selectedDates.p2 || selectedDates.p1, // fallback на p1 если p2 не выбран
-      pyDate: selectedDates.p3 || selectedDates.p1, // fallback на p1 если p3 не выбран
-    };
+    return selectedDates;
   }, [selectedDates]);
 
-  // Загружаем KPIs через getData с параметрами дат и layout_id
-  // Убеждаемся, что все даты присутствуют перед вызовом
+  // Формируем объект параметров периодов { p1..p6 } из массива дат.
+  const periodParams = useMemo(() => {
+    if (!dates) return null;
+    const params: Record<string, string> = {};
+    dates.forEach((date, index) => {
+      params[`p${index + 1}`] = date;
+    });
+    return params;
+  }, [dates]);
+
+  // Загружаем KPIs через getData с параметрами дат и layout_id.
   const kpiParams = useMemo(() => {
-    if (!dates || !layout) return undefined;
-    // Проверяем, что все даты заполнены
-    if (!dates.periodDate || !dates.ppDate || !dates.pyDate) {
-      console.warn("[DynamicDashboard] Dates incomplete, skipping KPIs:", dates);
-      return undefined;
-    }
+    if (!periodParams || !layout) return undefined;
     return {
       layoutId: DEFAULT_LAYOUT_ID,
-      p1: dates.periodDate,
-      p2: dates.ppDate,
-      p3: dates.pyDate,
+      ...periodParams,
     };
-  }, [dates, layout]);
+  }, [periodParams, layout]);
 
   const {
     data: kpis,
@@ -650,14 +637,12 @@ export default function DynamicDashboard() {
               )}
             </div>
             {dates && (
-              <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                <span data-testid="header-date-periodDate">P1 (текущий): {dates.periodDate}</span>
-                {selectedDates.p2 && (
-                  <span data-testid="header-date-ppDate">P2 (пред. период): {dates.ppDate}</span>
-                )}
-                {selectedDates.p3 && (
-                  <span data-testid="header-date-pyDate">P3 (пред. год): {dates.pyDate}</span>
-                )}
+              <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
+                {dates.map((date, index) => (
+                  <span key={date} data-testid={`header-date-p${index + 1}`}>
+                    P{index + 1}: {date}
+                  </span>
+                ))}
               </div>
             )}
           </div>
@@ -683,6 +668,9 @@ export default function DynamicDashboard() {
                 </div>
               )}
 
+              {/* Наглядные графики по данным KPI для текущего раздела */}
+              {kpis.length > 0 && <DashboardCharts kpis={kpis} />}
+
               {/* Render tables from layout */}
               {section.components
                 .filter((c) => c.type === "table")
@@ -690,9 +678,16 @@ export default function DynamicDashboard() {
                   <DynamicTable
                     key={tableComponent.id}
                     component={
-                      { ...tableComponent, dates } as LayoutComponent & { dates: typeof dates }
+                      { ...tableComponent, dates } as LayoutComponent & { dates: string[] | null }
                     }
                   />
+                ))}
+
+              {/* Render charts from layout (тип "chart") */}
+              {section.components
+                .filter((c) => c.type === "chart")
+                .map((chartComponent) => (
+                  <DynamicChart key={chartComponent.id} component={chartComponent} dates={dates} />
                 ))}
             </CollapsibleSection>
           );

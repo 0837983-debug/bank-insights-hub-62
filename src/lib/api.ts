@@ -113,6 +113,9 @@ export interface PeriodDate {
   isP1: boolean;
   isP2: boolean;
   isP3: boolean;
+  isP4?: boolean;
+  isP5?: boolean;
+  isP6?: boolean;
 }
 
 // ============================================================================
@@ -296,8 +299,11 @@ export interface KPIMetric {
   id: string;
   componentId?: string; // ID компонента для сопоставления с layout (из v_kpi_all)
   value: number;
-  p2Value?: number; // Значение за предыдущий период (p2)
-  p3Value?: number; // Значение за прошлый год (p3)
+  p2Value?: number; // Значение за второй период (p2)
+  p3Value?: number; // Значение за третий период (p3)
+  p4Value?: number; // Значение за четвёртый период (p4)
+  p5Value?: number; // Значение за пятый период (p5)
+  p6Value?: number; // Значение за шестой период (p6)
   // Deprecated fields (для обратной совместимости, удалить после полного перехода)
   change?: number;
   previousValue?: number;
@@ -316,6 +322,9 @@ export interface FetchKPIsParams {
   p1?: string; // periodDate
   p2?: string; // ppDate
   p3?: string; // pyDate
+  p4?: string;
+  p5?: string;
+  p6?: string;
 }
 
 /**
@@ -339,6 +348,15 @@ export async function fetchAllKPIs(params?: FetchKPIsParams): Promise<KPIMetric[
   }
   if (params?.p3 && params.p3.trim() !== "") {
     paramsObject.p3 = params.p3;
+  }
+  if (params?.p4 && params.p4.trim() !== "") {
+    paramsObject.p4 = params.p4;
+  }
+  if (params?.p5 && params.p5.trim() !== "") {
+    paramsObject.p5 = params.p5;
+  }
+  if (params?.p6 && params.p6.trim() !== "") {
+    paramsObject.p6 = params.p6;
   }
 
   const paramsJson = JSON.stringify(paramsObject);
