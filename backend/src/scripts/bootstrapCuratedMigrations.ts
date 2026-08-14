@@ -75,4 +75,5 @@ export const BOOTSTRAP_CURATED_MIGRATIONS = [
   "079_fix_dashboard_config_gaps.sql",
   "080_create_schema_migrations_table.sql",
   "081_create_auth_tables.sql",
+  "082_flexible_periods_up_to_6.sql",
 ] as const;

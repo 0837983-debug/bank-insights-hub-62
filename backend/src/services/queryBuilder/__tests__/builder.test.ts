@@ -53,11 +53,36 @@ const mockAssetsTableConfig: QueryConfig = {
       else: null,
       as: "pyValue",
     },
+    {
+      type: "case_agg",
+      func: "sum",
+      when: { field: "period_date", op: "=", value: ":p4" },
+      then: { field: "value" },
+      else: null,
+      as: "p4Value",
+    },
+    {
+      type: "case_agg",
+      func: "sum",
+      when: { field: "period_date", op: "=", value: ":p5" },
+      then: { field: "value" },
+      else: null,
+      as: "p5Value",
+    },
+    {
+      type: "case_agg",
+      func: "sum",
+      when: { field: "period_date", op: "=", value: ":p6" },
+      then: { field: "value" },
+      else: null,
+      as: "p6Value",
+    },
   ],
   where: {
     op: "and",
     items: [
       { field: "class", op: "=", value: "Активы" },
+      { field: "period_date", op: "in", value: [":p1", ":p2", ":p3", ":p4", ":p5", ":p6"] },
     ],
   },
   groupBy: ["class", "section"],
@@ -67,6 +92,9 @@ const mockAssetsTableConfig: QueryConfig = {
     p1: "date",
     p2: "date",
     p3: "date",
+    p4: "date",
+    p5: "date",
+    p6: "date",
   },
 };
 
@@ -236,9 +264,7 @@ describe("SQL Builder v1", () => {
         select: [{ type: "column", field: "class" }],
         where: {
           op: "and",
-          items: [
-            { field: "is_active", op: "=", value: ":active" },
-          ],
+          items: [{ field: "is_active", op: "=", value: ":active" }],
         },
         params: {},
         paramTypes: {
@@ -264,9 +290,7 @@ describe("SQL Builder v1", () => {
         select: [{ type: "column", field: "class" }],
         where: {
           op: "and",
-          items: [
-            { field: "class", op: "=", value: ":class" },
-          ],
+          items: [{ field: "class", op: "=", value: ":class" }],
         },
         params: {},
         paramTypes: {
@@ -352,7 +376,7 @@ describe("SQL Builder v1", () => {
 
       // Проверка SQL структуры
       expect(sql).toContain("SELECT");
-      expect(sql).toContain("FROM \"mart\".\"kpi_metrics\"");
+      expect(sql).toContain('FROM "mart"."kpi_metrics"');
       expect(sql).toContain("MAX");
       expect(sql).toContain("period_date");
     });
@@ -369,7 +393,7 @@ describe("SQL Builder v1", () => {
 
       // Проверка SQL структуры
       expect(sql).toContain("SELECT");
-      expect(sql).toContain("FROM \"mart\".\"balance\"");
+      expect(sql).toContain('FROM "mart"."balance"');
       expect(sql).toContain("WHERE");
       expect(sql).toContain("GROUP BY");
       expect(sql).toContain("ORDER BY");
@@ -392,36 +416,39 @@ describe("SQL Builder v1", () => {
 
     it("должен выбросить ошибку 'invalid config' для несуществующего query_id", async () => {
       const paramsJson = JSON.stringify({});
-      await expect(
-        buildQueryFromId("non_existent_query", paramsJson)
-      ).rejects.toThrow("invalid config");
+      await expect(buildQueryFromId("non_existent_query", paramsJson)).rejects.toThrow(
+        "invalid config"
+      );
     });
 
-    it("должен выбросить ошибку 'invalid params' при отсутствии требуемых параметров", async () => {
-      // assets_table требует параметры p1, p2, p3 (class захардкожен в конфиге)
+    it("не должен бросать ошибку при отсутствии периодных параметров (они опциональны)", async () => {
+      // Периоды (p1..p6) опциональны: если пользователь выбрал меньше периодов,
+      // часть не передаётся — это не ошибка. class захардкожен в конфиге.
       const paramsJson = JSON.stringify({});
-      await expect(
-        buildQueryFromId("assets_table", paramsJson)
-      ).rejects.toThrow("invalid params");
+      const sql = await buildQueryFromId("assets_table", paramsJson);
+      expect(sql).toContain("SELECT");
+      expect(sql).toContain('FROM "mart"."balance"');
     });
 
     it("должен выбросить ошибку 'invalid JSON' при невалидном JSON", async () => {
-      await expect(
-        buildQueryFromId("assets_table", "invalid json")
-      ).rejects.toThrow("invalid JSON");
+      await expect(buildQueryFromId("assets_table", "invalid json")).rejects.toThrow(
+        "invalid JSON"
+      );
     });
 
-    it("должен выбросить ошибку 'invalid params' при лишних параметрах", async () => {
+    it("должен игнорировать лишние параметры (не ошибка)", async () => {
+      // При гибком числе периодов фронт передаёт p1..p6, часть из которых
+      // конфиг может не использовать. Лишние параметры не должны ломать запрос.
       const params = {
         p1: "2025-08-01",
         p2: "2025-07-01",
         p3: "2024-08-01",
-        extraParam: "should not be here", // Лишний параметр
+        extraParam: "should not be here",
       };
       const paramsJson = JSON.stringify(params);
-      await expect(
-        buildQueryFromId("assets_table", paramsJson)
-      ).rejects.toThrow("invalid params");
+      const sql = await buildQueryFromId("assets_table", paramsJson);
+      expect(sql).toContain("SELECT");
+      expect(sql).toContain('FROM "mart"."balance"');
     });
 
     it("должен корректно обрабатывать числовые параметры в конфиге из БД", async () => {
@@ -430,7 +457,7 @@ describe("SQL Builder v1", () => {
       const params = {};
       const paramsJson = JSON.stringify(params);
       const sql = await buildQueryFromId("header_dates", paramsJson);
-      
+
       // SQL должен быть валидным
       expect(sql).toBeTruthy();
       expect(typeof sql).toBe("string");
@@ -452,7 +479,7 @@ describe("SQL Builder v1", () => {
       };
 
       const sql = buildQuery(config, { class: "test value" });
-      
+
       expect(sql).toContain("'test value'");
       expect(sql).not.toContain('"test value"');
     });
@@ -470,7 +497,7 @@ describe("SQL Builder v1", () => {
       };
 
       const sql = buildQuery(config, { date: "2025-01-15" });
-      
+
       expect(sql).toContain("'2025-01-15'");
     });
 
@@ -490,7 +517,7 @@ describe("SQL Builder v1", () => {
       };
 
       const sql = buildQuery(config, { min: 100, max: 1000 });
-      
+
       expect(sql).toContain("> 100");
       expect(sql).toContain("<= 1000");
       expect(sql).not.toContain("'100'");
@@ -533,7 +560,7 @@ describe("SQL Builder v1", () => {
       };
 
       const sql = buildQuery(config, { class: "test'value" });
-      
+
       // Одинарные кавычки должны быть экранированы как ''
       expect(sql).toContain("'test''value'");
     });
@@ -553,7 +580,7 @@ describe("SQL Builder v1", () => {
       const sql = buildQuery(config, {}, false);
 
       expect(sql).toContain("SELECT");
-      expect(sql).toContain("FROM \"mart\".\"balance\"");
+      expect(sql).toContain('FROM "mart"."balance"');
       expect(sql).not.toContain("json_agg");
       expect(sql).not.toContain("row_to_json");
     });
@@ -567,9 +594,7 @@ describe("SQL Builder v1", () => {
         select: [{ type: "column", field: "class" }],
         where: {
           op: "and",
-          items: [
-            { field: "class", op: "=", value: ":class" },
-          ],
+          items: [{ field: "class", op: "=", value: ":class" }],
         },
         params: {},
         paramTypes: {
@@ -588,7 +613,7 @@ describe("SQL Builder v1", () => {
 
       // Проверка, что базовый SQL присутствует внутри
       expect(sql).toContain("SELECT");
-      expect(sql).toContain("FROM \"mart\".\"balance\"");
+      expect(sql).toContain('FROM "mart"."balance"');
       expect(sql).toContain("'assets'");
     });
 
@@ -604,9 +629,7 @@ describe("SQL Builder v1", () => {
         ],
         where: {
           op: "and",
-          items: [
-            { field: "class", op: "=", value: ":class" },
-          ],
+          items: [{ field: "class", op: "=", value: ":class" }],
         },
         groupBy: ["class"],
         orderBy: [{ field: "class", direction: "asc" }],
@@ -635,9 +658,9 @@ describe("SQL Builder v1", () => {
       });
 
       const headerParamsJson = JSON.stringify({});
-      await expect(
-        buildQueryFromId("header_dates_no_wrap", headerParamsJson)
-      ).rejects.toThrow("wrap_json=false");
+      await expect(buildQueryFromId("header_dates_no_wrap", headerParamsJson)).rejects.toThrow(
+        "wrap_json=false"
+      );
     });
 
     it("должен создавать валидный SQL с json_agg для исполнения", () => {
@@ -658,11 +681,11 @@ describe("SQL Builder v1", () => {
       // Проверка структуры SQL с json_agg
       expect(sql).toMatch(/^SELECT json_agg\(row_to_json\(t\)\) FROM \(/);
       expect(sql).toMatch(/\) t$/);
-      
+
       // Проверка, что внутренний SELECT корректен
       expect(sql).toContain('SELECT "class", "section"');
       expect(sql).toContain('FROM "mart"."balance"');
-      
+
       // Проверка, что SQL синтаксически корректен (нет незакрытых скобок)
       const openParens = (sql.match(/\(/g) || []).length;
       const closeParens = (sql.match(/\)/g) || []).length;
@@ -678,9 +701,7 @@ describe("SQL Builder v1", () => {
         select: [{ type: "column", field: "class" }],
         where: {
           op: "and",
-          items: [
-            { field: "class", op: "=", value: ":class" },
-          ],
+          items: [{ field: "class", op: "=", value: ":class" }],
         },
         params: {},
         paramTypes: {
@@ -695,9 +716,176 @@ describe("SQL Builder v1", () => {
       expect(sql).toContain("json_agg");
       expect(sql).toContain("row_to_json");
       expect(sql).toContain("'non_existent'");
-      
+
       // Структура должна быть корректной
       expect(sql).toMatch(/SELECT json_agg\(row_to_json\(t\)\) FROM \(/);
+    });
+  });
+
+  describe("Гибкие периоды (1..6)", () => {
+    const flexibleConfig: QueryConfig = {
+      from: { schema: "mart", table: "balance" },
+      select: [
+        { type: "column", field: "class" },
+        {
+          type: "case_agg",
+          func: "sum",
+          when: { field: "period_date", op: "=", value: ":p1" },
+          then: { field: "value" },
+          else: null,
+          as: "value",
+        },
+        {
+          type: "case_agg",
+          func: "sum",
+          when: { field: "period_date", op: "=", value: ":p2" },
+          then: { field: "value" },
+          else: null,
+          as: "p2Value",
+        },
+        {
+          type: "case_agg",
+          func: "sum",
+          when: { field: "period_date", op: "=", value: ":p3" },
+          then: { field: "value" },
+          else: null,
+          as: "p3Value",
+        },
+        {
+          type: "case_agg",
+          func: "sum",
+          when: { field: "period_date", op: "=", value: ":p4" },
+          then: { field: "value" },
+          else: null,
+          as: "p4Value",
+        },
+        {
+          type: "case_agg",
+          func: "sum",
+          when: { field: "period_date", op: "=", value: ":p5" },
+          then: { field: "value" },
+          else: null,
+          as: "p5Value",
+        },
+        {
+          type: "case_agg",
+          func: "sum",
+          when: { field: "period_date", op: "=", value: ":p6" },
+          then: { field: "value" },
+          else: null,
+          as: "p6Value",
+        },
+      ],
+      where: {
+        op: "and",
+        items: [
+          { field: "period_date", op: "in", value: [":p1", ":p2", ":p3", ":p4", ":p5", ":p6"] },
+        ],
+      },
+      groupBy: ["class"],
+      params: {},
+      paramTypes: { p1: "date", p2: "date", p3: "date", p4: "date", p5: "date", p6: "date" },
+    };
+
+    it("должен построить SQL для 6 переданных периодов", () => {
+      const sql = buildQuery(flexibleConfig, {
+        p1: "2026-08-01",
+        p2: "2026-07-01",
+        p3: "2026-06-01",
+        p4: "2026-05-01",
+        p5: "2026-04-01",
+        p6: "2026-03-01",
+      });
+
+      // Все 6 дат должны присутствовать в WHERE IN
+      expect(sql).toContain("'2026-08-01'");
+      expect(sql).toContain("'2026-07-01'");
+      expect(sql).toContain("'2026-06-01'");
+      expect(sql).toContain("'2026-05-01'");
+      expect(sql).toContain("'2026-04-01'");
+      expect(sql).toContain("'2026-03-01'");
+
+      // Все 6 case_agg (6 раз SUM(CASE WHEN))
+      expect((sql.match(/SUM\(CASE WHEN/g) || []).length).toBe(6);
+    });
+
+    it("должен пропустить непереданные периоды (например выбрано только 3)", () => {
+      const sql = buildQuery(flexibleConfig, {
+        p1: "2026-08-01",
+        p2: "2026-07-01",
+        p3: "2026-06-01",
+      });
+
+      // Присутствуют только 3 переданные даты
+      expect(sql).toContain("'2026-08-01'");
+      expect(sql).toContain("'2026-07-01'");
+      expect(sql).toContain("'2026-06-01'");
+      expect(sql).not.toContain("'2026-05-01'");
+      expect(sql).not.toContain("'2026-04-01'");
+      expect(sql).not.toContain("'2026-03-01'");
+
+      // Только 3 case_agg для периодов
+      expect((sql.match(/SUM\(CASE WHEN/g) || []).length).toBe(3);
+
+      // В WHERE IN только 3 даты
+      expect(sql).not.toContain("p4Value");
+      expect(sql).not.toContain("p5Value");
+      expect(sql).not.toContain("p6Value");
+    });
+
+    it("должен поддерживать выбор одного периода", () => {
+      const sql = buildQuery(flexibleConfig, { p1: "2026-08-01" });
+
+      expect(sql).toContain("'2026-08-01'");
+      expect((sql.match(/SUM\(CASE WHEN/g) || []).length).toBe(1);
+      expect(sql).not.toContain("'2026-07-01'");
+    });
+
+    it("должен игнорировать лишние параметры (excess) без ошибки", () => {
+      const sql = buildQuery(flexibleConfig, {
+        p1: "2026-08-01",
+        p2: "2026-07-01",
+        extraParam: "лишний",
+      });
+      expect(sql).toContain("'2026-08-01'");
+      expect(sql).toContain("'2026-07-01'");
+    });
+
+    it("должен корректно строить SQL через buildQueryFromId с 6 периодами", async () => {
+      vi.spyOn(queryLoader, "loadQueryConfig").mockResolvedValueOnce({
+        config: flexibleConfig,
+        wrapJson: true,
+      });
+      const sql = await buildQueryFromId(
+        "flexible",
+        JSON.stringify({
+          p1: "2026-08-01",
+          p2: "2026-07-01",
+          p3: "2026-06-01",
+          p4: "2026-05-01",
+          p5: "2026-04-01",
+          p6: "2026-03-01",
+        })
+      );
+      expect(sql).toContain("json_agg");
+      expect((sql.match(/SUM\(CASE WHEN/g) || []).length).toBe(6);
+    });
+
+    it("должен корректно строить SQL через buildQueryFromId с 3 периодами", async () => {
+      vi.spyOn(queryLoader, "loadQueryConfig").mockResolvedValueOnce({
+        config: flexibleConfig,
+        wrapJson: true,
+      });
+      const sql = await buildQueryFromId(
+        "flexible",
+        JSON.stringify({
+          p1: "2026-08-01",
+          p2: "2026-07-01",
+          p3: "2026-06-01",
+        })
+      );
+      expect(sql).toContain("json_agg");
+      expect((sql.match(/SUM\(CASE WHEN/g) || []).length).toBe(3);
     });
   });
 });

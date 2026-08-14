@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sparkline } from "@/components/Sparkline";
 import { cn } from "@/lib/utils";
 import { useLayout, useAllKPIs } from "@/hooks/useAPI";
 import { formatValue } from "@/lib/formatters";
@@ -170,6 +171,24 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
     return groupedFields.get(targetGroup) || [];
   }, [hasToggle, showAbsolute, groupedFields, availableGroups, defaultGroup]);
 
+  // Ряд значений для спарклайна тренда. Порядок — от самого раннего периода
+  // к текущему (P6 → ... → P1), чтобы при росте показателя линия шла вверх.
+  // Поддерживает до 6 периодов; используем только присутствующие значения.
+  // Хук вызывается до раннего return, поэтому правила React Hooks соблюдаются.
+  const sparklineValues = useMemo(() => {
+    const targetKpi = kpis?.find((k) => (k.componentId ?? k.id) === componentKey);
+    if (!targetKpi) return [];
+    const periodValues = [
+      targetKpi.p6Value,
+      targetKpi.p5Value,
+      targetKpi.p4Value,
+      targetKpi.p3Value,
+      targetKpi.p2Value,
+      targetKpi.value,
+    ];
+    return periodValues.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  }, [kpis, componentKey]);
+
   // Все хуки (useState, useMemo) вызваны выше — теперь можно досрочно выйти,
   // если компонент или KPI не найдены.
   if (!component || !kpi) {
@@ -217,6 +236,11 @@ export const KPICard = ({ componentId, kpis: kpisFromProps }: KPICardProps) => {
             </TooltipProvider>
           </div>
           <h3 className="text-xl font-bold text-foreground">{formattedValue}</h3>
+          {sparklineValues.length >= 2 && (
+            <div className="mt-1.5 text-muted-foreground">
+              <Sparkline values={sparklineValues} />
+            </div>
+          )}
           {activeFields.length > 0 && (
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               {activeFields.map((field, index) => {

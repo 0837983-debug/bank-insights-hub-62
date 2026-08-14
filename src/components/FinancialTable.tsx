@@ -646,148 +646,156 @@ export const FinancialTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleRows.map((row) => {
-                // Разделяем колонки
-                const textColumns =
-                  component?.columns?.filter(
-                    (col) => col.type === "string" || col.type === "text"
-                  ) || [];
-                const numericColumns =
-                  component?.columns?.filter(
-                    (col) => col.type !== "string" && col.type !== "text"
-                  ) || [];
+              {visibleRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={100} className="text-center py-8 text-muted-foreground">
+                    Нет данных для таблицы "{title}"
+                  </TableCell>
+                </TableRow>
+              ) : (
+                visibleRows.map((row) => {
+                  // Разделяем колонки
+                  const textColumns =
+                    component?.columns?.filter(
+                      (col) => col.type === "string" || col.type === "text"
+                    ) || [];
+                  const numericColumns =
+                    component?.columns?.filter(
+                      (col) => col.type !== "string" && col.type !== "text"
+                    ) || [];
 
-                const hierarchyValues = textColumns
-                  .map((col) => (row as any)[col.id])
-                  .filter(Boolean);
-                const displayName = hierarchyValues[hierarchyValues.length - 1] || row.id;
-                const indentLevel = getIndentLevel(row);
-                const hasChildren = (childrenByParent.get(row.id)?.length ?? 0) > 0;
-                const isCollapsed = collapsedGroups.has(row.id);
+                  const hierarchyValues = textColumns
+                    .map((col) => (row as any)[col.id])
+                    .filter(Boolean);
+                  const displayName = hierarchyValues[hierarchyValues.length - 1] || row.id;
+                  const indentLevel = getIndentLevel(row);
+                  const hasChildren = (childrenByParent.get(row.id)?.length ?? 0) > 0;
+                  const isCollapsed = collapsedGroups.has(row.id);
 
-                return (
-                  <TableRow
-                    key={row.id}
-                    className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onDoubleClick={() => handleRowDoubleClick(row)}
-                    data-testid={`table-row-${row.id}`}
-                  >
-                    {/* Колонка "Показатель" с иерархией */}
-                    {textColumns.length > 0 && (
-                      <TableCell
-                        className="py-4"
-                        style={{ paddingLeft: `${indentLevel * 1.5 + 1}rem` }}
-                      >
-                        <div className="flex items-center gap-2">
-                          {hasChildren && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleGroup(row.id);
-                              }}
-                              className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
-                              data-testid={`btn-toggle-row-${row.id}`}
-                            >
-                              {isCollapsed ? (
-                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                              )}
-                            </button>
-                          )}
-                          {!hasChildren && indentLevel > 0 && (
-                            <span className="w-5 flex-shrink-0" />
-                          )}
-                          <span
-                            className={cn(
-                              row.isGroup && "font-semibold",
-                              row.isTotal && "font-bold"
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className="border-b border-border/50 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onDoubleClick={() => handleRowDoubleClick(row)}
+                      data-testid={`table-row-${row.id}`}
+                    >
+                      {/* Колонка "Показатель" с иерархией */}
+                      {textColumns.length > 0 && (
+                        <TableCell
+                          className="py-4"
+                          style={{ paddingLeft: `${indentLevel * 1.5 + 1}rem` }}
+                        >
+                          <div className="flex items-center gap-2">
+                            {hasChildren && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleGroup(row.id);
+                                }}
+                                className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                                data-testid={`btn-toggle-row-${row.id}`}
+                              >
+                                {isCollapsed ? (
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </button>
                             )}
-                          >
-                            {displayName}
-                          </span>
-                          {row.description && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <p className="text-sm">{row.description}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                      </TableCell>
-                    )}
-
-                    {/* Числовые колонки */}
-                    {numericColumns.map((col) => {
-                      const value = row[col.id];
-                      const formatId =
-                        col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
-                      const numValue = typeof value === "number" ? value : undefined;
-
-                      // Динамически собираем calculated sub_columns из layout
-                      // Фильтруем по activeDisplayGroup для показа только нужной группы
-                      const calculatedSubColumns =
-                        col.sub_columns?.filter(
-                          (sub) =>
-                            sub.fieldType === "calculated" &&
-                            (sub.displayGroup || "default") === activeDisplayGroup
-                        ) || [];
-
-                      return (
-                        <TableCell key={col.id} className="text-right py-4">
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className="font-semibold text-foreground">
-                              {numValue !== undefined ? formatValue(formatId, numValue) : "—"}
+                            {!hasChildren && indentLevel > 0 && (
+                              <span className="w-5 flex-shrink-0" />
+                            )}
+                            <span
+                              className={cn(
+                                row.isGroup && "font-semibold",
+                                row.isTotal && "font-bold"
+                              )}
+                            >
+                              {displayName}
                             </span>
-                            {/* Динамический рендеринг calculated полей в порядке layout */}
-                            {showChange && calculatedSubColumns.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1 text-sm">
-                                {calculatedSubColumns.map((subCol, idx) => {
-                                  const subValue = row[subCol.id];
-                                  if (typeof subValue !== "number") return null;
-
-                                  const subFormat = subCol.format || percentageFormatId;
-                                  const isPositive = subValue > 0;
-                                  const isNegative = subValue < 0;
-
-                                  return (
-                                    <span
-                                      key={subCol.id}
-                                      className={cn(
-                                        "flex items-center gap-0.5",
-                                        isPositive && "text-green-600",
-                                        isNegative && "text-red-600",
-                                        !isPositive && !isNegative && "text-muted-foreground"
-                                      )}
-                                      title={subCol.label}
-                                    >
-                                      {idx === 0 && isPositive && (
-                                        <TrendingUp className="w-3 h-3" />
-                                      )}
-                                      {idx === 0 && isNegative && (
-                                        <TrendingDown className="w-3 h-3" />
-                                      )}
-                                      {idx > 0 && "("}
-                                      {isPositive ? "+" : ""}
-                                      {formatValue(subFormat, subValue)}
-                                      {idx > 0 && ")"}
-                                    </span>
-                                  );
-                                })}
-                              </div>
+                            {row.description && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <InfoIcon className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="text-sm">{row.description}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                           </div>
                         </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
+                      )}
+
+                      {/* Числовые колонки */}
+                      {numericColumns.map((col) => {
+                        const value = row[col.id];
+                        const formatId =
+                          col.format || (col.id === "value" ? valueFormatId : percentageFormatId);
+                        const numValue = typeof value === "number" ? value : undefined;
+
+                        // Динамически собираем calculated sub_columns из layout
+                        // Фильтруем по activeDisplayGroup для показа только нужной группы
+                        const calculatedSubColumns =
+                          col.sub_columns?.filter(
+                            (sub) =>
+                              sub.fieldType === "calculated" &&
+                              (sub.displayGroup || "default") === activeDisplayGroup
+                          ) || [];
+
+                        return (
+                          <TableCell key={col.id} className="text-right py-4">
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="font-semibold text-foreground">
+                                {numValue !== undefined ? formatValue(formatId, numValue) : "—"}
+                              </span>
+                              {/* Динамический рендеринг calculated полей в порядке layout */}
+                              {showChange && calculatedSubColumns.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 text-sm">
+                                  {calculatedSubColumns.map((subCol, idx) => {
+                                    const subValue = row[subCol.id];
+                                    if (typeof subValue !== "number") return null;
+
+                                    const subFormat = subCol.format || percentageFormatId;
+                                    const isPositive = subValue > 0;
+                                    const isNegative = subValue < 0;
+
+                                    return (
+                                      <span
+                                        key={subCol.id}
+                                        className={cn(
+                                          "flex items-center gap-0.5",
+                                          isPositive && "text-green-600",
+                                          isNegative && "text-red-600",
+                                          !isPositive && !isNegative && "text-muted-foreground"
+                                        )}
+                                        title={subCol.label}
+                                      >
+                                        {idx === 0 && isPositive && (
+                                          <TrendingUp className="w-3 h-3" />
+                                        )}
+                                        {idx === 0 && isNegative && (
+                                          <TrendingDown className="w-3 h-3" />
+                                        )}
+                                        {idx > 0 && "("}
+                                        {isPositive ? "+" : ""}
+                                        {formatValue(subFormat, subValue)}
+                                        {idx > 0 && ")"}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         )}

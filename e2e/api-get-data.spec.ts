@@ -32,13 +32,13 @@ test.describe("GET /api/data - getData endpoint", () => {
       expect(response.status()).toBe(200);
 
       const responseData = await response.json();
-      
+
       // Проверка структуры ответа (новый формат)
       expect(responseData).toBeDefined();
       expect(responseData).toHaveProperty("componentId");
       expect(responseData).toHaveProperty("type");
       expect(responseData).toHaveProperty("rows");
-      
+
       // header_dates возвращает даты в rows
       expect(Array.isArray(responseData.rows)).toBe(true);
       if (responseData.rows.length > 0) {
@@ -62,16 +62,16 @@ test.describe("GET /api/data - getData endpoint", () => {
       expect(response.status()).toBe(200);
 
       const responseData = await response.json();
-      
+
       // Проверка структуры ответа (новый формат)
       expect(responseData).toBeDefined();
       expect(responseData).toHaveProperty("componentId");
       expect(responseData).toHaveProperty("type");
       expect(responseData).toHaveProperty("rows");
-      
+
       // assets_table возвращает массив строк в rows
       expect(Array.isArray(responseData.rows)).toBe(true);
-      
+
       // Если есть данные, проверяем структуру первой строки
       if (responseData.rows.length > 0) {
         const firstRow = responseData.rows[0];
@@ -83,7 +83,9 @@ test.describe("GET /api/data - getData endpoint", () => {
     });
 
     // POST запросы к /api/data удалены, используем только GET
-    test.skip("should accept POST request with query_id and params in body", async ({ authedRequest }) => {
+    test.skip("should accept POST request with query_id and params in body", async ({
+      authedRequest,
+    }) => {
       // POST endpoint удален, используем GET вместо этого
       test.skip();
     });
@@ -95,18 +97,20 @@ test.describe("GET /api/data - getData endpoint", () => {
   });
 
   test.describe("Error handling - invalid params", () => {
-    test("should return 400 for missing required params", async ({ authedRequest }) => {
-      // assets_table требует параметры p1, p2, p3 через parametrs
+    test("should handle missing optional period params (flexible periods)", async ({
+      authedRequest,
+    }) => {
+      // При гибкой настройке периодов параметры p1..p6 опциональны:
+      // запрос без периодов возвращает 200 со структурой без периодных значений.
       const paramsStr = encodeURIComponent(JSON.stringify({})); // Пустые параметры
       const response = await authedRequest.get(
         `${API_BASE_URL}/data?query_id=assets_table&component_Id=assets_table&parametrs=${paramsStr}`
       );
 
-      expect(response.status()).toBe(400);
-      
-      const error = await response.json();
-      expect(error).toHaveProperty("code");
-      expect(error.code).toMatch(/QUERY_INVALID_PARAMS|QUERY_INVALID_CONFIG/i);
+      expect(response.status()).toBe(200);
+      const data = await response.json();
+      expect(data).toHaveProperty("componentId");
+      expect(data).toHaveProperty("rows");
     });
 
     test("should return 400 for invalid query_id", async ({ authedRequest }) => {
@@ -115,19 +119,17 @@ test.describe("GET /api/data - getData endpoint", () => {
       );
 
       expect(response.status()).toBe(400);
-      
+
       const error = await response.json();
       expect(error).toHaveProperty("code");
       expect(error.code).toMatch(/QUERY_INVALID_CONFIG/i);
     });
 
     test("should return 400 for missing query_id", async ({ authedRequest }) => {
-      const response = await authedRequest.get(
-        `${API_BASE_URL}/data?component_Id=test`
-      );
+      const response = await authedRequest.get(`${API_BASE_URL}/data?component_Id=test`);
 
       expect(response.status()).toBe(400);
-      
+
       const error = await response.json();
       expect(error).toHaveProperty("code");
     });
@@ -139,7 +141,7 @@ test.describe("GET /api/data - getData endpoint", () => {
       );
 
       expect(response.status()).toBe(400);
-      
+
       const error = await response.json();
       expect(error).toHaveProperty("code");
     });
@@ -150,17 +152,17 @@ test.describe("GET /api/data - getData endpoint", () => {
       // Попытка использовать несуществующую таблицу через невалидный конфиг
       // Для этого нужно создать тестовый конфиг с невалидным SQL или использовать существующий
       // с параметрами, которые приведут к SQL ошибке
-      
+
       // Используем валидный query_id, но с параметрами, которые могут вызвать SQL ошибку
       // Например, передадим невалидную дату в параметрах (хотя валидация должна быть на уровне builder)
-      
+
       // Альтернативно: проверяем обработку SQL ошибок через существующий запрос
       // с параметрами, которые могут вызвать проблему на уровне БД
-      
+
       // Для теста SQL ошибки можно использовать запрос с невалидными данными
       // Но так как builder валидирует параметры, SQL ошибка может возникнуть только
       // при проблемах с БД или структурой таблиц
-      
+
       // Пропускаем этот тест, так как сложно воспроизвести SQL ошибку без изменения БД
       // В реальном сценарии SQL ошибки обрабатываются корректно (проверено в коде)
       test.skip();
@@ -183,7 +185,7 @@ test.describe("GET /api/data - getData endpoint", () => {
       );
 
       expect(response.ok()).toBeTruthy();
-      
+
       const responseData = await response.json();
       expect(responseData).toHaveProperty("componentId");
       expect(responseData).toHaveProperty("type");
@@ -197,10 +199,10 @@ test.describe("GET /api/data - getData endpoint", () => {
       );
 
       expect(response.ok()).toBeTruthy();
-      
+
       const contentType = response.headers()["content-type"];
       expect(contentType).toContain("application/json");
-      
+
       const responseData = await response.json();
       expect(responseData).toBeDefined();
       expect(responseData).toHaveProperty("componentId");
@@ -227,7 +229,7 @@ test.describe("GET /api/data - getData endpoint", () => {
       );
 
       expect(response.status()).toBe(400);
-      
+
       const error = await response.json();
       expect(error).toHaveProperty("code");
     });
