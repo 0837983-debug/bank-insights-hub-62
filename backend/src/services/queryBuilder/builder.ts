@@ -2,12 +2,7 @@
  * SQL Builder - генерация SQL с подставленными значениями из JSON-конфига
  */
 
-import type {
-  QueryConfig,
-  SelectItem,
-  WhereItem,
-  ParamValue,
-} from "./types.js";
+import type { QueryConfig, SelectItem, WhereItem, ParamValue } from "./types.js";
 import { loadQueryConfig } from "./queryLoader.js";
 
 /**
@@ -36,10 +31,10 @@ class ValueSubstitutor {
       // Это прямое значение, экранируем как строку
       return escapeStringValue(paramName);
     }
-    
+
     const name = paramName.substring(1); // Убираем ":"
     const value = this.params[name];
-    
+
     if (value === undefined) {
       throw new Error("invalid params");
     }
@@ -59,6 +54,65 @@ class ValueSubstitutor {
       }
     }
   }
+
+  /**
+   * Проверить, передан ли параметр (по имени без ":")
+   * Используется для опциональных периодов: если период не передан,
+   * соответствующая агрегация пропускается.
+   * @param name - имя параметра без префикса ":"
+   */
+  has(name: string): boolean {
+    return this.params[name] !== undefined;
+  }
+}
+
+/**
+ * Определить, является ли имя параметра периодным (p1..p6).
+ * Периодные параметры опциональны: если пользователь выбрал меньше периодов,
+ * часть из них не передаётся, что не является ошибкой.
+ * @param name - имя параметра без префикса ":"
+ */
+function isPeriodParam(name: string): boolean {
+  return /^p\d+$/.test(name);
+}
+
+/**
+ * Проверить, ссылается ли значение on периодного параметра, который НЕ передан.
+ * Используется для гибкого числа периодов: если параметр периода отсутствует,
+ * соответствующая агрегация или условие IN пропускаются.
+ * @param value - значение параметра (строка ":name", массив или диапазон)
+ * @param substitutor - подстановщик значений с доступом к переданным параметрам
+ */
+function isMissingParam(
+  value: ParamValue | ParamValue[] | { from: ParamValue; to: ParamValue } | null | undefined,
+  substitutor: ValueSubstitutor
+): boolean {
+  if (value === null || value === undefined) return false;
+
+  if (Array.isArray(value)) {
+    // Массив считается отсутствующим, если ВСЕ его элементы — непереданные параметры.
+    const refs = value.filter((v): v is string => typeof v === "string" && v.startsWith(":"));
+    return refs.length > 0 && refs.every((v) => !substitutor.has(v.substring(1)));
+  }
+
+  if (typeof value === "string") {
+    if (value.startsWith(":")) {
+      return !substitutor.has(value.substring(1));
+    }
+    return false;
+  }
+
+  if (typeof value === "object") {
+    const from = value.from as ParamValue;
+    const to = value.to as ParamValue;
+    const fromMissing =
+      typeof from === "string" && from.startsWith(":") && !substitutor.has(from.substring(1));
+    const toMissing =
+      typeof to === "string" && to.startsWith(":") && !substitutor.has(to.substring(1));
+    return fromMissing || toMissing;
+  }
+
+  return false;
 }
 
 /**
@@ -108,7 +162,7 @@ function formatValueForSQL(
   switch (paramType) {
     case "string":
       return escapeStringValue(String(value));
-    
+
     case "number": {
       // Проверяем, что это валидное число
       const numValue = typeof value === "number" ? value : parseFloat(String(value));
@@ -117,10 +171,10 @@ function formatValueForSQL(
       }
       return String(numValue);
     }
-    
+
     case "boolean":
       return value === true ? "TRUE" : "FALSE";
-    
+
     case "date": {
       // Форматируем дату в YYYY-MM-DD
       const date = value instanceof Date ? value : new Date(String(value));
@@ -132,7 +186,7 @@ function formatValueForSQL(
       const day = String(date.getDate()).padStart(2, "0");
       return escapeStringValue(`${year}-${month}-${day}`);
     }
-    
+
     default:
       return escapeStringValue(String(value));
   }
@@ -141,10 +195,7 @@ function formatValueForSQL(
 /**
  * Построение SELECT выражения
  */
-function buildSelect(
-  items: SelectItem[],
-  substitutor: ValueSubstitutor
-): string {
+function buildSelect(items: SelectItem[], substitutor: ValueSubstitutor): string {
   const selectParts: string[] = [];
 
   for (const item of items) {
@@ -166,9 +217,15 @@ function buildSelect(
       }
 
       case "case_agg": {
+        // Опциональные периоды: если периодный параметр (например :p3) не передан,
+        // эта агрегация полностью пропускается. Это даёт гибкое число периодов.
+        if (isMissingParam(item.when.value, substitutor)) {
+          break;
+        }
+
         const funcName = item.func.toUpperCase();
         const whenField = escapeIdentifier(item.when.field);
-        
+
         // Построение WHEN условия
         let whenCondition: string;
         if (item.when.op === "is_null") {
@@ -176,7 +233,9 @@ function buildSelect(
         } else if (item.when.op === "is_not_null") {
           whenCondition = `${whenField} IS NOT NULL`;
         } else if (item.when.op === "in") {
-          const values = (item.when.value as ParamValue[]).map((v) => substitutor.getValue(v));
+          const rawValues = item.when.value as ParamValue[];
+          const filtered = rawValues.filter((v) => !isMissingParam(v, substitutor));
+          const values = filtered.map((v) => substitutor.getValue(v));
           whenCondition = `${whenField} IN (${values.join(", ")})`;
         } else if (item.when.op === "between") {
           const betweenValue = item.when.value as { from: ParamValue; to: ParamValue };
@@ -193,10 +252,8 @@ function buildSelect(
 
         // THEN и ELSE
         const thenField = escapeIdentifier(item.then.field);
-        const elsePart = item.else
-          ? `ELSE ${escapeIdentifier(item.else.field)}`
-          : "ELSE NULL";
-        
+        const elsePart = item.else ? `ELSE ${escapeIdentifier(item.else.field)}` : "ELSE NULL";
+
         const alias = item.as ? ` AS ${escapeIdentifier(item.as)}` : "";
         selectParts.push(
           `${funcName}(CASE WHEN ${whenCondition} THEN ${thenField} ${elsePart} END)${alias}`
@@ -230,7 +287,15 @@ function buildWhere(
     } else if (item.op === "is_not_null") {
       whereParts.push(`${field} IS NOT NULL`);
     } else if (item.op === "in") {
-      const values = (item.value as ParamValue[]).map((v) => substitutor.getValue(v));
+      // Для IN-условия отбрасываем непереданные периодные параметры, чтобы
+      // поддерживать гибкое число периодов (например p3 не выбран пользователем).
+      const rawValues = item.value as ParamValue[];
+      const filtered = rawValues.filter((v) => !isMissingParam(v, substitutor));
+      // Если все элементы отфильтрованы — условие исключаем полностью.
+      if (filtered.length === 0) {
+        continue;
+      }
+      const values = filtered.map((v) => substitutor.getValue(v));
       whereParts.push(`${field} IN (${values.join(", ")})`);
     } else if (item.op === "between") {
       const betweenValue = item.value as { from: ParamValue; to: ParamValue };
@@ -284,31 +349,30 @@ export function buildQuery(
   const substitutor = new ValueSubstitutor(params, config.paramTypes);
 
   try {
-    // Собираем список всех требуемых параметров из конфига
+    // Собираем список требуемых параметров из конфига.
+    // Периодные параметры (p1..p6) опциональны и в обязательный список не входят,
+    // т.к. пользователь может выбрать меньшее число периодов.
     const requiredParams = new Set<string>();
-    
+    const addParam = (paramValue: unknown): void => {
+      if (typeof paramValue === "string" && paramValue.startsWith(":")) {
+        const name = paramValue.substring(1);
+        if (!isPeriodParam(name)) {
+          requiredParams.add(name);
+        }
+      }
+    };
+
     // Из SELECT (case_agg)
     for (const item of config.select) {
       if (item.type === "case_agg") {
-        if (item.when.value) {
-          if (Array.isArray(item.when.value)) {
-            item.when.value.forEach((v) => {
-              if (typeof v === "string" && v.startsWith(":")) {
-                requiredParams.add(v.substring(1));
-              }
-            });
-          } else if (typeof item.when.value === "string") {
-            if (item.when.value.startsWith(":")) {
-              requiredParams.add(item.when.value.substring(1));
-            }
-          } else if (typeof item.when.value === "object" && item.when.value !== null) {
-            if (typeof item.when.value.from === "string" && item.when.value.from.startsWith(":")) {
-              requiredParams.add(item.when.value.from.substring(1));
-            }
-            if (typeof item.when.value.to === "string" && item.when.value.to.startsWith(":")) {
-              requiredParams.add(item.when.value.to.substring(1));
-            }
-          }
+        const whenValue = item.when.value;
+        if (Array.isArray(whenValue)) {
+          whenValue.forEach(addParam);
+        } else if (typeof whenValue === "string") {
+          addParam(whenValue);
+        } else if (typeof whenValue === "object" && whenValue !== null) {
+          addParam(whenValue.from);
+          addParam(whenValue.to);
         }
       }
     }
@@ -316,25 +380,13 @@ export function buildQuery(
     // Из WHERE
     if (config.where) {
       for (const item of config.where.items) {
-        if (item.value) {
-          if (Array.isArray(item.value)) {
-            item.value.forEach((v) => {
-              if (typeof v === "string" && v.startsWith(":")) {
-                requiredParams.add(v.substring(1));
-              }
-            });
-          } else if (typeof item.value === "string") {
-            if (item.value.startsWith(":")) {
-              requiredParams.add(item.value.substring(1));
-            }
-          } else if (typeof item.value === "object") {
-            if (typeof item.value.from === "string" && item.value.from.startsWith(":")) {
-              requiredParams.add(item.value.from.substring(1));
-            }
-            if (typeof item.value.to === "string" && item.value.to.startsWith(":")) {
-              requiredParams.add(item.value.to.substring(1));
-            }
-          }
+        if (Array.isArray(item.value)) {
+          item.value.forEach(addParam);
+        } else if (typeof item.value === "string") {
+          addParam(item.value);
+        } else if (typeof item.value === "object" && item.value !== null) {
+          addParam(item.value.from);
+          addParam(item.value.to);
         }
       }
     }
@@ -414,36 +466,26 @@ export function buildQuery(
  * @param providedParams - объект переданных параметров
  * @throws Error с детальным описанием missing/excess параметров
  */
-function validateParams(
-  requiredParams: Set<string>,
-  providedParams: Record<string, any>
-): void {
+function validateParams(requiredParams: Set<string>, providedParams: Record<string, any>): void {
   const providedParamNames = new Set(Object.keys(providedParams));
   const missing: string[] = [];
-  const excess: string[] = [];
 
-  // Проверяем missing параметры
+  // Проверяем missing параметры (обязательные, но не переданные)
   for (const requiredParam of requiredParams) {
     if (!providedParamNames.has(requiredParam)) {
       missing.push(requiredParam);
     }
   }
 
-  // Проверяем excess параметры (все переданные должны быть в требуемых)
-  for (const providedParam of providedParamNames) {
-    if (!requiredParams.has(providedParam)) {
-      excess.push(providedParam);
-    }
-  }
+  // Проверка excess параметров намеренно убрана: при гибком числе периодов
+  // фронт передаёт параметры p1..p6, часть которых конфиг может не использовать.
+  // Лишние параметры не являются ошибкой — они безопасно игнорируются.
 
   // Если есть ошибки, выбрасываем исключение с деталями
-  if (missing.length > 0 || excess.length > 0) {
+  if (missing.length > 0) {
     const errorParts: string[] = [];
     if (missing.length > 0) {
       errorParts.push(`missing params: ${missing.join(", ")}`);
-    }
-    if (excess.length > 0) {
-      errorParts.push(`excess params: ${excess.join(", ")}`);
     }
     throw new Error(`invalid params: ${errorParts.join("; ")}`);
   }
@@ -456,10 +498,7 @@ function validateParams(
  * @returns готовый SQL запрос с подставленными значениями
  * @throws Error с детальным описанием ошибок (invalid JSON, invalid config, invalid params, wrap_json=false)
  */
-export async function buildQueryFromId(
-  queryId: string,
-  paramsJson: string
-): Promise<string> {
+export async function buildQueryFromId(queryId: string, paramsJson: string): Promise<string> {
   // 1. Парсинг paramsJson с валидацией JSON
   let params: Record<string, string | number | boolean | Date>;
   try {
@@ -485,31 +524,29 @@ export async function buildQueryFromId(
     throw new Error("wrap_json=false: query must have wrapJson=true");
   }
 
-  // 4. Получение списка требуемых параметров из конфига
+  // 4. Получение списка требуемых параметров из конфига.
+  // Периодные параметры (p1..p6) опциональны и в обязательный список не входят.
   const requiredParams = new Set<string>();
-  
+  const addParam = (paramValue: unknown): void => {
+    if (typeof paramValue === "string" && paramValue.startsWith(":")) {
+      const name = paramValue.substring(1);
+      if (!isPeriodParam(name)) {
+        requiredParams.add(name);
+      }
+    }
+  };
+
   // Из SELECT (case_agg)
   for (const item of queryConfigWithWrap.config.select) {
     if (item.type === "case_agg") {
-      if (item.when.value) {
-        if (Array.isArray(item.when.value)) {
-          item.when.value.forEach((v) => {
-            if (typeof v === "string" && v.startsWith(":")) {
-              requiredParams.add(v.substring(1));
-            }
-          });
-        } else if (typeof item.when.value === "string") {
-          if (item.when.value.startsWith(":")) {
-            requiredParams.add(item.when.value.substring(1));
-          }
-        } else if (typeof item.when.value === "object" && item.when.value !== null) {
-          if (typeof item.when.value.from === "string" && item.when.value.from.startsWith(":")) {
-            requiredParams.add(item.when.value.from.substring(1));
-          }
-          if (typeof item.when.value.to === "string" && item.when.value.to.startsWith(":")) {
-            requiredParams.add(item.when.value.to.substring(1));
-          }
-        }
+      const whenValue = item.when.value;
+      if (Array.isArray(whenValue)) {
+        whenValue.forEach(addParam);
+      } else if (typeof whenValue === "string") {
+        addParam(whenValue);
+      } else if (typeof whenValue === "object" && whenValue !== null) {
+        addParam(whenValue.from);
+        addParam(whenValue.to);
       }
     }
   }
@@ -517,25 +554,13 @@ export async function buildQueryFromId(
   // Из WHERE
   if (queryConfigWithWrap.config.where) {
     for (const item of queryConfigWithWrap.config.where.items) {
-      if (item.value) {
-        if (Array.isArray(item.value)) {
-          item.value.forEach((v) => {
-            if (typeof v === "string" && v.startsWith(":")) {
-              requiredParams.add(v.substring(1));
-            }
-          });
-        } else if (typeof item.value === "string") {
-          if (item.value.startsWith(":")) {
-            requiredParams.add(item.value.substring(1));
-          }
-        } else if (typeof item.value === "object") {
-          if (typeof item.value.from === "string" && item.value.from.startsWith(":")) {
-            requiredParams.add(item.value.from.substring(1));
-          }
-          if (typeof item.value.to === "string" && item.value.to.startsWith(":")) {
-            requiredParams.add(item.value.to.substring(1));
-          }
-        }
+      if (Array.isArray(item.value)) {
+        item.value.forEach(addParam);
+      } else if (typeof item.value === "string") {
+        addParam(item.value);
+      } else if (typeof item.value === "object" && item.value !== null) {
+        addParam(item.value.from);
+        addParam(item.value.to);
       }
     }
   }
