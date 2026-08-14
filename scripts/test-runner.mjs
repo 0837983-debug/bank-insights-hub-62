@@ -49,6 +49,39 @@ const PACKAGES = [
   },
 ];
 
+/** Имя контейнера тестового backend. */
+const TEST_BACKEND_CONTAINER = "bank-insights-backend-test";
+
+/**
+ * Перезапускает тестовый backend и дожидается его готовности.
+ *
+ * Тестовый backend монтирует исходники из volume и запускается через
+ * `tsx watch`, который не всегда корректно перехватывает изменения кода
+ * при монтировании через docker volume. Из-за этого e2e-тесты могут
+ * выполняться на устаревшем коде и падать ложными ошибками. Принудительный
+ * перезапуск контейнера гарантирует, что тесты идут на свежем коде.
+ */
+function restartTestBackend() {
+  console.log(`\n=== Перезапускаю тестовый backend (${TEST_BACKEND_CONTAINER}) для актуализации кода ===`);
+  execSync(`docker restart ${TEST_BACKEND_CONTAINER}`, {
+    stdio: "inherit",
+    timeout: 60000,
+  });
+
+  // Ожидаем готовности backend (до 60 секунд с шагом 2 секунды).
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    if (isTestBackendReady()) {
+      console.log("=== Тестовый backend готов после перезапуска ===\n");
+      return;
+    }
+    execSync("sleep 2", { stdio: "inherit" });
+  }
+  throw new Error(
+    `Тестовый backend не стал доступен после перезапуска (${TEST_BACKEND_CONTAINER})`
+  );
+}
+
 /** Проверяет, доступен ли тестовый backend (3002). */
 export function isTestBackendReady() {
   try {
@@ -77,6 +110,9 @@ export function runTests(hookName = "pre-push") {
 
   console.log(`\n=== [${hookName}] Наполняю тестовую БД (seed) для безопасных пакетов ===`);
   execSync(TEST_DB_SEED, { env, stdio: "inherit", timeout: 1200000 });
+
+  // Перезапускаем тестовый backend, чтобы e2e-тесты шли на свежем коде.
+  restartTestBackend();
 
   for (const pkg of PACKAGES) {
     console.log(
